@@ -1,69 +1,107 @@
-import Image from "next/image";
+import * as React from 'react';
+import type { Metadata } from 'next';
+import { LandingNavbar } from '@/components/landing/landing-navbar';
+import { LandingHero } from '@/components/landing/landing-hero';
+import { TrustBar } from '@/components/landing/trust-bar';
+import { TemplateShowcase } from '@/components/landing/template-showcase';
+import { ValueProposition } from '@/components/landing/value-proposition';
+import { HowItWorks } from '@/components/landing/how-it-works';
+import { CustomizationBrandDemo } from '@/components/landing/customization-brand-demo';
+import { ProductsShowcase } from '@/components/landing/products-showcase';
+import { LeadsCrmSection } from '@/components/landing/leads-crm-section';
+import { ResponsiveSection } from '@/components/landing/responsive-section';
+import { EditorExperienceSection } from '@/components/landing/editor-experience-section';
+import { SpeedArchitecture } from '@/components/landing/speed-architecture';
+import { FeatureBentoGrid } from '@/components/landing/feature-bento-grid';
+import { DashboardPreview } from '@/components/landing/dashboard-preview';
+import { FutureVision } from '@/components/landing/future-vision';
+import { PricingSection } from '@/components/landing/pricing-section';
+import { FaqSection } from '@/components/landing/faq-section';
+import { FinalCta } from '@/components/landing/final-cta';
+import { LandingFooter } from '@/components/landing/landing-footer';
 
-export default function Home() {
+export const metadata: Metadata = {
+  title: 'KDBA — Build Your Business Website Without Code',
+  description:
+    'Create a professional website with KDBA. Choose a template, add your brand, showcase your products, and publish your website without coding.',
+  openGraph: {
+    title: 'KDBA — Build a Website That Feels Like Your Business',
+    description:
+      'Create a professional business website in minutes. Choose a template, add your brand, and publish live — no coding required.',
+    url: 'https://kdba.agency',
+    siteName: 'KDBA Studio',
+    locale: 'en_US',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'KDBA — Build Your Business Website Without Code',
+    description:
+      'Create a professional website with KDBA. Choose a template, add your brand, and publish live with zero coding.',
+  },
+};
+
+export default function HomePage() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+    <div className="min-h-screen bg-slate-950 text-slate-100 selection:bg-amber-500 selection:text-slate-950 font-sans antialiased overflow-x-hidden">
+      {/* Sticky Navigation Bar */}
+      <LandingNavbar />
+
+      <main className="flex flex-col w-full">
+        {/* 1. Hero Section + Interactive Website Builder Demo */}
+        <LandingHero />
+
+        {/* 2. Capability-Based Trust Bar */}
+        <TrustBar />
+
+        {/* 3. Template Showcase & Category Filters */}
+        <TemplateShowcase />
+
+        {/* 4. Value Proposition (4 Large Feature Cards) */}
+        <ValueProposition />
+
+        {/* 5. How It Works (5-Step Guided Workflow Timeline) */}
+        <HowItWorks />
+
+        {/* 6. Website Customization & Interactive Brand Kit Demo */}
+        <CustomizationBrandDemo />
+
+        {/* 7. Products & Digital Catalog Showcase */}
+        <ProductsShowcase />
+
+        {/* 8. Leads & Inbound Contact CRM Flow */}
+        <LeadsCrmSection />
+
+        {/* 9. Multi-Device Responsive Architecture */}
+        <ResponsiveSection />
+
+        {/* 10. Editor Experience & Emotional No-Code Statement */}
+        <EditorExperienceSection />
+
+        {/* 11. Built to Be Fast & Edge Architecture */}
+        <SpeedArchitecture />
+
+        {/* 12. Feature Bento Grid (8 Platform Capabilities) */}
+        <FeatureBentoGrid />
+
+        {/* 13. Unified Dashboard Workspace Preview */}
+        <DashboardPreview />
+
+        {/* 14. Future Vision & Roadmap ("And we're just getting started") */}
+        <FutureVision />
+
+        {/* 15. Pricing Section & 30-Day Free Trial */}
+        <PricingSection />
+
+        {/* 16. Interactive Accordion FAQ */}
+        <FaqSection />
+
+        {/* 17. Final High-Impact CTA */}
+        <FinalCta />
       </main>
+
+      {/* Complete SaaS Footer */}
+      <LandingFooter />
     </div>
   );
 }
