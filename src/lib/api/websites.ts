@@ -1,5 +1,10 @@
 import { apiClient } from './client';
 import { Website, WebsiteDocument } from '@/types';
+import {
+  WebsiteDocumentV3,
+  DocumentOperationsPayload,
+  DocumentOperationsResult,
+} from '@/types/v3-document';
 
 export const websitesApi = {
   getById: async (id: string): Promise<Website> => {
@@ -34,9 +39,63 @@ export const websitesApi = {
     return apiClient.delete(`/websites/${id}`);
   },
 
+  // ─── V3 CANONICAL DOCUMENT APIS ─────────────────────────────────────────────
+
+  getDocument: async (id: string): Promise<{
+    websiteId: string;
+    revision: number;
+    schemaVersion: '3.0';
+    documentHash: string;
+    document: WebsiteDocumentV3;
+    updatedAt: string;
+  }> => {
+    return apiClient.get(`/websites/${id}/document`);
+  },
+
+  updateDocument: async (
+    id: string,
+    document: WebsiteDocumentV3,
+    baseRevision?: number,
+  ): Promise<{
+    websiteId: string;
+    revision: number;
+    schemaVersion: '3.0';
+    documentHash: string;
+    updatedAt: string;
+  }> => {
+    return apiClient.put(`/websites/${id}/document`, {
+      document,
+      expectedRevision: baseRevision,
+      baseRevision,
+    });
+  },
+
+  applyOperations: async (
+    id: string,
+    payload: DocumentOperationsPayload,
+  ): Promise<DocumentOperationsResult> => {
+    return apiClient.post(`/websites/${id}/document/operations`, payload);
+  },
+
+  getComponentRegistry: async (): Promise<any> => {
+    return apiClient.get('/websites/components/registry');
+  },
+
+  duplicate: async (id: string, data?: { name?: string; businessId?: string }): Promise<Website> => {
+    return apiClient.post(`/websites/${id}/duplicate`, data || {});
+  },
+
+  // ─── LEGACY V2 SAVE DRAFT (PRESERVED FOR BACKWARD COMPATIBILITY) ────────────
+
   saveDraft: async (id: string, document: Partial<WebsiteDocument> | any): Promise<any> => {
+    if (document?.schemaVersion === '3.0') {
+      return apiClient.put(`/websites/${id}/document`, {
+        document,
+        baseRevision: document.documentRevision,
+      });
+    }
+
     try {
-      // 1. Update Website-level properties (theme, seo, name)
       const websitePayload: Record<string, any> = {};
       if (document.name) websitePayload.name = document.name;
       if (document.theme) websitePayload.theme = document.theme;
@@ -52,7 +111,6 @@ export const websitesApi = {
         });
       }
 
-      // 2. Persist sections (new or modified)
       if (Array.isArray(document.pages)) {
         for (const page of document.pages) {
           if (Array.isArray(page.sections)) {
@@ -62,7 +120,6 @@ export const websitesApi = {
               const isLocalId = section.id && (section.id.startsWith('sec_') || !section.id.includes('-'));
 
               if (isLocalId) {
-                // Post new section to backend
                 try {
                   const created: any = await apiClient.post('/sections', {
                     pageId: page.id,
@@ -72,15 +129,11 @@ export const websitesApi = {
                     config,
                     sortOrder: idx,
                   });
-                  if (created?.id) {
-                    section.id = created.id;
-                  }
+                  if (created?.id) section.id = created.id;
                 } catch (e: any) {
-                  // Fallback if backend /sections endpoint has different schema
                   console.warn('Section creation warning:', e?.response?.data || e?.message);
                 }
               } else if (section.id) {
-                // Patch existing section
                 try {
                   await apiClient.patch(`/sections/${section.id}`, {
                     title: section.title,
@@ -105,7 +158,7 @@ export const websitesApi = {
     }
   },
 
-  publish: async (id: string): Promise<{ success: boolean; publishedAt: string }> => {
+  publish: async (id: string): Promise<{ success: boolean; publishedAt: string; versionId?: string }> => {
     return apiClient.post(`/websites/${id}/publish`, {});
   },
 

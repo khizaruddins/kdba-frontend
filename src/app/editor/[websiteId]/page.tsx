@@ -3,18 +3,12 @@
 import * as React from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth-store';
-import { useEditorStore } from '@/stores/editor-store';
+import { useV3EditorStore } from '@/stores/v3-editor-store';
 import { websitesApi } from '@/lib/api/websites';
-import { apiClient } from '@/lib/api/client';
-import { useAutosave } from '@/lib/editor/use-autosave';
-import { EditorHeader } from '@/components/editor/editor-header';
-import { EditorSidebar } from '@/components/editor/editor-sidebar';
-import { EditorCanvas } from '@/components/editor/editor-canvas';
-import { PreviewModal } from '@/components/editor/PreviewModal';
-import { Dialog } from '@/components/ui/dialog';
+import { WebsiteDocumentV3 } from '@/types/v3-document';
+import { V3VisualBuilder } from '@/components/editor/v3/V3VisualBuilder';
 import { Button } from '@/components/ui/button';
-import { Loader2, Rocket, ExternalLink } from 'lucide-react';
-import { Product, PricingPlan } from '@/types';
+import { Loader2, Rocket } from 'lucide-react';
 
 export default function WebsiteEditorPage() {
   const params = useParams();
@@ -22,15 +16,10 @@ export default function WebsiteEditorPage() {
   const websiteId = params?.websiteId as string;
 
   const { isAuthenticated, isLoading: authLoading, fetchProfile } = useAuthStore();
-  const { setWebsite, website, setActiveSectionId } = useEditorStore();
-  const { saveStatus, saveImmediately } = useAutosave(websiteId);
+  const { setDocumentData, document } = useV3EditorStore();
 
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
-  const [products, setProducts] = React.useState<Product[]>([]);
-  const [pricingPlans, setPricingPlans] = React.useState<PricingPlan[]>([]);
-  const [previewOpen, setPreviewOpen] = React.useState(false);
-  const [publishSuccessOpen, setPublishSuccessOpen] = React.useState(false);
 
   React.useEffect(() => {
     fetchProfile();
@@ -49,71 +38,73 @@ export default function WebsiteEditorPage() {
     setError(null);
 
     try {
-      const [siteData, productsData, plansData]: any = await Promise.all([
-        websitesApi.getById(websiteId),
-        apiClient.get('/products').catch(() => []),
-        apiClient.get('/pricing-plans').catch(() => []),
-      ]);
+      const docRes = await websitesApi.getDocument(websiteId);
 
-      if (siteData) {
-        setWebsite(siteData);
+      if (docRes && docRes.document) {
+        setDocumentData(
+          websiteId,
+          docRes.document,
+          docRes.revision || 1,
+          docRes.documentHash || '',
+        );
       } else {
-        setError('Website not found');
+        const siteData = await websitesApi.getById(websiteId);
+        const docRecord = siteData as unknown as { draftDocument?: WebsiteDocumentV3; publishedDocument?: WebsiteDocumentV3; documentRevision?: number };
+        if (docRecord && (docRecord.draftDocument || docRecord.publishedDocument)) {
+          const doc = (docRecord.draftDocument || docRecord.publishedDocument) as WebsiteDocumentV3;
+          setDocumentData(websiteId, doc, docRecord.documentRevision || 1);
+        } else {
+          setError('Website document not found');
+        }
+      }
+    } catch (err: unknown) {
+      console.error('Failed to load website builder document:', err);
+      try {
+        const siteData = await websitesApi.getById(websiteId);
+        const docRecord = siteData as unknown as { draftDocument?: WebsiteDocumentV3; publishedDocument?: WebsiteDocumentV3; documentRevision?: number };
+        if (docRecord && (docRecord.draftDocument || docRecord.publishedDocument)) {
+          const doc = (docRecord.draftDocument || docRecord.publishedDocument) as WebsiteDocumentV3;
+          setDocumentData(websiteId, doc, docRecord.documentRevision || 1);
+          return;
+        }
+      } catch {
+        // ignore secondary error
       }
 
-      setProducts(Array.isArray(productsData) ? productsData : []);
-      setPricingPlans(Array.isArray(plansData) ? plansData : []);
-    } catch (err: any) {
-      console.error('Failed to load website editor data:', err);
+      const errorObj = err as { response?: { data?: { message?: string } }; message?: string };
       setError(
-        err?.response?.data?.message ||
-          err?.message ||
+        errorObj?.response?.data?.message ||
+          errorObj?.message ||
           'Failed to load website. It may have been removed or access is restricted.',
       );
     } finally {
       setIsLoading(false);
     }
-  }, [websiteId, setWebsite]);
+  }, [websiteId, setDocumentData]);
 
   React.useEffect(() => {
     if (authLoading) return;
     if (isAuthenticated) {
-      loadWebsiteData();
+      void Promise.resolve().then(() => loadWebsiteData());
     }
   }, [authLoading, isAuthenticated, loadWebsiteData]);
 
-  // Keyboard Shortcuts (Ctrl/Cmd + S, Escape)
-  React.useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
-        e.preventDefault();
-        saveImmediately();
-      }
-      if (e.key === 'Escape') {
-        setActiveSectionId(null);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [saveImmediately, setActiveSectionId]);
-
   if (authLoading || isLoading) {
     return (
-      <div className="flex h-screen w-screen items-center justify-center bg-slate-950 text-slate-400">
+      <div className="flex h-screen w-screen items-center justify-center bg-[#0B0D13] text-slate-400 select-none">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
-          <p className="text-xs font-semibold tracking-wide">
-            Loading Website Builder...
+          <p className="text-xs font-semibold tracking-wide text-slate-300">
+            Loading Visual Website Builder...
           </p>
         </div>
       </div>
     );
   }
 
-  if (error || !website) {
+  if (error || !document) {
     return (
-      <div className="flex h-screen w-screen items-center justify-center bg-slate-950 p-6 text-slate-100">
+      <div className="flex h-screen w-screen items-center justify-center bg-[#0B0D13] p-6 text-slate-100 select-none">
         <div className="max-w-md w-full rounded-2xl border border-slate-800 bg-slate-900/80 p-8 text-center shadow-2xl backdrop-blur-xl">
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-500/10 text-rose-400 border border-rose-500/20">
             <Rocket className="h-7 w-7 rotate-180" />
@@ -123,13 +114,13 @@ export default function WebsiteEditorPage() {
             {error || 'Unable to find or load the requested website in your workspace.'}
           </p>
           <div className="mt-6 flex flex-col gap-2.5">
-            <Button onClick={() => loadWebsiteData()} className="w-full" size="sm">
+            <Button onClick={() => loadWebsiteData()} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white" size="sm">
               Retry Loading
             </Button>
             <Button
               variant="outline"
               onClick={() => router.push('/websites')}
-              className="w-full"
+              className="w-full border-slate-800 text-slate-300"
               size="sm"
             >
               Back to My Websites
@@ -140,85 +131,5 @@ export default function WebsiteEditorPage() {
     );
   }
 
-  return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden bg-slate-950 select-none">
-      {/* Top Header */}
-      <EditorHeader
-        onPublishSuccess={() => setPublishSuccessOpen(true)}
-        onOpenPreview={() => setPreviewOpen(true)}
-        saveStatus={saveStatus}
-        onSaveImmediately={saveImmediately}
-      />
-
-      {/* Editor Body: Sidebar + Canvas */}
-      <div className="flex flex-1 overflow-hidden">
-        <EditorSidebar
-          products={products}
-          onProductCreated={(newProd) =>
-            setProducts((prev) => [newProd, ...prev])
-          }
-        />
-        <EditorCanvas products={products} pricingPlans={pricingPlans} />
-      </div>
-
-      {/* Interactive Preview Modal */}
-      <PreviewModal
-        isOpen={previewOpen}
-        onClose={() => setPreviewOpen(false)}
-        document={website}
-        products={products}
-        pricingPlans={pricingPlans}
-      />
-
-      {/* Publish Success Modal */}
-      <Dialog
-        isOpen={publishSuccessOpen}
-        onClose={() => setPublishSuccessOpen(false)}
-        title="Website Published Live!"
-        description="Your changes have been deployed and are now live to the world."
-      >
-        <div className="py-6 text-center space-y-4">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400">
-            <Rocket className="h-8 w-8" />
-          </div>
-
-          <div>
-            <h3 className="text-lg font-bold text-white">
-              {website?.name} is Live
-            </h3>
-            <p className="text-xs text-slate-400 mt-1">
-              Accessible to visitors and search engines. Inbound leads will be
-              routed straight to your CRM.
-            </p>
-          </div>
-
-          {website?.slug && (
-            <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs font-mono text-indigo-300">
-              /site/{website.slug}
-            </div>
-          )}
-
-          <div className="flex justify-center gap-3 pt-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPublishSuccessOpen(false)}
-            >
-              Continue Editing
-            </Button>
-            {website?.slug && (
-              <a
-                href={`/site/${website.slug}`}
-                target="_blank"
-                className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow hover:bg-indigo-500"
-              >
-                <span>Visit Live Site</span>
-                <ExternalLink className="h-3.5 w-3.5" />
-              </a>
-            )}
-          </div>
-        </div>
-      </Dialog>
-    </div>
-  );
+  return <V3VisualBuilder />;
 }

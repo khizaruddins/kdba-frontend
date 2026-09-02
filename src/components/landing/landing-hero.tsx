@@ -3,7 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Sparkles, ArrowRight, CheckCircle2, ShieldCheck, Zap, Layers } from 'lucide-react';
+import { Sparkles, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { HeroBuilderDemo } from './hero-builder-demo';
 
@@ -24,10 +24,10 @@ export function LandingHero() {
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
-            className="inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-4 py-1.5 text-xs font-bold text-amber-400 backdrop-blur-md shadow-inner"
+            className="inline-flex items-center gap-2 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-4 py-1.5 text-xs font-bold text-indigo-400 backdrop-blur-md shadow-inner"
           >
             <Sparkles className="h-3.5 w-3.5" />
-            <span>KDBA V1 — Zero-Code SaaS Website Studio</span>
+            <span>KDBA V3 — Wix-Grade Visual Drag-and-Drop Website Builder</span>
           </motion.div>
 
           {/* Master Headline */}
@@ -37,9 +37,9 @@ export function LandingHero() {
             transition={{ duration: 0.5, delay: 0.1 }}
             className="text-4xl font-black tracking-tight text-white sm:text-6xl lg:text-7xl leading-[1.06]"
           >
-            Build a website <br className="hidden sm:inline" />
-            <span className="bg-gradient-to-r from-white via-slate-200 to-amber-300 bg-clip-text text-transparent">
-              that feels like your business.
+            Drag. Drop. Design. <br className="hidden sm:inline" />
+            <span className="bg-gradient-to-r from-white via-indigo-200 to-amber-300 bg-clip-text text-transparent">
+              Visual building at the caliber of Wix.
             </span>
           </motion.h1>
 
@@ -50,7 +50,7 @@ export function LandingHero() {
             transition={{ duration: 0.5, delay: 0.2 }}
             className="text-base sm:text-lg text-slate-300 max-w-2xl mx-auto leading-relaxed"
           >
-            Create a professional website in minutes. Choose a template, add your brand, showcase your products, and publish — no coding required.
+            A studio-grade visual website builder with real-time drag-and-drop, 3D box model spacing, precision typography, device overrides, and instant one-click publishing.
           </motion.p>
 
           {/* Dual Action CTAs */}

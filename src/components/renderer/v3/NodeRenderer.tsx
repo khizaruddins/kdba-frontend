@@ -1,0 +1,796 @@
+'use client';
+
+import * as React from 'react';
+import {
+  WebsiteNode,
+  StyleDefinition,
+  ResponsiveStyleDefinition,
+} from '@/types/v3-document';
+import { useV3EditorStore } from '@/stores/v3-editor-store';
+
+export interface NodeRendererProps {
+  node: WebsiteNode;
+  isEditing?: boolean;
+  viewport?: 'desktop' | 'tablet' | 'mobile';
+  selectedNodeId?: string | null;
+  hoveredNodeId?: string | null;
+  onSelectNode?: (nodeId: string) => void;
+  onHoverNode?: (nodeId: string | null) => void;
+  onDoubleClickText?: (nodeId: string) => void;
+  className?: string;
+}
+
+/**
+ * Resolves final CSS styles by merging desktop styles with responsive overrides
+ */
+export function resolveNodeStyles(
+  styles?: StyleDefinition,
+  responsive?: ResponsiveStyleDefinition,
+  viewport: 'desktop' | 'tablet' | 'mobile' = 'desktop',
+): React.CSSProperties {
+  if (!styles && !responsive) return {};
+
+  const base = styles || {};
+  const tabletOverride = viewport === 'tablet' || viewport === 'mobile' ? responsive?.tablet || {} : {};
+  const mobileOverride = viewport === 'mobile' ? responsive?.mobile || {} : {};
+
+  // Merge layout
+  const layout = { ...base.layout, ...tabletOverride.layout, ...mobileOverride.layout };
+  const flex = { ...base.flex, ...tabletOverride.flex, ...mobileOverride.flex };
+  const grid = { ...base.grid, ...tabletOverride.grid, ...mobileOverride.grid };
+  const size = { ...base.size, ...tabletOverride.size, ...mobileOverride.size };
+  const spacing = {
+    margin: { ...base.spacing?.margin, ...tabletOverride.spacing?.margin, ...mobileOverride.spacing?.margin },
+    padding: { ...base.spacing?.padding, ...tabletOverride.spacing?.padding, ...mobileOverride.spacing?.padding },
+  };
+  const typography = { ...base.typography, ...tabletOverride.typography, ...mobileOverride.typography };
+  const background = { ...base.background, ...tabletOverride.background, ...mobileOverride.background };
+  const border = { ...base.border, ...tabletOverride.border, ...mobileOverride.border };
+  const effects = { ...base.effects, ...tabletOverride.effects, ...mobileOverride.effects };
+  const transform = { ...base.transform, ...tabletOverride.transform, ...mobileOverride.transform };
+
+  const css: React.CSSProperties = {};
+
+  // Layout & Positioning
+  if (layout.display) css.display = layout.display;
+  if (layout.position) css.position = layout.position;
+  if (layout.width) css.width = layout.width;
+  if (layout.height) css.height = layout.height;
+  if (layout.minWidth) css.minWidth = layout.minWidth;
+  if (layout.maxWidth) css.maxWidth = layout.maxWidth;
+  if (layout.minHeight) css.minHeight = layout.minHeight;
+  if (layout.maxHeight) css.maxHeight = layout.maxHeight;
+  if (layout.top) css.top = layout.top;
+  if (layout.right) css.right = layout.right;
+  if (layout.bottom) css.bottom = layout.bottom;
+  if (layout.left) css.left = layout.left;
+  if (typeof layout.zIndex === 'number') css.zIndex = layout.zIndex;
+  if (layout.overflow) css.overflow = layout.overflow;
+
+  // Flexbox
+  if (flex.direction) css.flexDirection = flex.direction;
+  if (flex.wrap) css.flexWrap = flex.wrap;
+  if (flex.justifyContent) css.justifyContent = flex.justifyContent;
+  if (flex.alignItems) css.alignItems = flex.alignItems;
+  if (flex.alignContent) css.alignContent = flex.alignContent;
+  if (flex.gap) css.gap = flex.gap;
+  if (flex.rowGap) css.rowGap = flex.rowGap;
+  if (flex.columnGap) css.columnGap = flex.columnGap;
+  if (typeof flex.grow === 'number') css.flexGrow = flex.grow;
+  if (typeof flex.shrink === 'number') css.flexShrink = flex.shrink;
+  if (flex.basis) css.flexBasis = flex.basis;
+
+  // CSS Grid
+  if (grid.columns) {
+    css.gridTemplateColumns = grid.gridTemplateColumns || `repeat(${grid.columns}, minmax(0, 1fr))`;
+  }
+  if (grid.columnGap) css.columnGap = grid.columnGap;
+  if (grid.rowGap) css.rowGap = grid.rowGap;
+  if (grid.columnSpan) css.gridColumn = `span ${grid.columnSpan} / span ${grid.columnSpan}`;
+
+  // Sizing
+  if (size.width) css.width = size.width;
+  if (size.height) css.height = size.height;
+  if (size.minWidth) css.minWidth = size.minWidth;
+  if (size.maxWidth) css.maxWidth = size.maxWidth;
+  if (size.minHeight) css.minHeight = size.minHeight;
+  if (size.maxHeight) css.maxHeight = size.maxHeight;
+  if (size.aspectRatio) css.aspectRatio = size.aspectRatio;
+
+  // Spacing (Margin & Padding)
+  if (spacing.margin.top) css.marginTop = spacing.margin.top;
+  if (spacing.margin.right) css.marginRight = spacing.margin.right;
+  if (spacing.margin.bottom) css.marginBottom = spacing.margin.bottom;
+  if (spacing.margin.left) css.marginLeft = spacing.margin.left;
+
+  if (spacing.padding.top) css.paddingTop = spacing.padding.top;
+  if (spacing.padding.right) css.paddingRight = spacing.padding.right;
+  if (spacing.padding.bottom) css.paddingBottom = spacing.padding.bottom;
+  if (spacing.padding.left) css.paddingLeft = spacing.padding.left;
+
+  // Typography
+  if (typography.fontFamily) css.fontFamily = typography.fontFamily;
+  if (typography.fontSize) css.fontSize = typography.fontSize;
+  if (typography.fontWeight) css.fontWeight = typography.fontWeight;
+  if (typography.lineHeight) css.lineHeight = typography.lineHeight;
+  if (typography.letterSpacing) css.letterSpacing = typography.letterSpacing;
+  if (typography.textAlign) css.textAlign = typography.textAlign;
+  if (typography.textTransform) css.textTransform = typography.textTransform;
+  if (typography.textDecoration) css.textDecoration = typography.textDecoration;
+  if (typography.color) css.color = typography.color;
+
+  // Background
+  if (background.color) css.backgroundColor = background.color;
+  if (background.gradient) {
+    const angle = background.gradient.angle || 135;
+    const stops = background.gradient.stops.map((s) => `${s.color} ${s.offset}%`).join(', ');
+    css.backgroundImage = `linear-gradient(${angle}deg, ${stops})`;
+  } else if (background.image) {
+    css.backgroundImage = `url(${background.image})`;
+    css.backgroundPosition = background.position || 'center';
+    css.backgroundSize = background.size || 'cover';
+    css.backgroundRepeat = background.repeat || 'no-repeat';
+  }
+
+  // Border & Radius
+  if (border.width) css.borderWidth = border.width;
+  if (border.style) css.borderStyle = border.style;
+  if (border.color) css.borderColor = border.color;
+  if (border.radius?.all) {
+    css.borderRadius = border.radius.all;
+  } else if (border.radius) {
+    if (border.radius.topLeft) css.borderTopLeftRadius = border.radius.topLeft;
+    if (border.radius.topRight) css.borderTopRightRadius = border.radius.topRight;
+    if (border.radius.bottomRight) css.borderBottomRightRadius = border.radius.bottomRight;
+    if (border.radius.bottomLeft) css.borderBottomLeftRadius = border.radius.bottomLeft;
+  }
+
+  // Effects & Shadows
+  if (effects.boxShadow) {
+    if (Array.isArray(effects.boxShadow)) {
+      css.boxShadow = effects.boxShadow
+        .map((s) => `${s.inset ? 'inset ' : ''}${s.x}px ${s.y}px ${s.blur}px ${s.spread}px ${s.color}`)
+        .join(', ');
+    } else {
+      const s = effects.boxShadow;
+      css.boxShadow = `${s.inset ? 'inset ' : ''}${s.x}px ${s.y}px ${s.blur}px ${s.spread}px ${s.color}`;
+    }
+  }
+  if (typeof effects.opacity === 'number') css.opacity = effects.opacity;
+
+  // Transform
+  if (transform) {
+    const transforms: string[] = [];
+    if (transform.translateX || transform.translateY) {
+      transforms.push(`translate(${transform.translateX || '0'}, ${transform.translateY || '0'})`);
+    }
+    if (typeof transform.scale === 'number') transforms.push(`scale(${transform.scale})`);
+    if (transform.rotate) transforms.push(`rotate(${transform.rotate})`);
+    if (transforms.length > 0) css.transform = transforms.join(' ');
+  }
+
+  return css;
+}
+
+export const NodeRenderer: React.FC<NodeRendererProps> = ({
+  node,
+  isEditing = false,
+  viewport = 'desktop',
+  selectedNodeId,
+  hoveredNodeId,
+  onSelectNode,
+  onHoverNode,
+  onDoubleClickText,
+  className = '',
+}) => {
+  const { inlineEditingNodeId, setInlineEditingNodeId, updateProps } = useV3EditorStore();
+  const isInlineEditing = isEditing && inlineEditingNodeId === node.id;
+
+  // Check responsive visibility
+  const isHiddenOnDevice = node.visibility && node.visibility[viewport] === false;
+  if (isHiddenOnDevice && !isEditing) {
+    return null; // Don't render on public site
+  }
+
+  const isSelected = isEditing && selectedNodeId === node.id;
+  const isHovered = isEditing && hoveredNodeId === node.id && !isSelected;
+  const resolvedStyles = resolveNodeStyles(node.styles, node.responsive, viewport);
+  const props = node.props || {};
+
+  const handleClick = (e: React.MouseEvent) => {
+    if (isEditing) {
+      e.stopPropagation();
+      if (onSelectNode) onSelectNode(node.id);
+    }
+  };
+
+  const handleMouseEnter = (e: React.MouseEvent) => {
+    if (isEditing) {
+      e.stopPropagation();
+      if (onHoverNode) onHoverNode(node.id);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (isEditing && onHoverNode) {
+      onHoverNode(null);
+    }
+  };
+
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    if (isEditing) {
+      e.stopPropagation();
+      setInlineEditingNodeId(node.id);
+      if (onDoubleClickText) {
+        onDoubleClickText(node.id);
+      }
+    }
+  };
+
+  // Render children recursively
+  const renderChildren = () => {
+    if (!node.children || node.children.length === 0) {
+      if (isEditing && (node.type === 'container' || node.type === 'section' || node.type === 'column' || node.type === 'stack')) {
+        return (
+          <div className="flex items-center justify-center p-6 border border-dashed border-slate-700/60 rounded-xl bg-slate-900/20 text-slate-500 text-xs select-none">
+            <span>Empty {node.type} — Drop or add elements here</span>
+          </div>
+        );
+      }
+      return null;
+    }
+
+    return node.children.map((child) => (
+      <NodeRenderer
+        key={child.id}
+        node={child}
+        isEditing={isEditing}
+        viewport={viewport}
+        selectedNodeId={selectedNodeId}
+        hoveredNodeId={hoveredNodeId}
+        onSelectNode={onSelectNode}
+        onHoverNode={onHoverNode}
+        onDoubleClickText={onDoubleClickText}
+      />
+    ));
+  };
+
+  // Overlay classes in editor
+  const editorClasses = isEditing
+    ? `relative transition-shadow duration-150 ${
+        isSelected
+          ? 'outline outline-2 outline-indigo-500 outline-offset-1 z-20'
+          : isHovered
+          ? 'outline outline-1 outline-indigo-400/60 outline-offset-1'
+          : ''
+      } ${isHiddenOnDevice ? 'opacity-30 grayscale' : ''}`
+    : '';
+
+  const commonProps = {
+    'data-node-id': node.id,
+    'data-node-type': node.type,
+    style: resolvedStyles,
+    onClick: handleClick,
+    onMouseEnter: handleMouseEnter,
+    onMouseLeave: handleMouseLeave,
+    className: `${editorClasses} ${className}`.trim(),
+  };
+
+  // ─── COMPONENT TYPE DISPATCH ────────────────────────────────────────────────
+
+  switch (node.type) {
+    case 'page-root':
+      return (
+        <div {...commonProps} className={`w-full min-h-screen flex flex-col ${commonProps.className}`}>
+          {renderChildren()}
+        </div>
+      );
+
+    case 'section':
+      return (
+        <section
+          {...commonProps}
+          id={(props.anchorId as string) || undefined}
+          className={`w-full relative ${commonProps.className}`}
+        >
+          {renderChildren()}
+        </section>
+      );
+
+    case 'container':
+      return (
+        <div {...commonProps} className={`w-full mx-auto relative ${commonProps.className}`}>
+          {renderChildren()}
+        </div>
+      );
+
+    case 'row':
+      return (
+        <div {...commonProps} className={`flex flex-wrap items-center ${commonProps.className}`}>
+          {renderChildren()}
+        </div>
+      );
+
+    case 'column':
+      return (
+        <div {...commonProps} className={`flex flex-col ${commonProps.className}`}>
+          {renderChildren()}
+        </div>
+      );
+
+    case 'grid':
+      return (
+        <div {...commonProps} className={`grid ${commonProps.className}`}>
+          {renderChildren()}
+        </div>
+      );
+
+    case 'stack':
+      return (
+        <div {...commonProps} className={`flex flex-col ${commonProps.className}`}>
+          {renderChildren()}
+        </div>
+      );
+
+    case 'heading': {
+      const level = Number(props.level) || 2;
+      const HeadingTag = level === 1 ? 'h1' : level === 3 ? 'h3' : level === 4 ? 'h4' : level === 5 ? 'h5' : level === 6 ? 'h6' : 'h2';
+      if (isInlineEditing) {
+        return (
+          <HeadingTag
+            {...commonProps}
+            contentEditable
+            suppressContentEditableWarning
+            onBlur={(e) => {
+              updateProps(node.id, { text: e.currentTarget.textContent || '' });
+              setInlineEditingNodeId(null);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                e.currentTarget.blur();
+              } else if (e.key === 'Escape') {
+                setInlineEditingNodeId(null);
+              }
+            }}
+            className={`font-bold tracking-tight outline-none ring-2 ring-indigo-500 rounded px-1 bg-indigo-950/40 cursor-text ${commonProps.className}`}
+          >
+            {String(props.text || 'Heading Text')}
+          </HeadingTag>
+        );
+      }
+      return (
+        <HeadingTag
+          {...commonProps}
+          onDoubleClick={handleDoubleClick}
+          className={`font-bold tracking-tight ${commonProps.className}`}
+        >
+          {String(props.text || 'Heading Text')}
+        </HeadingTag>
+      );
+    }
+
+    case 'paragraph': {
+      if (isInlineEditing) {
+        return (
+          <p
+            {...commonProps}
+            contentEditable
+            suppressContentEditableWarning
+            onBlur={(e) => {
+              updateProps(node.id, { text: e.currentTarget.textContent || '' });
+              setInlineEditingNodeId(null);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                setInlineEditingNodeId(null);
+              }
+            }}
+            className={`leading-relaxed outline-none ring-2 ring-indigo-500 rounded px-1 bg-indigo-950/40 cursor-text ${commonProps.className}`}
+          >
+            {String(props.text || 'Paragraph body copy text.')}
+          </p>
+        );
+      }
+      return (
+        <p
+          {...commonProps}
+          onDoubleClick={handleDoubleClick}
+          className={`leading-relaxed ${commonProps.className}`}
+        >
+          {String(props.text || 'Paragraph body copy text.')}
+        </p>
+      );
+    }
+
+    case 'rich-text':
+      return (
+        <div
+          {...commonProps}
+          onDoubleClick={handleDoubleClick}
+          dangerouslySetInnerHTML={{ __html: String(props.html || props.text || '') }}
+          className={`prose prose-invert max-w-none ${commonProps.className}`}
+        />
+      );
+
+    case 'text': {
+      if (isInlineEditing) {
+        return (
+          <span
+            {...commonProps}
+            contentEditable
+            suppressContentEditableWarning
+            onBlur={(e) => {
+              updateProps(node.id, { text: e.currentTarget.textContent || '' });
+              setInlineEditingNodeId(null);
+            }}
+            className={`outline-none ring-2 ring-indigo-500 rounded px-1 bg-indigo-950/40 cursor-text ${commonProps.className}`}
+          >
+            {String(props.text || '')}
+          </span>
+        );
+      }
+      return (
+        <span {...commonProps} onDoubleClick={handleDoubleClick} className={commonProps.className}>
+          {String(props.text || '')}
+        </span>
+      );
+    }
+
+    case 'button': {
+      if (isInlineEditing) {
+        return (
+          <span
+            {...commonProps}
+            contentEditable
+            suppressContentEditableWarning
+            onBlur={(e) => {
+              const val = e.currentTarget.textContent || '';
+              updateProps(node.id, { label: val, text: val });
+              setInlineEditingNodeId(null);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                e.currentTarget.blur();
+              }
+            }}
+            className={`inline-flex items-center justify-center font-medium outline-none ring-2 ring-indigo-500 rounded px-2 bg-indigo-950/40 cursor-text ${commonProps.className}`}
+          >
+            {String(props.label || props.text || 'Button')}
+          </span>
+        );
+      }
+      return (
+        <a
+          {...commonProps}
+          href={isEditing ? undefined : (props.href as string) || '#'}
+          onDoubleClick={handleDoubleClick}
+          className={`inline-flex items-center justify-center font-medium transition-transform active:scale-95 cursor-pointer ${commonProps.className}`}
+        >
+          {String(props.label || props.text || 'Button')}
+        </a>
+      );
+    }
+
+    case 'link':
+      return (
+        <a
+          {...commonProps}
+          href={isEditing ? undefined : (props.href as string) || '#'}
+          className={`inline-flex items-center hover:underline cursor-pointer ${commonProps.className}`}
+        >
+          {String(props.label || props.text || 'Link')}
+        </a>
+      );
+
+    case 'image':
+      return (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          {...commonProps}
+          src={String(props.src || props.url || 'https://images.unsplash.com/photo-1516426122078-c23e76319801?auto=format&fit=crop&w=1200&q=80')}
+          alt={String(props.alt || 'Section Image')}
+          loading="lazy"
+          style={{
+            ...commonProps.style,
+            objectFit: (props.objectFit as React.CSSProperties['objectFit']) || 'cover',
+          }}
+          className={`block max-w-full h-auto ${commonProps.className}`}
+        />
+      );
+
+    case 'video':
+      return (
+        <div {...commonProps} className={`relative overflow-hidden ${commonProps.className}`}>
+          <iframe
+            src={String(props.src || 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ')}
+            className="w-full h-full border-0 aspect-video rounded-xl"
+            allowFullScreen
+          />
+        </div>
+      );
+
+    case 'badge': {
+      if (isInlineEditing) {
+        return (
+          <span
+            {...commonProps}
+            contentEditable
+            suppressContentEditableWarning
+            onBlur={(e) => {
+              updateProps(node.id, { text: e.currentTarget.textContent || '' });
+              setInlineEditingNodeId(null);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                e.currentTarget.blur();
+              } else if (e.key === 'Escape') {
+                setInlineEditingNodeId(null);
+              }
+            }}
+            className={`inline-flex items-center rounded-full text-xs font-semibold outline-none ring-2 ring-indigo-500 rounded px-1.5 py-0.5 bg-indigo-950/40 cursor-text ${commonProps.className}`}
+          >
+            {String(props.text || 'Subheading / Badge')}
+          </span>
+        );
+      }
+      return (
+        <span
+          {...commonProps}
+          onDoubleClick={handleDoubleClick}
+          className={`inline-flex items-center rounded-full text-xs font-semibold ${commonProps.className}`}
+        >
+          {String(props.text || 'Subheading / Badge')}
+        </span>
+      );
+    }
+
+    case 'list': {
+      const items: string[] = Array.isArray(props.items) && props.items.length > 0
+        ? props.items
+        : ['Instant visual manipulation', 'Zero-config responsive layouts', 'Enterprise grade performance'];
+      const styleType = props.listStyle || 'bullet';
+
+      return (
+        <ul {...commonProps} onDoubleClick={handleDoubleClick} className={`space-y-2 list-none p-0 m-0 ${commonProps.className}`}>
+          {items.map((item, idx) => (
+            <li key={idx} className="flex items-start gap-2.5">
+              {styleType === 'check' ? (
+                <span className="w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5 text-[10px] font-bold">
+                  ✓
+                </span>
+              ) : styleType === 'number' ? (
+                <span className="w-4 h-4 rounded bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0 mt-0.5 text-[10px] font-bold font-mono">
+                  {idx + 1}
+                </span>
+              ) : (
+                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0 mt-2" />
+              )}
+              <span className="flex-1">{item}</span>
+            </li>
+          ))}
+        </ul>
+      );
+    }
+
+    case 'quote': {
+      if (isInlineEditing) {
+        return (
+          <blockquote
+            {...commonProps}
+            contentEditable
+            suppressContentEditableWarning
+            onBlur={(e) => {
+              updateProps(node.id, { quote: e.currentTarget.textContent || '', text: e.currentTarget.textContent || '' });
+              setInlineEditingNodeId(null);
+            }}
+            className={`border-l-4 border-indigo-500 pl-4 py-1 italic outline-none ring-2 ring-indigo-500 rounded bg-indigo-950/40 cursor-text ${commonProps.className}`}
+          >
+            {String(props.quote || props.text || 'Editorial quote')}
+          </blockquote>
+        );
+      }
+      return (
+        <blockquote
+          {...commonProps}
+          onDoubleClick={handleDoubleClick}
+          className={`border-l-4 border-indigo-500 pl-4 py-1 italic ${commonProps.className}`}
+        >
+          <p className="text-base font-medium">{String(props.quote || props.text || 'Editorial quote')}</p>
+          {Boolean(props.author) && (
+            <cite className="block text-xs text-slate-400 not-italic mt-1">— {String(props.author)}</cite>
+          )}
+        </blockquote>
+      );
+    }
+
+    case 'divider':
+      return <hr {...commonProps} className={`border-0 border-t border-slate-800 my-4 ${commonProps.className}`} />;
+
+    case 'spacer':
+      return <div {...commonProps} aria-hidden="true" />;
+
+    case 'pricing':
+      return (
+        <div
+          {...commonProps}
+          className={`flex flex-col p-8 rounded-2xl bg-slate-900/60 border border-slate-800 shadow-xl ${commonProps.className}`}
+        >
+          {Boolean(props.isPopular) && (
+            <span className="self-start px-3 py-1 mb-4 text-[10px] font-bold uppercase tracking-wider text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-full">
+              Most Popular
+            </span>
+          )}
+          <h3 className="text-xl font-bold text-white">{String(props.planName || 'Plan')}</h3>
+          <div className="flex items-baseline gap-1 my-4">
+            <span className="text-4xl font-black text-white">{String(props.price || '$29')}</span>
+            <span className="text-sm text-slate-400">/{String(props.billingPeriod || 'mo')}</span>
+          </div>
+          <p className="text-sm text-slate-400 mb-6">{String(props.description || '')}</p>
+          <ul className="space-y-2.5 mb-8 flex-1">
+            {Array.isArray(props.features) &&
+              props.features.map((f: unknown, i: number) => (
+                <li key={i} className="flex items-center gap-2 text-sm text-slate-300">
+                  <span className="text-emerald-400">✓</span>
+                  <span>{String(f)}</span>
+                </li>
+              ))}
+          </ul>
+          <button className="w-full py-3 px-4 rounded-xl font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition-colors">
+            {String(props.ctaLabel || 'Get Started')}
+          </button>
+        </div>
+      );
+
+    case 'testimonial':
+      return (
+        <div
+          {...commonProps}
+          className={`flex flex-col p-6 rounded-2xl bg-slate-900/40 border border-slate-800/80 shadow-lg ${commonProps.className}`}
+        >
+          <div className="flex gap-1 text-amber-400 text-sm mb-3">
+            {Array.from({ length: Number(props.rating || 5) }).map((_, i) => (
+              <span key={i}>★</span>
+            ))}
+          </div>
+          <blockquote className="text-slate-200 text-sm italic mb-6 leading-relaxed flex-1">
+            &ldquo;{String(props.quote || '')}&rdquo;
+          </blockquote>
+          <div className="flex items-center gap-3">
+            {Boolean(props.avatarUrl) && (
+              <img
+                src={String(props.avatarUrl)}
+                alt={String(props.author)}
+                className="w-10 h-10 rounded-full object-cover border border-slate-700"
+              />
+            )}
+            <div>
+              <div className="text-sm font-semibold text-white">{String(props.author || 'Customer')}</div>
+              <div className="text-xs text-slate-400">{String(props.role || '')}</div>
+            </div>
+          </div>
+        </div>
+      );
+
+    case 'contact-form':
+    case 'form':
+      return (
+        <form
+          {...commonProps}
+          onSubmit={(e) => {
+            if (isEditing) e.preventDefault();
+          }}
+          className={`space-y-4 p-6 rounded-2xl bg-slate-900/60 border border-slate-800 ${commonProps.className}`}
+        >
+          {Boolean(props.title || props.headline) && (
+            <h4 className="text-lg font-bold text-white mb-2">{String(props.title || props.headline)}</h4>
+          )}
+          <div className="space-y-3">
+            <input
+              type="text"
+              placeholder="Your Name"
+              disabled={isEditing}
+              className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+            />
+            <input
+              type="email"
+              placeholder="Your Email"
+              disabled={isEditing}
+              className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+            />
+            <textarea
+              rows={3}
+              placeholder="Your Message"
+              disabled={isEditing}
+              className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 resize-none"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={isEditing}
+            className="w-full py-2.5 rounded-xl font-semibold bg-indigo-600 hover:bg-indigo-500 text-white text-sm transition-colors cursor-pointer"
+          >
+            {String(props.buttonText || props.submitText || props.submitLabel || 'Send Message')}
+          </button>
+        </form>
+      );
+
+    case 'navbar':
+      return (
+        <header
+          {...commonProps}
+          className={`w-full flex items-center justify-between px-6 py-4 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md ${commonProps.className}`}
+        >
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center font-bold text-white text-sm">
+              {String(props.brandName || 'K').charAt(0)}
+            </div>
+            <span className="font-bold text-white text-base tracking-tight">
+              {String(props.brandName || 'Studio')}
+            </span>
+          </div>
+          <nav className="hidden md:flex items-center gap-6 text-sm text-slate-300">
+            {Array.isArray(props.links) && props.links.length > 0 ? (
+              props.links.map((link: { href?: string; label?: string }, i: number) => (
+                <a key={i} href={isEditing ? undefined : (link.href || '#')} className="hover:text-white transition-colors">
+                  {link.label || 'Link'}
+                </a>
+              ))
+            ) : (
+              <>
+                <a href={isEditing ? undefined : '#features'} className="hover:text-white transition-colors">Features</a>
+                <a href={isEditing ? undefined : '#pricing'} className="hover:text-white transition-colors">Pricing</a>
+                <a href={isEditing ? undefined : '#contact'} className="hover:text-white transition-colors">Contact</a>
+              </>
+            )}
+          </nav>
+          <a
+            href={isEditing ? undefined : (props.ctaHref as string) || '#contact'}
+            className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-colors"
+          >
+            {String(props.ctaText || 'Get Started')}
+          </a>
+        </header>
+      );
+
+    case 'footer':
+      return (
+        <footer
+          {...commonProps}
+          className={`w-full py-8 px-6 border-t border-slate-800/80 bg-slate-950 text-slate-400 text-sm ${commonProps.className}`}
+        >
+          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div>{String(props.copyright || '© 2026 KDBA Inc. All rights reserved.')}</div>
+            <div className="flex flex-wrap gap-6 text-xs text-slate-500">
+              {Array.isArray(props.links) && props.links.length > 0 ? (
+                props.links.map((link: { href?: string; label?: string }, i: number) => (
+                  <a
+                    key={i}
+                    href={isEditing ? undefined : (link.href || '#')}
+                    className="hover:text-slate-300 transition-colors"
+                  >
+                    {link.label || 'Link'}
+                  </a>
+                ))
+              ) : (
+                <>
+                  <a href={isEditing ? undefined : '#privacy'} className="hover:text-slate-300">Privacy</a>
+                  <a href={isEditing ? undefined : '#terms'} className="hover:text-slate-300">Terms</a>
+                  <a href={isEditing ? undefined : '#contact'} className="hover:text-slate-300">Support</a>
+                </>
+              )}
+            </div>
+          </div>
+        </footer>
+      );
+
+    default:
+      return (
+        <div {...commonProps} className={`p-2 border border-slate-800 rounded-lg ${commonProps.className}`}>
+          {renderChildren()}
+        </div>
+      );
+  }
+};

@@ -3,10 +3,12 @@
 import * as React from 'react';
 import { ThemeProvider } from './ThemeProvider';
 import { PageRenderer } from './PageRenderer';
+import { V3WebsiteRenderer } from './v3/V3WebsiteRenderer';
 import { WebsiteDocument, Product, PricingPlan } from '@/types';
+import { WebsiteDocumentV3 } from '@/types/v3-document';
 
 export interface WebsiteRendererProps {
-  document: WebsiteDocument | Record<string, any>;
+  document: WebsiteDocument | WebsiteDocumentV3 | Record<string, any>;
   activePageId?: string | null;
   activePageSlug?: string | null;
   activeSectionId?: string | null;
@@ -39,6 +41,22 @@ export function WebsiteRenderer({
       <div className="flex min-h-[300px] items-center justify-center p-8 text-slate-500">
         <p className="text-xs">No website document loaded.</p>
       </div>
+    );
+  }
+
+  const docAny = document as any;
+
+  // Automatic routing for V3 visual documents
+  if (docAny?.schemaVersion === '3.0') {
+    return (
+      <V3WebsiteRenderer
+        document={document as WebsiteDocumentV3}
+        activePageId={activePageId}
+        activePageSlug={activePageSlug}
+        isEditing={isEditing}
+        className={className}
+        style={style}
+      />
     );
   }
 
@@ -95,7 +113,7 @@ export function WebsiteRenderer({
             products={products}
             pricingPlans={pricingPlans}
             isEditing={isEditing}
-            tenantSlug={document.slug}
+            tenantSlug={docAny?.slug}
             onNavigate={handleNavigate}
             activeSectionId={activeSectionId}
             onSelectSection={onSelectSection}
