@@ -3,25 +3,20 @@
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth-store';
-import { apiClient } from '@/lib/api/client';
-import { Template } from '@/types';
+import { TEMPLATES_DEFINITIONS } from '@/lib/templates/definitions';
+import { websitesApi } from '@/lib/api/websites';
+import { businessApi } from '@/lib/api/business';
 import {
   Check,
-  Building2,
-  LayoutTemplate,
-  Image as ImageIcon,
   Sparkles,
   ArrowRight,
   ArrowLeft,
   Loader2,
-  CheckCircle2,
-  Globe,
-  Upload,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -29,13 +24,13 @@ export default function OnboardingPage() {
 
   const [step, setStep] = React.useState(1);
   const [isLoading, setIsLoading] = React.useState(false);
-  const [templates, setTemplates] = React.useState<Template[]>([]);
+  const [selectedIndustry, setSelectedIndustry] = React.useState('RESTAURANT');
+  const [selectedTemplateId, setSelectedTemplateId] = React.useState('tpl_restaurant');
 
-  // Form states
+  // Business Form states
   const [businessData, setBusinessData] = React.useState({
     name: '',
     description: '',
-    category: 'Agency',
     email: '',
     phone: '',
     address: '',
@@ -43,7 +38,7 @@ export default function OnboardingPage() {
     logoUrl: '',
   });
 
-  const [selectedTemplateId, setSelectedTemplateId] = React.useState<string>('');
+  const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     fetchProfile();
@@ -56,22 +51,6 @@ export default function OnboardingPage() {
   }, [authLoading, isAuthenticated, router]);
 
   React.useEffect(() => {
-    if (authLoading || !isAuthenticated) return;
-    // Load available templates
-    apiClient
-      .get('/templates')
-      .then((data: any) => {
-        if (Array.isArray(data)) {
-          setTemplates(data);
-          if (data.length > 0) {
-            setSelectedTemplateId(data[0].id);
-          }
-        }
-      })
-      .catch(console.error);
-  }, [authLoading, isAuthenticated]);
-
-  React.useEffect(() => {
     if (tenant?.name && !businessData.name) {
       setBusinessData((prev) => ({
         ...prev,
@@ -79,43 +58,73 @@ export default function OnboardingPage() {
         email: user?.email || '',
       }));
     }
-  }, [tenant, user]);
+  }, [tenant, user, businessData.name]);
 
-  const categories = [
-    { id: 'Agency', label: 'Agency & Creative', desc: 'Design, marketing, software studios' },
-    { id: 'Restaurant', label: 'Restaurant & Dining', desc: 'Bistros, cafes, fine dining' },
-    { id: 'Business', label: 'Corporate & Consulting', desc: 'Advisory, financial, B2B services' },
-    { id: 'Portfolio', label: 'Personal Portfolio', desc: 'Freelancers, creators, photographers' },
+  const industries = [
+    { id: 'RESTAURANT', label: 'Restaurants & Fine Dining', desc: 'Bistros, lounges, chef tables' },
+    { id: 'CAFE', label: 'Artisan Cafes & Roasteries', desc: 'Specialty coffee, bakeries, matcha' },
+    { id: 'DENTAL', label: 'Dental & Orthodontics', desc: 'Cosmetic dentistry, implants, clinics' },
+    { id: 'HEALTHCARE', label: 'Private Healthcare & Clinics', desc: 'Specialists, longevity, wellness' },
+    { id: 'SALON', label: 'Premium Salons & Spas', desc: 'Hair architecture, aesthetics, retreats' },
+    { id: 'FITNESS', label: 'Fitness & Athletic Clubs', desc: 'Personal training, gyms, HIIT' },
+    { id: 'REAL_ESTATE', label: 'Luxury Real Estate', desc: 'Coastal estates, brokerages, villas' },
+    { id: 'ARCHITECTURE', label: 'Architecture Studios', desc: 'Structural design, built spaces' },
+    { id: 'CREATIVE_AGENCY', label: 'Creative & Digital Studios', desc: 'Branding, tech engineering, UI' },
+    { id: 'SOFTWARE_SAAS', label: 'Software & SaaS Platforms', desc: 'Cloud software, developer tools' },
+    { id: 'CONSULTING', label: 'Management & Legal Advisory', desc: 'Strategy, corporate law, M&A' },
+    { id: 'HOTEL', label: 'Boutique Hotels & Resorts', desc: 'Luxury hospitality, ocean villas' },
   ];
 
-  const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+  const availableTemplates = TEMPLATES_DEFINITIONS.filter(
+    (t) => t.industry === selectedIndustry || (selectedIndustry === 'SALON' && t.industry === 'SPA'),
+  );
+
+  const activeTemplates = availableTemplates.length > 0 ? availableTemplates : TEMPLATES_DEFINITIONS.slice(0, 6);
 
   const handleComplete = async () => {
     setIsLoading(true);
     setErrorMessage(null);
+
     try {
+      const selectedTpl =
+        TEMPLATES_DEFINITIONS.find((t) => t.id === selectedTemplateId) ||
+        TEMPLATES_DEFINITIONS[0];
+
       // 1. Create Business
-      const businessPayload: Record<string, any> = {
-        name: businessData.name?.trim() || tenant?.name || 'My Business',
-      };
-      if (businessData.description?.trim()) businessPayload.description = businessData.description.trim();
-      if (businessData.category?.trim()) businessPayload.category = businessData.category.trim();
-      if (businessData.email?.trim()) businessPayload.email = businessData.email.trim();
-      if (businessData.phone?.trim()) businessPayload.phone = businessData.phone.trim();
-      if (businessData.address?.trim()) businessPayload.address = businessData.address.trim();
-      if (businessData.city?.trim()) businessPayload.city = businessData.city.trim();
-      if (businessData.logoUrl?.trim()) businessPayload.logoUrl = businessData.logoUrl.trim();
-
-      const business: any = await apiClient.post('/businesses', businessPayload);
-
-      // 2. Create Website from selected template
-      const website: any = await apiClient.post('/websites', {
-        businessId: business.id,
-        templateId: selectedTemplateId || templates[0]?.id,
-        name: `${businessData.name || tenant?.name || 'Business'} Official Site`,
+      const business = await businessApi.create({
+        name: businessData.name?.trim() || selectedTpl.document.business.name || 'My Business',
+        description: businessData.description?.trim() || selectedTpl.document.business.description,
+        email: businessData.email?.trim() || selectedTpl.document.business.email,
+        phone: businessData.phone?.trim() || selectedTpl.document.business.phone,
+        address: businessData.address?.trim() || selectedTpl.document.business.address,
+        logoUrl: businessData.logoUrl?.trim() || selectedTpl.document.business.logoUrl,
       });
 
-      // 3. Navigate into website editor!
+      // 2. Create Website from canonical template document
+      const website = await websitesApi.create({
+        businessId: business.id,
+        templateId: selectedTpl.id,
+        name: `${businessData.name || selectedTpl.name}`,
+      });
+
+      // 3. Save document
+      const doc = selectedTpl.document;
+      await websitesApi.saveDraft(website.id, {
+        theme: doc.theme,
+        business: {
+          ...doc.business,
+          name: businessData.name || doc.business.name,
+          email: businessData.email || doc.business.email,
+          phone: businessData.phone || doc.business.phone,
+          address: businessData.address || doc.business.address,
+          logoUrl: businessData.logoUrl || doc.business.logoUrl,
+        },
+        pages: doc.pages,
+        seoTitle: doc.seoTitle,
+        seoDescription: doc.seoDescription,
+      });
+
+      // 4. Redirect into V2 website builder
       router.push(`/editor/${website.id}`);
     } catch (err: any) {
       console.error('Failed to complete onboarding:', err);
@@ -127,7 +136,7 @@ export default function OnboardingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between p-6">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between p-6 select-none">
       {/* Background glow */}
       <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 h-[300px] w-[600px] rounded-full bg-indigo-600/10 blur-[140px]" />
 
@@ -139,11 +148,11 @@ export default function OnboardingPage() {
               K
             </div>
             <span className="text-sm font-bold text-white">
-              KDBA Platform Setup
+              KDBA V2 Setup
             </span>
           </div>
 
-          <span className="text-xs font-semibold text-slate-400">
+          <span className="text-xs font-semibold text-slate-400 font-mono">
             Step {step} of 4
           </span>
         </div>
@@ -161,46 +170,44 @@ export default function OnboardingPage() {
         </div>
       </div>
 
-      {/* Main Step Content */}
+      {/* Step Content */}
       <div className="mx-auto w-full max-w-3xl my-8">
         {errorMessage && (
-          <div className="mb-6 flex items-center gap-2.5 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3.5 text-xs font-medium text-rose-300">
-            <span>{errorMessage}</span>
+          <div className="mb-6 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3.5 text-xs font-medium text-rose-300">
+            {errorMessage}
           </div>
         )}
+
         {step === 1 && (
           <div className="space-y-6">
             <div>
-              <h2 className="text-2xl font-extrabold text-white">
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-white">
                 Tell us about your business
               </h2>
-              <p className="mt-1 text-xs text-slate-400">
-                This information will populate your website header, about, and contact sections.
+              <p className="mt-1 text-xs sm:text-sm text-slate-400">
+                This will automatically populate your brand header, narrative story, and inquiry forms.
               </p>
             </div>
 
             <div className="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-6 backdrop-blur-xl">
               <Input
-                label="Business Name"
+                label="Business / Brand Name"
                 required
                 value={businessData.name}
                 onChange={(e) =>
                   setBusinessData({ ...businessData, name: e.target.value })
                 }
-                placeholder="e.g. Apex Advisory"
+                placeholder="e.g. Apex Strategic Advisory"
               />
 
               <Textarea
-                label="Business Description & Tagline"
+                label="Business Tagline & Summary"
                 rows={3}
                 value={businessData.description}
                 onChange={(e) =>
-                  setBusinessData({
-                    ...businessData,
-                    description: e.target.value,
-                  })
+                  setBusinessData({ ...businessData, description: e.target.value })
                 }
-                placeholder="We help ambitious clients navigate strategy, design, and growth..."
+                placeholder="We combine visionary strategy and elite engineering..."
               />
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -211,7 +218,7 @@ export default function OnboardingPage() {
                   onChange={(e) =>
                     setBusinessData({ ...businessData, email: e.target.value })
                   }
-                  placeholder="contact@business.com"
+                  placeholder="hello@business.com"
                 />
                 <Input
                   label="Phone Number"
@@ -219,7 +226,7 @@ export default function OnboardingPage() {
                   onChange={(e) =>
                     setBusinessData({ ...businessData, phone: e.target.value })
                   }
-                  placeholder="+1 (555) 123-4567"
+                  placeholder="+1 (555) 000-0000"
                 />
               </div>
             </div>
@@ -229,40 +236,42 @@ export default function OnboardingPage() {
         {step === 2 && (
           <div className="space-y-6">
             <div>
-              <h2 className="text-2xl font-extrabold text-white">
-                Select your industry category
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-white">
+                Select your industry
               </h2>
-              <p className="mt-1 text-xs text-slate-400">
-                We'll tailor your website layouts, section templates, and default styling.
+              <p className="mt-1 text-xs sm:text-sm text-slate-400">
+                We'll tailor your website layouts, section ordering, and visual design language.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {categories.map((cat) => {
-                const isSelected = businessData.category === cat.id;
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 max-h-[460px] overflow-y-auto pr-1">
+              {industries.map((cat) => {
+                const isSelected = selectedIndustry === cat.id;
                 return (
                   <div
                     key={cat.id}
-                    onClick={() =>
-                      setBusinessData({ ...businessData, category: cat.id })
-                    }
-                    className={`p-6 rounded-2xl border cursor-pointer transition-all ${
+                    onClick={() => {
+                      setSelectedIndustry(cat.id);
+                      const matching = TEMPLATES_DEFINITIONS.find((t) => t.industry === cat.id);
+                      if (matching) setSelectedTemplateId(matching.id);
+                    }}
+                    className={`p-4 rounded-2xl border cursor-pointer transition-all ${
                       isSelected
-                        ? 'border-indigo-500 bg-indigo-500/10 shadow-lg shadow-indigo-500/10'
+                        ? 'border-indigo-500 bg-indigo-500/10 shadow-lg shadow-indigo-500/10 ring-1 ring-indigo-500'
                         : 'border-slate-800 bg-slate-900/60 hover:border-slate-700'
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <h3 className="text-base font-bold text-white">
+                      <h3 className="text-sm font-bold text-white">
                         {cat.label}
                       </h3>
                       {isSelected && (
-                        <div className="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600 text-white">
-                          <Check className="h-3.5 w-3.5" />
+                        <div className="flex h-4 w-4 items-center justify-center rounded-full bg-indigo-600 text-white">
+                          <Check className="h-3 w-3" />
                         </div>
                       )}
                     </div>
-                    <p className="mt-2 text-xs text-slate-400">{cat.desc}</p>
+                    <p className="mt-1.5 text-[11px] text-slate-400">{cat.desc}</p>
                   </div>
                 );
               })}
@@ -273,16 +282,16 @@ export default function OnboardingPage() {
         {step === 3 && (
           <div className="space-y-6">
             <div>
-              <h2 className="text-2xl font-extrabold text-white">
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-white">
                 Choose your website template
               </h2>
-              <p className="mt-1 text-xs text-slate-400">
-                You can customize all sections, colors, images, and content later.
+              <p className="mt-1 text-xs sm:text-sm text-slate-400">
+                Curated layouts tailored for your selected industry. You can customize everything later.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {templates.map((tpl) => {
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-h-[460px] overflow-y-auto pr-1">
+              {activeTemplates.map((tpl) => {
                 const isSelected = selectedTemplateId === tpl.id;
                 return (
                   <div
@@ -290,13 +299,13 @@ export default function OnboardingPage() {
                     onClick={() => setSelectedTemplateId(tpl.id)}
                     className={`overflow-hidden rounded-2xl border cursor-pointer transition-all flex flex-col justify-between ${
                       isSelected
-                        ? 'border-indigo-500 bg-indigo-500/10 shadow-xl shadow-indigo-500/20 ring-2 ring-indigo-500'
+                        ? 'border-indigo-500 bg-indigo-500/10 shadow-xl ring-2 ring-indigo-500'
                         : 'border-slate-800 bg-slate-900/60 hover:border-slate-700'
                     }`}
                   >
                     <div>
                       {tpl.previewImage && (
-                        <div className="relative h-36 w-full overflow-hidden bg-slate-800">
+                        <div className="relative h-44 w-full overflow-hidden bg-slate-950">
                           <img
                             src={tpl.previewImage}
                             alt={tpl.name}
@@ -305,13 +314,13 @@ export default function OnboardingPage() {
                         </div>
                       )}
                       <div className="p-4">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-400">
-                          {tpl.category}
+                        <span className="text-[10px] font-bold font-mono uppercase text-indigo-400">
+                          {tpl.style}
                         </span>
-                        <h4 className="text-sm font-bold text-white mt-0.5">
+                        <h4 className="text-base font-bold text-white mt-1">
                           {tpl.name}
                         </h4>
-                        <p className="mt-1.5 text-xs text-slate-400 line-clamp-2">
+                        <p className="mt-1 text-xs text-slate-400 line-clamp-2">
                           {tpl.description}
                         </p>
                       </div>
@@ -319,13 +328,13 @@ export default function OnboardingPage() {
 
                     <div className="p-4 pt-0">
                       <div
-                        className={`text-center rounded-lg py-1.5 text-xs font-semibold ${
+                        className={`text-center rounded-xl py-2 text-xs font-semibold ${
                           isSelected
                             ? 'bg-indigo-600 text-white'
                             : 'bg-slate-800 text-slate-300'
                         }`}
                       >
-                        {isSelected ? 'Selected' : 'Choose'}
+                        {isSelected ? 'Selected' : 'Choose This Template'}
                       </div>
                     </div>
                   </div>
@@ -338,11 +347,11 @@ export default function OnboardingPage() {
         {step === 4 && (
           <div className="space-y-6">
             <div>
-              <h2 className="text-2xl font-extrabold text-white">
-                Add Logo & Physical Address
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-white">
+                Final brand & physical details
               </h2>
-              <p className="mt-1 text-xs text-slate-400">
-                Final details before generating your live website builder.
+              <p className="mt-1 text-xs sm:text-sm text-slate-400">
+                Add your logo and address to finish creating your live website builder.
               </p>
             </div>
 
@@ -353,8 +362,8 @@ export default function OnboardingPage() {
                 onChange={(e) =>
                   setBusinessData({ ...businessData, logoUrl: e.target.value })
                 }
-                placeholder="https://..."
-                leftIcon={<ImageIcon className="h-4 w-4" />}
+                placeholder="https://.../logo.png"
+                leftIcon={<ImageIcon className="h-4 w-4 text-slate-400" />}
               />
 
               <Input
@@ -367,7 +376,7 @@ export default function OnboardingPage() {
               />
 
               <Input
-                label="City & State"
+                label="City, State / Region"
                 value={businessData.city}
                 onChange={(e) =>
                   setBusinessData({ ...businessData, city: e.target.value })
@@ -379,7 +388,7 @@ export default function OnboardingPage() {
         )}
       </div>
 
-      {/* Footer Navigation Controls */}
+      {/* Navigation Footer Controls */}
       <div className="mx-auto w-full max-w-3xl flex items-center justify-between pt-6 border-t border-slate-800">
         <Button
           variant="ghost"
@@ -406,7 +415,7 @@ export default function OnboardingPage() {
             isLoading={isLoading}
             rightIcon={<Sparkles className="h-4 w-4" />}
           >
-            Generate Website
+            Launch Website Builder
           </Button>
         )}
       </div>

@@ -1,15 +1,13 @@
 'use client';
 
 import * as React from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { apiClient } from '@/lib/api/client';
-import { PublicWebsiteResponse } from '@/types';
-import { SectionRenderer } from '@/components/sections/section-renderer';
-import { Loader2, Globe, AlertCircle } from 'lucide-react';
+import { useParams } from 'next/navigation';
+import { publishingApi } from '@/lib/api/publishing';
+import { WebsiteRenderer } from '@/components/renderer/WebsiteRenderer';
+import { Loader2, AlertCircle } from 'lucide-react';
 
 export default function PublicSiteHomePage() {
   const params = useParams();
-  const router = useRouter();
   const tenantSlug = params?.tenantSlug as string;
 
   const [siteData, setSiteData] = React.useState<any | null>(null);
@@ -20,8 +18,8 @@ export default function PublicSiteHomePage() {
   React.useEffect(() => {
     if (!tenantSlug) return;
 
-    apiClient
-      .get(`/public/sites/${tenantSlug}`)
+    publishingApi
+      .getPublicSite(tenantSlug)
       .then((data: any) => {
         if (data) {
           setSiteData(data);
@@ -31,6 +29,16 @@ export default function PublicSiteHomePage() {
             document.title =
               data.website.seoTitle ||
               `${data.business?.name || data.tenant?.name} | Official Website`;
+
+            if (data.website.favicon) {
+              let link: HTMLLinkElement | null = document.querySelector("link[rel~='icon']");
+              if (!link) {
+                link = document.createElement('link');
+                link.rel = 'icon';
+                document.getElementsByTagName('head')[0].appendChild(link);
+              }
+              link.href = data.website.favicon;
+            }
           }
         } else {
           setError('Published website not found or site is still in draft mode.');
@@ -59,14 +67,8 @@ export default function PublicSiteHomePage() {
   // ─── ADMIN BLOCKED / SUSPENDED VIEW ─────────────────────────────────────────
   if (siteData?.isBlocked) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-slate-950 px-6 py-12 text-center text-slate-100 selection:bg-rose-500 selection:text-white relative overflow-hidden">
-        {/* Ambient background glow */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-rose-500/10 blur-[140px] rounded-full" />
-        </div>
-
+      <div className="flex min-h-screen flex-col items-center justify-center bg-slate-950 px-6 py-12 text-center text-slate-100 relative overflow-hidden">
         <div className="relative w-full max-w-lg space-y-6 rounded-3xl border border-rose-500/30 bg-slate-900/90 p-8 shadow-2xl backdrop-blur-xl">
-          {/* Red Shield Alert Icon */}
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-rose-500/20 text-rose-400 border border-rose-500/30 shadow-lg shadow-rose-500/10">
             <AlertCircle className="h-8 w-8" />
           </div>
@@ -83,7 +85,6 @@ export default function PublicSiteHomePage() {
             </p>
           </div>
 
-          {/* Reason Box */}
           <div className="rounded-2xl border border-rose-500/30 bg-slate-950/80 p-4 text-left space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-bold uppercase tracking-wider text-rose-400">
@@ -96,14 +97,8 @@ export default function PublicSiteHomePage() {
             <div className="rounded-xl bg-rose-500/5 p-3 border border-rose-500/10 text-sm font-medium text-slate-200">
               &ldquo;{siteData.blockedReason}&rdquo;
             </div>
-            {siteData.blockedAt && (
-              <div className="text-[11px] text-slate-400 font-mono">
-                Enforced on: {new Date(siteData.blockedAt).toLocaleString()}
-              </div>
-            )}
           </div>
 
-          {/* Support / Owner Notice */}
           <div className="rounded-2xl bg-slate-950/50 p-4 border border-slate-800 text-xs text-slate-400 space-y-1">
             <p className="font-semibold text-slate-300">Are you the website owner?</p>
             <p>
@@ -113,8 +108,7 @@ export default function PublicSiteHomePage() {
                 className="text-indigo-400 hover:text-indigo-300 font-bold underline"
               >
                 support@kdba.agency
-              </a>{' '}
-              to resolve compliance, billing, or security holds.
+              </a>
             </p>
           </div>
         </div>
@@ -138,47 +132,36 @@ export default function PublicSiteHomePage() {
 
   const { website, business, products, pricingPlans, tenant } = siteData;
 
-  // Resolve current active page
-  const currentPage =
-    website?.pages?.find((p: any) => p.slug === activePageSlug) || website?.pages?.[0];
-
-  const handleNavigate = (url: string) => {
-    if (url.startsWith('#')) {
-      const el = document.querySelector(url);
-      if (el) el.scrollIntoView({ behavior: 'smooth' });
-      return;
-    }
-
-    if (url === '/' || url === '/about' || url === '/contact') {
-      setActivePageSlug(url);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+  // Adapt to canonical WebsiteDocument format for WebsiteRenderer
+  const websiteDocument = {
+    id: website.id,
+    name: website.name,
+    slug: website.slug || tenant?.slug,
+    status: 'PUBLISHED',
+    theme: website.theme,
+    business: business || { name: tenant?.name || website.name },
+    pages: website.pages || [],
+    seoTitle: website.seoTitle,
+    seoDescription: website.seoDescription,
+    favicon: website.favicon,
   };
 
   return (
-    <div
-      className="min-h-screen w-full flex flex-col justify-between"
-      style={{
-        backgroundColor: website?.theme?.primaryColor || '#0f172a',
-        fontFamily: website?.theme?.bodyFont || 'Inter',
+    <WebsiteRenderer
+      document={websiteDocument}
+      activePageSlug={activePageSlug}
+      products={products}
+      pricingPlans={pricingPlans}
+      isEditing={false}
+      onNavigate={(url) => {
+        if (url.startsWith('#')) {
+          const el = document.querySelector(url);
+          if (el) el.scrollIntoView({ behavior: 'smooth' });
+          return;
+        }
+        setActivePageSlug(url);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
       }}
-    >
-      <main className="flex-1 flex flex-col w-full">
-        {currentPage?.sections?.map((section: any) => (
-          <SectionRenderer
-            key={section.id}
-            type={section.type}
-            config={section.config}
-            theme={website.theme}
-            business={business}
-            products={products}
-            pricingPlans={pricingPlans}
-            isEditing={false}
-            tenantSlug={tenant.slug}
-            onNavigate={handleNavigate}
-          />
-        ))}
-      </main>
-    </div>
+    />
   );
 }

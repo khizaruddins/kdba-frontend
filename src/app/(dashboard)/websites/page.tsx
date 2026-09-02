@@ -138,7 +138,7 @@ export default function WebsitesPage() {
                     </Badge>
                     <span className="text-[11px] text-slate-500 flex items-center gap-1">
                       <Calendar className="h-3 w-3" />
-                      {formatDate(website.createdAt)}
+                      {formatDate(website.createdAt || '')}
                     </span>
                   </div>
 

@@ -4,14 +4,16 @@ import * as React from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth-store';
 import { useEditorStore } from '@/stores/editor-store';
+import { websitesApi } from '@/lib/api/websites';
 import { apiClient } from '@/lib/api/client';
+import { useAutosave } from '@/lib/editor/use-autosave';
 import { EditorHeader } from '@/components/editor/editor-header';
 import { EditorSidebar } from '@/components/editor/editor-sidebar';
 import { EditorCanvas } from '@/components/editor/editor-canvas';
+import { PreviewModal } from '@/components/editor/PreviewModal';
 import { Dialog } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Loader2, CheckCircle2, Rocket, ExternalLink } from 'lucide-react';
-
+import { Loader2, Rocket, ExternalLink } from 'lucide-react';
 import { Product, PricingPlan } from '@/types';
 
 export default function WebsiteEditorPage() {
@@ -20,12 +22,14 @@ export default function WebsiteEditorPage() {
   const websiteId = params?.websiteId as string;
 
   const { isAuthenticated, isLoading: authLoading, fetchProfile } = useAuthStore();
-  const { setWebsite, website } = useEditorStore();
+  const { setWebsite, website, setActiveSectionId } = useEditorStore();
+  const { saveStatus, saveImmediately } = useAutosave(websiteId);
 
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [products, setProducts] = React.useState<Product[]>([]);
   const [pricingPlans, setPricingPlans] = React.useState<PricingPlan[]>([]);
+  const [previewOpen, setPreviewOpen] = React.useState(false);
   const [publishSuccessOpen, setPublishSuccessOpen] = React.useState(false);
 
   React.useEffect(() => {
@@ -46,7 +50,7 @@ export default function WebsiteEditorPage() {
 
     try {
       const [siteData, productsData, plansData]: any = await Promise.all([
-        apiClient.get(`/websites/${websiteId}`),
+        websitesApi.getById(websiteId),
         apiClient.get('/products').catch(() => []),
         apiClient.get('/pricing-plans').catch(() => []),
       ]);
@@ -78,6 +82,22 @@ export default function WebsiteEditorPage() {
     }
   }, [authLoading, isAuthenticated, loadWebsiteData]);
 
+  // Keyboard Shortcuts (Ctrl/Cmd + S, Escape)
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        e.preventDefault();
+        saveImmediately();
+      }
+      if (e.key === 'Escape') {
+        setActiveSectionId(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [saveImmediately, setActiveSectionId]);
+
   if (authLoading || isLoading) {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-slate-950 text-slate-400">
@@ -103,11 +123,7 @@ export default function WebsiteEditorPage() {
             {error || 'Unable to find or load the requested website in your workspace.'}
           </p>
           <div className="mt-6 flex flex-col gap-2.5">
-            <Button
-              onClick={() => loadWebsiteData()}
-              className="w-full"
-              size="sm"
-            >
+            <Button onClick={() => loadWebsiteData()} className="w-full" size="sm">
               Retry Loading
             </Button>
             <Button
@@ -126,9 +142,12 @@ export default function WebsiteEditorPage() {
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-slate-950 select-none">
-      {/* Top toolbar */}
+      {/* Top Header */}
       <EditorHeader
         onPublishSuccess={() => setPublishSuccessOpen(true)}
+        onOpenPreview={() => setPreviewOpen(true)}
+        saveStatus={saveStatus}
+        onSaveImmediately={saveImmediately}
       />
 
       {/* Editor Body: Sidebar + Canvas */}
@@ -141,6 +160,15 @@ export default function WebsiteEditorPage() {
         />
         <EditorCanvas products={products} pricingPlans={pricingPlans} />
       </div>
+
+      {/* Interactive Preview Modal */}
+      <PreviewModal
+        isOpen={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        document={website}
+        products={products}
+        pricingPlans={pricingPlans}
+      />
 
       {/* Publish Success Modal */}
       <Dialog

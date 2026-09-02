@@ -1,22 +1,9 @@
-// KDBA V1 — Global Type Definitions
+// KDBA — Global Type Definitions
+export * from './document';
 
 export type Role = 'OWNER' | 'ADMIN' | 'EDITOR' | 'MEMBER';
 export type WebsiteStatus = 'DRAFT' | 'PUBLISHED';
-export type PageType = 'HOME' | 'ABOUT' | 'CONTACT' | 'CUSTOM';
-export type SectionType =
-  | 'NAVBAR'
-  | 'HERO'
-  | 'ABOUT'
-  | 'SERVICES'
-  | 'PRODUCTS'
-  | 'PRICING'
-  | 'TESTIMONIALS'
-  | 'GALLERY'
-  | 'TEAM'
-  | 'FAQ'
-  | 'CTA'
-  | 'CONTACT'
-  | 'FOOTER';
+export type PageType = 'HOME' | 'ABOUT' | 'CONTACT' | 'SERVICES' | 'CUSTOM';
 
 export type LeadStatus = 'NEW' | 'CONTACTED' | 'QUALIFIED' | 'CONVERTED' | 'LOST';
 
@@ -27,7 +14,15 @@ export type TemplateCategory =
   | 'PORTFOLIO'
   | 'ECOMMERCE'
   | 'CREATIVE'
-  | 'PROFESSIONAL';
+  | 'PROFESSIONAL'
+  | 'HEALTHCARE'
+  | 'SALON'
+  | 'FITNESS'
+  | 'REAL_ESTATE'
+  | 'EDUCATION'
+  | 'HOSPITALITY'
+  | 'TECHNOLOGY'
+  | 'AUTOMOTIVE';
 
 export interface User {
   id: string;
@@ -52,6 +47,7 @@ export interface Business {
   description?: string | null;
   category?: string | null;
   logoUrl?: string | null;
+  favicon?: string | null;
   email?: string | null;
   phone?: string | null;
   whatsapp?: string | null;
@@ -62,31 +58,23 @@ export interface Business {
   zipCode?: string | null;
   website?: string | null;
   socialMedia?: Record<string, string> | null;
-  businessHours?: Record<string, any> | null;
+  businessHours?: any;
   createdAt: string;
   updatedAt: string;
-}
-
-export interface ThemeConfig {
-  primaryColor: string;
-  secondaryColor: string;
-  accentColor: string;
-  headingFont: string;
-  bodyFont: string;
-  borderRadius: string;
 }
 
 export interface Section {
   id: string;
   pageId: string;
-  type: SectionType;
+  type: string;
+  variant?: string;
   title?: string | null;
   draftConfig: Record<string, any>;
   publishedConfig?: Record<string, any> | null;
   sortOrder: number;
   enabled: boolean;
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Page {
@@ -94,23 +82,23 @@ export interface Page {
   websiteId: string;
   title: string;
   slug: string;
-  type: PageType;
+  type?: PageType | string;
   sortOrder: number;
   isActive: boolean;
   sections: Section[];
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Website {
   id: string;
-  tenantId: string;
-  businessId: string;
-  templateId: string;
+  tenantId?: string;
+  businessId?: string;
+  templateId?: string;
   name: string;
   slug: string;
   status: WebsiteStatus;
-  theme: ThemeConfig;
+  theme: any;
   favicon?: string | null;
   seoTitle?: string | null;
   seoDescription?: string | null;
@@ -118,14 +106,15 @@ export interface Website {
   pages: Page[];
   business?: Business;
   template?: Template;
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface TemplateSection {
   id: string;
-  templatePageId: string;
-  type: SectionType;
+  templatePageId?: string;
+  type: string;
+  variant?: string;
   title?: string | null;
   defaultConfig: Record<string, any>;
   sortOrder: number;
@@ -134,10 +123,10 @@ export interface TemplateSection {
 
 export interface TemplatePage {
   id: string;
-  templateId: string;
+  templateId?: string;
   title: string;
   slug: string;
-  type: PageType;
+  type?: PageType | string;
   sortOrder: number;
   sections: TemplateSection[];
 }
@@ -147,11 +136,13 @@ export interface Template {
   name: string;
   slug: string;
   description?: string | null;
-  category: TemplateCategory;
+  category: TemplateCategory | string;
+  industry?: string;
+  style?: string;
   previewImage?: string | null;
-  theme: ThemeConfig;
+  theme: any;
   isActive: boolean;
-  isPremium: boolean;
+  isPremium?: boolean;
   pages?: TemplatePage[];
 }
 
@@ -235,7 +226,7 @@ export interface PublicWebsiteResponse {
     id: string;
     name: string;
     slug: string;
-    theme: ThemeConfig;
+    theme: any;
     seoTitle?: string;
     seoDescription?: string;
     favicon?: string;
@@ -244,10 +235,11 @@ export interface PublicWebsiteResponse {
       id: string;
       title: string;
       slug: string;
-      type: PageType;
+      type: PageType | string;
       sections: Array<{
         id: string;
-        type: SectionType;
+        type: string;
+        variant?: string;
         title?: string;
         config: Record<string, any>;
         sortOrder: number;
@@ -256,4 +248,8 @@ export interface PublicWebsiteResponse {
   };
   products: Product[];
   pricingPlans: PricingPlan[];
+  isBlocked?: boolean;
+  tenantStatus?: string;
+  blockedReason?: string;
+  blockedAt?: string;
 }

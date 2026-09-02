@@ -1,19 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import { SectionType, ThemeConfig, Product, PricingPlan, Business } from '@/types';
-import { NavbarSection } from './navbar-section';
-import { HeroSection } from './hero-section';
-import { AboutSection } from './about-section';
-import { ServicesSection } from './services-section';
-import { ProductsSection } from './products-section';
-import { PricingSection } from './pricing-section';
-import { TestimonialsSection } from './testimonials-section';
-import { GallerySection } from './gallery-section';
-import { TeamSection } from './team-section';
-import { CTASection } from './cta-section';
-import { ContactSection } from './contact-section';
-import { FooterSection } from './footer-section';
+import { SectionRenderer as V2SectionRenderer } from '../renderer/SectionRenderer';
+import { ThemeConfig, Business, Product, PricingPlan } from '@/types';
 
 export interface SectionProps {
   id?: string;
@@ -27,36 +16,18 @@ export interface SectionProps {
   onNavigate?: (url: string) => void;
 }
 
-const SECTION_COMPONENTS: Record<SectionType, React.ComponentType<SectionProps>> = {
-  NAVBAR: NavbarSection,
-  HERO: HeroSection,
-  ABOUT: AboutSection,
-  SERVICES: ServicesSection,
-  PRODUCTS: ProductsSection,
-  PRICING: PricingSection,
-  TESTIMONIALS: TestimonialsSection,
-  GALLERY: GallerySection,
-  TEAM: TeamSection,
-  FAQ: ServicesSection, // fallback to services or custom FAQ
-  CTA: CTASection,
-  CONTACT: ContactSection,
-  FOOTER: FooterSection,
-};
-
 export interface SectionRendererProps extends SectionProps {
-  type: SectionType;
+  type: string;
 }
 
-export function SectionRenderer({ type, ...props }: SectionRendererProps) {
-  const Component = SECTION_COMPONENTS[type];
+export function SectionRenderer({ type, config, ...props }: SectionRendererProps) {
+  const section = {
+    id: props.id || 'sec_legacy',
+    type,
+    variant: config?.variant || 'default',
+    enabled: true,
+    props: config || {},
+  };
 
-  if (!Component) {
-    return (
-      <div className="my-4 rounded-lg border border-dashed border-amber-500/40 bg-amber-500/10 p-6 text-center text-amber-300">
-        <p className="font-medium">Unknown section type: {type}</p>
-      </div>
-    );
-  }
-
-  return <Component {...props} />;
+  return <V2SectionRenderer section={section} {...(props as any)} />;
 }
