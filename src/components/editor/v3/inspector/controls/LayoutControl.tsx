@@ -36,26 +36,39 @@ export function LayoutControl({
             { id: 'block', label: 'Block' },
             { id: 'flex', label: 'Flex' },
             { id: 'grid', label: 'Grid' },
-            { id: 'none', label: 'None' },
-          ].map((item) => (
+            { id: 'stack', label: 'Stack' },
+          ].map((item) => {
+            const isStack = display === 'flex' && flex.direction === 'column';
+            const isActive =
+              item.id === 'stack' ? isStack : item.id === 'flex' ? display === 'flex' && !isStack : display === item.id;
+            return (
             <button
               key={item.id}
               type="button"
-              onClick={() =>
+              onClick={() => {
+                if (item.id === 'stack') {
+                  onChangeLayout({ ...layout, display: 'flex' });
+                  onChangeFlex({ ...flex, direction: 'column' });
+                  return;
+                }
                 onChangeLayout({
                   ...layout,
                   display: item.id as 'flex' | 'grid' | 'block' | 'none',
-                })
-              }
+                });
+                if (item.id === 'flex' && flex.direction === 'column') {
+                  onChangeFlex({ ...flex, direction: 'row' });
+                }
+              }}
               className={`py-1 rounded font-medium transition-colors ${
-                display === item.id
+                isActive
                   ? 'bg-indigo-600 text-white shadow'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
               {item.label}
             </button>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -103,7 +116,8 @@ export function LayoutControl({
                       | 'flex-end'
                       | 'center'
                       | 'space-between'
-                      | 'space-around',
+                      | 'space-around'
+                      | 'space-evenly',
                   })
                 }
                 className="w-full h-8 px-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-200 text-xs focus:outline-none"
@@ -113,6 +127,7 @@ export function LayoutControl({
                 <option value="flex-end">End</option>
                 <option value="space-between">Between</option>
                 <option value="space-around">Around</option>
+                <option value="space-evenly">Evenly</option>
               </select>
             </div>
 
@@ -140,16 +155,32 @@ export function LayoutControl({
             </div>
           </div>
 
-          {/* Gap */}
-          <div className="space-y-1">
-            <label className="text-[11px] font-medium text-slate-400">Gap (px)</label>
-            <input
-              type="text"
-              placeholder="16px"
-              value={flex.gap || ''}
-              onChange={(e) => onChangeFlex({ ...flex, gap: e.target.value })}
-              className="w-full h-8 px-2.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-200 text-xs focus:outline-none"
-            />
+          {/* Gap & Wrap */}
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <label className="text-[11px] font-medium text-slate-400">Gap</label>
+              <input
+                type="text"
+                placeholder="16px"
+                value={flex.gap || ''}
+                onChange={(e) => onChangeFlex({ ...flex, gap: e.target.value })}
+                className="w-full h-8 px-2.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-200 text-xs focus:outline-none"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[11px] font-medium text-slate-400">Wrap</label>
+              <select
+                value={flex.wrap || 'nowrap'}
+                onChange={(e) =>
+                  onChangeFlex({ ...flex, wrap: e.target.value as 'nowrap' | 'wrap' | 'wrap-reverse' })
+                }
+                className="w-full h-8 px-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-200 text-xs"
+              >
+                <option value="nowrap">No wrap</option>
+                <option value="wrap">Wrap</option>
+                <option value="wrap-reverse">Wrap reverse</option>
+              </select>
+            </div>
           </div>
         </div>
       )}

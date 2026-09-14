@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { WebsiteDocumentV3 } from '@/types/v3-document';
 import { NodeRenderer } from './NodeRenderer';
+import { getThemeLayoutTokens, resolveThemeColor } from '@/lib/editor/theme-tokens';
 
 export interface V3WebsiteRendererProps {
   document: WebsiteDocumentV3;
@@ -10,11 +11,10 @@ export interface V3WebsiteRendererProps {
   activePageSlug?: string | null;
   isEditing?: boolean;
   viewport?: 'desktop' | 'tablet' | 'mobile';
-  selectedNodeId?: string | null;
-  hoveredNodeId?: string | null;
-  onSelectNode?: (nodeId: string) => void;
-  onHoverNode?: (nodeId: string | null) => void;
-  onDoubleClickText?: (nodeId: string) => void;
+  inlineEditingNodeId?: string | null;
+  onCommitProps?: (nodeId: string, props: Record<string, unknown>) => void;
+  onEndInlineEdit?: () => void;
+  onStartInlineEdit?: (nodeId: string) => void;
   className?: string;
   style?: React.CSSProperties;
 }
@@ -25,11 +25,10 @@ export function V3WebsiteRenderer({
   activePageSlug,
   isEditing = false,
   viewport = 'desktop',
-  selectedNodeId,
-  hoveredNodeId,
-  onSelectNode,
-  onHoverNode,
-  onDoubleClickText,
+  inlineEditingNodeId = null,
+  onCommitProps,
+  onEndInlineEdit,
+  onStartInlineEdit,
   className = '',
   style = {},
 }: V3WebsiteRendererProps) {
@@ -68,6 +67,8 @@ export function V3WebsiteRenderer({
     border: '#212636',
   };
 
+  const layoutTokens = getThemeLayoutTokens(document.theme?.tokens);
+
   const cssVariables = {
     '--kdba-primary': themeColors.primary,
     '--kdba-secondary': themeColors.secondary,
@@ -77,8 +78,20 @@ export function V3WebsiteRenderer({
     '--kdba-text': themeColors.text,
     '--kdba-muted': themeColors.muted,
     '--kdba-border': themeColors.border,
-    '--kdba-font-heading': document.theme?.typography?.h1?.fontFamily || 'Inter',
-    '--kdba-font-body': document.theme?.typography?.body?.fontFamily || 'Inter',
+    '--kdba-font-heading':
+      document.theme?.typography?.headingFont ||
+      document.theme?.headingFont ||
+      document.theme?.typography?.h1?.fontFamily ||
+      'Inter',
+    '--kdba-font-body':
+      document.theme?.typography?.bodyFont ||
+      document.theme?.bodyFont ||
+      document.theme?.typography?.body?.fontFamily ||
+      'Inter',
+    '--kdba-container-max': layoutTokens.containerMaxWidth,
+    '--kdba-button-radius': layoutTokens.buttonRadius,
+    '--kdba-button-bg': resolveThemeColor(layoutTokens.buttonBackground) || layoutTokens.buttonBackground,
+    '--kdba-button-fg': resolveThemeColor(layoutTokens.buttonColor) || layoutTokens.buttonColor,
     ...style,
   } as React.CSSProperties;
 
@@ -92,11 +105,10 @@ export function V3WebsiteRenderer({
           node={currentPage.root}
           isEditing={isEditing}
           viewport={viewport}
-          selectedNodeId={selectedNodeId}
-          hoveredNodeId={hoveredNodeId}
-          onSelectNode={onSelectNode}
-          onHoverNode={onHoverNode}
-          onDoubleClickText={onDoubleClickText}
+          inlineEditingNodeId={inlineEditingNodeId}
+          onCommitProps={onCommitProps}
+          onEndInlineEdit={onEndInlineEdit}
+          onStartInlineEdit={onStartInlineEdit}
         />
       ) : (
         <div className="flex min-h-[400px] flex-col items-center justify-center p-12 text-center text-slate-500">

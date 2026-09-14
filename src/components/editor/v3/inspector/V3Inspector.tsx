@@ -2,12 +2,17 @@
 
 import * as React from 'react';
 import { useV3EditorStore } from '@/stores/v3-editor-store';
+import { StyleDefinition } from '@/types/v3-document';
 import { ContentControl } from './controls/ContentControl';
 import { BackgroundControl } from './controls/BackgroundControl';
 import { SpacingBoxModel } from './controls/SpacingBoxModel';
 import { TypographyControl } from './controls/TypographyControl';
 import { LayoutControl } from './controls/LayoutControl';
 import { EffectsControl } from './controls/EffectsControl';
+import { ColorControl } from './controls/ColorControl';
+import { SizeControl } from './controls/SizeControl';
+import { VisibilityControl } from './controls/VisibilityControl';
+import { isStyleGroupOverridden, StyleGroupKey, hasViewportOverride } from '@/lib/document/v3-operations';
 import {
   AlignLeft,
   AlignCenter,
@@ -24,6 +29,93 @@ import {
   RotateCcw,
 } from 'lucide-react';
 
+function OverrideBadge({
+  viewport,
+  overridden,
+}: {
+  viewport: string;
+  overridden: boolean;
+}) {
+  if (viewport === 'desktop') return null;
+  return (
+    <span
+      className={`rounded-full px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wide ${
+        overridden
+          ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+          : 'bg-slate-800 text-slate-400 border border-slate-700'
+      }`}
+    >
+      {overridden ? 'Overridden' : 'Inherited'}
+    </span>
+  );
+}
+
+function InspectorSection({
+  id,
+  title,
+  open,
+  onToggle,
+  overridden,
+  viewport,
+  onReset,
+  icon,
+  children,
+}: {
+  id: string;
+  title: string;
+  open: boolean;
+  onToggle: () => void;
+  overridden: boolean;
+  viewport: string;
+  onReset?: () => void;
+  icon?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="p-3">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="w-full flex items-center justify-between text-xs font-bold text-slate-300 hover:text-white mb-2"
+        aria-expanded={open}
+        aria-controls={`inspector-${id}`}
+      >
+        <div className="flex items-center gap-1.5 min-w-0">
+          {icon}
+          <span>{title}</span>
+          <OverrideBadge viewport={viewport} overridden={overridden} />
+        </div>
+        <div className="flex items-center gap-1">
+          {viewport !== 'desktop' && overridden && onReset && (
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={(e) => {
+                e.stopPropagation();
+                onReset();
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onReset();
+                }
+              }}
+              className="flex items-center gap-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-400 hover:underline"
+              title="Reset this section to the inherited desktop value"
+            >
+              <RotateCcw className="w-3 h-3" />
+              Reset
+            </span>
+          )}
+          {open ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+        </div>
+      </button>
+      {open && <div id={`inspector-${id}`}>{children}</div>}
+    </div>
+  );
+}
+
 export function V3Inspector() {
   const {
     getSelectedNode,
@@ -32,23 +124,38 @@ export function V3Inspector() {
     selectedNodeId,
     updateStyles,
     updateProps,
-    updateResponsive,
+    resetViewportStyles,
+    resetViewportStyleGroup,
+    setVisibility,
     viewport,
+    document,
+    getInspectorStyles,
+    inspectorFocusKey,
   } = useV3EditorStore();
 
   const selectedNode = getSelectedNode();
   const path = selectedNodeId ? getNodePath(selectedNodeId) : [];
+  const styles = selectedNodeId ? getInspectorStyles(selectedNodeId) : {};
+  const themeColors = document?.theme?.colors;
 
-  // Collapsible accordion state
   const [openSections, setOpenSections] = React.useState<Record<string, boolean>>({
     content: true,
-    background: true,
     layout: true,
+    size: true,
     spacing: true,
     typography: true,
-    effects: true,
+    color: true,
+    background: true,
+    border: false,
+    radius: false,
+    shadow: false,
     responsive: true,
   });
+
+  React.useEffect(() => {
+    if (!inspectorFocusKey) return;
+    setOpenSections((prev) => ({ ...prev, [inspectorFocusKey]: true }));
+  }, [inspectorFocusKey, selectedNodeId]);
 
   const toggleSection = (key: string) => {
     setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -70,19 +177,26 @@ export function V3Inspector() {
     selectedNode.type,
   );
 
-  // Responsive override check
-  const hasResponsiveOverride = Boolean(
-    viewport !== 'desktop' && selectedNode.responsive && selectedNode.responsive[viewport],
-  );
+  const hasResponsiveOverride = hasViewportOverride(selectedNode, viewport);
 
-  const resetResponsiveOverride = () => {
+  const groupOverridden = (groups: StyleGroupKey[]) => isStyleGroupOverridden(selectedNode, viewport, groups);
+
+  const resetGroup = (groups: StyleGroupKey[]) => {
     if (viewport === 'desktop') return;
-    updateResponsive(selectedNode.id, { [viewport]: undefined });
+    resetViewportStyleGroup(selectedNode.id, groups);
+  };
+
+  const effectsProps = {
+    size: styles.size,
+    border: styles.border,
+    effects: styles.effects,
+    onChangeSize: (size: StyleDefinition['size']) => updateStyles(selectedNode.id, { size }),
+    onChangeBorder: (border: StyleDefinition['border']) => updateStyles(selectedNode.id, { border }),
+    onChangeEffects: (effects: StyleDefinition['effects']) => updateStyles(selectedNode.id, { effects }),
   };
 
   return (
-    <aside className="w-84 shrink-0 border-l border-slate-800/80 bg-slate-950 flex flex-col h-full overflow-hidden select-none text-slate-100 z-20">
-      {/* 1. Selector Breadcrumb Hierarchy */}
+    <aside className="w-80 shrink-0 border-l border-slate-800/80 bg-slate-950 flex flex-col h-full overflow-hidden select-none text-slate-100 z-20">
       <div className="p-3 border-b border-slate-800/80 bg-slate-900/60">
         <div className="flex items-center gap-1 text-[11px] text-slate-400 font-medium overflow-x-auto scrollbar-none py-0.5">
           {path.map((item, idx) => (
@@ -105,7 +219,6 @@ export function V3Inspector() {
         </div>
       </div>
 
-      {/* 2. Quick Alignment Bar */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-slate-800/80 bg-slate-900/30 text-slate-400">
         <span className="text-[10px] uppercase tracking-wider font-bold text-slate-500">Align</span>
         <div className="flex items-center gap-0.5 bg-slate-900 rounded-lg p-0.5 border border-slate-800">
@@ -144,29 +257,26 @@ export function V3Inspector() {
         </div>
       </div>
 
-      {/* 3. Scrollable Inspector Properties */}
       <div className="flex-1 overflow-y-auto divide-y divide-slate-800/80">
-        {/* Device Mode Notice */}
         {viewport !== 'desktop' && (
           <div className="px-4 py-2 bg-indigo-950/30 border-b border-indigo-900/40 flex items-center justify-between text-[11px]">
             <div className="flex items-center gap-1.5 text-indigo-300 font-medium">
               {viewport === 'tablet' ? <Tablet className="w-3.5 h-3.5" /> : <Smartphone className="w-3.5 h-3.5" />}
-              <span>Editing for {viewport.toUpperCase()}</span>
+              <span>Editing {viewport}</span>
             </div>
             {hasResponsiveOverride && (
               <button
                 type="button"
-                onClick={resetResponsiveOverride}
+                onClick={() => resetViewportStyles(selectedNode.id)}
                 className="flex items-center gap-1 text-[10px] text-amber-400 hover:underline"
               >
                 <RotateCcw className="w-3 h-3" />
-                <span>Reset</span>
+                <span>Reset all</span>
               </button>
             )}
           </div>
         )}
 
-        {/* Accordion: Content & Element Settings */}
         <div className="p-3 bg-slate-900/30">
           <button
             type="button"
@@ -187,118 +297,182 @@ export function V3Inspector() {
           )}
         </div>
 
-        {/* Accordion: Layout */}
-        <div className="p-3">
-          <button
-            type="button"
-            onClick={() => toggleSection('layout')}
-            className="w-full flex items-center justify-between text-xs font-bold text-slate-300 hover:text-white mb-2"
-          >
-            <span>Layout</span>
-            {openSections.layout ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-          </button>
-          {openSections.layout && (
-            <LayoutControl
-              layout={selectedNode.styles?.layout}
-              flex={selectedNode.styles?.flex}
-              grid={selectedNode.styles?.grid}
-              onChangeLayout={(layout) => updateStyles(selectedNode.id, { layout })}
-              onChangeFlex={(flex) => updateStyles(selectedNode.id, { flex })}
-              onChangeGrid={(grid) => updateStyles(selectedNode.id, { grid })}
-            />
-          )}
-        </div>
+        <InspectorSection
+          id="layout"
+          title="Layout"
+          open={openSections.layout}
+          onToggle={() => toggleSection('layout')}
+          overridden={groupOverridden(['layout', 'flex', 'grid'])}
+          viewport={viewport}
+          onReset={() => resetGroup(['layout', 'flex', 'grid'])}
+        >
+          <LayoutControl
+            layout={styles.layout}
+            flex={styles.flex}
+            grid={styles.grid}
+            onChangeLayout={(layout) => updateStyles(selectedNode.id, { layout })}
+            onChangeFlex={(flex) => updateStyles(selectedNode.id, { flex })}
+            onChangeGrid={(grid) => updateStyles(selectedNode.id, { grid })}
+          />
+        </InspectorSection>
 
-        {/* Accordion: Spacing (Box Model) */}
-        <div className="p-3">
-          <button
-            type="button"
-            onClick={() => toggleSection('spacing')}
-            className="w-full flex items-center justify-between text-xs font-bold text-slate-300 hover:text-white mb-2"
-          >
-            <span>Spacing</span>
-            {openSections.spacing ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-          </button>
-          {openSections.spacing && (
-            <SpacingBoxModel
-              margin={selectedNode.styles?.spacing?.margin}
-              padding={selectedNode.styles?.spacing?.padding}
-              onChangeMargin={(margin) =>
-                updateStyles(selectedNode.id, {
-                  spacing: { ...selectedNode.styles?.spacing, margin },
-                })
-              }
-              onChangePadding={(padding) =>
-                updateStyles(selectedNode.id, {
-                  spacing: { ...selectedNode.styles?.spacing, padding },
-                })
-              }
-            />
-          )}
-        </div>
+        <InspectorSection
+          id="size"
+          title="Size"
+          open={openSections.size}
+          onToggle={() => toggleSection('size')}
+          overridden={groupOverridden(['size'])}
+          viewport={viewport}
+          onReset={() => resetGroup(['size'])}
+        >
+          <SizeControl size={styles.size} onChangeSize={(size) => updateStyles(selectedNode.id, { size })} />
+        </InspectorSection>
 
-        {/* Accordion: Background (Color & Image) */}
-        <div className="p-3">
-          <button
-            type="button"
-            onClick={() => toggleSection('background')}
-            className="w-full flex items-center justify-between text-xs font-bold text-slate-300 hover:text-white mb-2"
-          >
-            <div className="flex items-center gap-1.5">
-              <Palette className="w-3.5 h-3.5 text-indigo-400" />
-              <span>Background</span>
-            </div>
-            {openSections.background ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-          </button>
-          {openSections.background && (
-            <BackgroundControl
-              background={selectedNode.styles?.background}
-              onChangeBackground={(background) => updateStyles(selectedNode.id, { background })}
-            />
-          )}
-        </div>
+        <InspectorSection
+          id="spacing"
+          title="Spacing"
+          open={openSections.spacing}
+          onToggle={() => toggleSection('spacing')}
+          overridden={groupOverridden(['spacing'])}
+          viewport={viewport}
+          onReset={() => resetGroup(['spacing'])}
+        >
+          <SpacingBoxModel
+            margin={styles.spacing?.margin}
+            padding={styles.spacing?.padding}
+            onChangeMargin={(margin) =>
+              updateStyles(selectedNode.id, {
+                spacing: { ...styles.spacing, margin },
+              })
+            }
+            onChangePadding={(padding) =>
+              updateStyles(selectedNode.id, {
+                spacing: { ...styles.spacing, padding },
+              })
+            }
+          />
+        </InspectorSection>
 
-        {/* Accordion: Typography (Shown for text elements) */}
         {isTextElement && (
-          <div className="p-3">
-            <button
-              type="button"
-              onClick={() => toggleSection('typography')}
-              className="w-full flex items-center justify-between text-xs font-bold text-slate-300 hover:text-white mb-2"
-            >
-              <span>Typography</span>
-              {openSections.typography ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-            </button>
-            {openSections.typography && (
-              <TypographyControl
-                typography={selectedNode.styles?.typography}
-                onChange={(typography) => updateStyles(selectedNode.id, { typography })}
-              />
-            )}
-          </div>
+          <InspectorSection
+            id="typography"
+            title="Typography"
+            open={openSections.typography}
+            onToggle={() => toggleSection('typography')}
+            overridden={groupOverridden(['typography'])}
+            viewport={viewport}
+            onReset={() => resetGroup(['typography'])}
+          >
+            <TypographyControl
+              typography={styles.typography}
+              onChange={(typography) => updateStyles(selectedNode.id, { typography })}
+            />
+          </InspectorSection>
         )}
 
-        {/* Accordion: Size, Border & Shadows */}
-        <div className="p-3">
-          <button
-            type="button"
-            onClick={() => toggleSection('effects')}
-            className="w-full flex items-center justify-between text-xs font-bold text-slate-300 hover:text-white mb-2"
-          >
-            <span>Size & Effects</span>
-            {openSections.effects ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-          </button>
-          {openSections.effects && (
-            <EffectsControl
-              size={selectedNode.styles?.size}
-              border={selectedNode.styles?.border}
-              effects={selectedNode.styles?.effects}
-              onChangeSize={(size) => updateStyles(selectedNode.id, { size })}
-              onChangeBorder={(border) => updateStyles(selectedNode.id, { border })}
-              onChangeEffects={(effects) => updateStyles(selectedNode.id, { effects })}
+        <InspectorSection
+          id="color"
+          title="Color"
+          open={openSections.color}
+          onToggle={() => toggleSection('color')}
+          overridden={groupOverridden(['typography', 'background', 'border'])}
+          viewport={viewport}
+          onReset={() => resetGroup(['typography', 'background', 'border'])}
+        >
+          <div className="space-y-3">
+            <ColorControl
+              label="Text color"
+              value={styles.typography?.color}
+              themeColors={themeColors}
+              onChange={(color) => updateStyles(selectedNode.id, { typography: { color } })}
             />
-          )}
-        </div>
+            <ColorControl
+              label="Background color"
+              value={styles.background?.color}
+              themeColors={themeColors}
+              onChange={(color) => updateStyles(selectedNode.id, { background: { color } })}
+            />
+            <ColorControl
+              label="Border color"
+              value={styles.border?.color}
+              themeColors={themeColors}
+              onChange={(color) => updateStyles(selectedNode.id, { border: { color } })}
+            />
+          </div>
+        </InspectorSection>
+
+        <InspectorSection
+          id="background"
+          title="Background"
+          open={openSections.background}
+          onToggle={() => toggleSection('background')}
+          overridden={groupOverridden(['background'])}
+          viewport={viewport}
+          onReset={() => resetGroup(['background'])}
+          icon={<Palette className="w-3.5 h-3.5 text-indigo-400" />}
+        >
+          <BackgroundControl
+            background={styles.background}
+            onChangeBackground={(background) => updateStyles(selectedNode.id, { background })}
+          />
+        </InspectorSection>
+
+        <InspectorSection
+          id="border"
+          title="Border"
+          open={openSections.border}
+          onToggle={() => toggleSection('border')}
+          overridden={groupOverridden(['border'])}
+          viewport={viewport}
+          onReset={() => resetGroup(['border'])}
+        >
+          <EffectsControl {...effectsProps} section="border" />
+        </InspectorSection>
+
+        <InspectorSection
+          id="radius"
+          title="Radius"
+          open={openSections.radius}
+          onToggle={() => toggleSection('radius')}
+          overridden={groupOverridden(['border'])}
+          viewport={viewport}
+          onReset={() => resetGroup(['border'])}
+        >
+          <EffectsControl {...effectsProps} section="radius" />
+        </InspectorSection>
+
+        <InspectorSection
+          id="shadow"
+          title="Shadow"
+          open={openSections.shadow}
+          onToggle={() => toggleSection('shadow')}
+          overridden={groupOverridden(['effects'])}
+          viewport={viewport}
+          onReset={() => resetGroup(['effects'])}
+        >
+          <EffectsControl {...effectsProps} section="shadow" />
+        </InspectorSection>
+
+        <InspectorSection
+          id="responsive"
+          title="Responsive"
+          open={openSections.responsive}
+          onToggle={() => toggleSection('responsive')}
+          overridden={hasResponsiveOverride}
+          viewport={viewport}
+          onReset={() => resetViewportStyles(selectedNode.id)}
+        >
+          <div className="space-y-3">
+            <p className="text-[11px] text-slate-500 leading-relaxed">
+              Tablet and mobile edits are stored as overrides. Desktop values stay intact until you change them on
+              desktop.
+            </p>
+            <VisibilityControl
+              visibility={selectedNode.visibility}
+              onChange={(visibility) => setVisibility(selectedNode.id, visibility)}
+            />
+          </div>
+        </InspectorSection>
       </div>
     </aside>
   );

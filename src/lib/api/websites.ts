@@ -5,6 +5,7 @@ import {
   DocumentOperationsPayload,
   DocumentOperationsResult,
 } from '@/types/v3-document';
+import { toEditorDocument, toWireDocument } from '@/lib/document/v3-wire';
 
 export const websitesApi = {
   getById: async (id: string): Promise<Website> => {
@@ -49,7 +50,18 @@ export const websitesApi = {
     document: WebsiteDocumentV3;
     updatedAt: string;
   }> => {
-    return apiClient.get(`/websites/${id}/document`);
+    const result = (await apiClient.get(`/websites/${id}/document`)) as {
+      websiteId: string;
+      revision: number;
+      schemaVersion: '3.0';
+      documentHash: string;
+      document: WebsiteDocumentV3;
+      updatedAt: string;
+    };
+    if (result?.document) {
+      return { ...result, document: toEditorDocument(result.document) };
+    }
+    return result;
   },
 
   updateDocument: async (
@@ -64,7 +76,7 @@ export const websitesApi = {
     updatedAt: string;
   }> => {
     return apiClient.put(`/websites/${id}/document`, {
-      document,
+      document: toWireDocument(document),
       expectedRevision: baseRevision,
       baseRevision,
     });
@@ -90,7 +102,7 @@ export const websitesApi = {
   saveDraft: async (id: string, document: Partial<WebsiteDocument> | any): Promise<any> => {
     if (document?.schemaVersion === '3.0') {
       return apiClient.put(`/websites/${id}/document`, {
-        document,
+        document: toWireDocument(document),
         baseRevision: document.documentRevision,
       });
     }

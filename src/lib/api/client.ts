@@ -1,22 +1,49 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 
-const API_URL =
-  process.env.NEXT_PUBLIC_BASE_URL ||
-  process.env.BASE_URL ||
-  process.env.NEXT_PUBLIC_API_URL ||
-  'http://localhost:4000/api/v1';
+const API_PREFIX = '/api/v1';
+
+function envApiUrl(): string {
+  return (
+    process.env.NEXT_PUBLIC_API_URL ||
+    process.env.NEXT_PUBLIC_BASE_URL ||
+    process.env.BASE_URL ||
+    `http://localhost:4000${API_PREFIX}`
+  ).replace(/\/+$/, '');
+}
+
+/** Origin only, e.g. http://localhost:4000 */
+export const API_ORIGIN = envApiUrl().replace(/\/api\/v1$/i, '');
+
+/** Full API root, e.g. http://localhost:4000/api/v1 */
+export const API_URL = `${API_ORIGIN}${API_PREFIX}`;
+
+function toApiPath(url: string): string {
+  if (/^https?:\/\//i.test(url)) {
+    const parsed = new URL(url);
+    parsed.pathname = toApiPath(parsed.pathname);
+    return parsed.toString();
+  }
+
+  const path = url.startsWith('/') ? url : `/${url}`;
+  if (path === API_PREFIX || path.startsWith(`${API_PREFIX}/`)) return path;
+  return `${API_PREFIX}${path}`;
+}
 
 export const apiClient = axios.create({
-  baseURL: API_URL,
+  baseURL: API_ORIGIN,
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Request interceptor: attach Bearer token if present in memory or localStorage
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
+    if (config.url) {
+      config.baseURL = API_ORIGIN;
+      config.url = toApiPath(config.url);
+    }
+
     if (typeof window !== 'undefined') {
       const adminToken = localStorage.getItem('kdba_admin_token');
       const token = localStorage.getItem('kdba_access_token');

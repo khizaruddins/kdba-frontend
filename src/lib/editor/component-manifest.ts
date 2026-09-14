@@ -31,7 +31,7 @@ export const COMPONENT_MANIFEST: Record<NodeType, ComponentManifestItem> = {
     icon: 'LayoutTemplate',
     description: 'The root container of the page.',
     allowedParents: [],
-    allowedChildren: ['section', 'navbar', 'footer'],
+    allowedChildren: ['section', 'navbar', 'footer', 'legacy-section'],
     defaultProps: {},
     defaultStyles: {
       layout: { display: 'flex', position: 'relative', width: '100%' },
@@ -46,7 +46,7 @@ export const COMPONENT_MANIFEST: Record<NodeType, ComponentManifestItem> = {
     icon: 'Maximize2',
     description: 'Full-width visual section block.',
     allowedParents: ['page-root'],
-    allowedChildren: ['container', 'row', 'grid', 'stack', 'heading', 'paragraph', 'button', 'image'],
+    allowedChildren: ['container', 'row', 'grid', 'stack'],
     defaultProps: { fullWidth: true },
     defaultStyles: {
       layout: { position: 'relative', width: '100%' },
@@ -76,7 +76,7 @@ export const COMPONENT_MANIFEST: Record<NodeType, ComponentManifestItem> = {
     category: 'Layout',
     icon: 'Grid',
     description: 'CSS grid layout with customizable columns.',
-    allowedParents: ['section', 'container', 'column'],
+    allowedParents: ['section', 'container', 'column', 'stack'],
     allowedChildren: ['container', 'column', 'card' as any, 'image', 'heading', 'paragraph', 'pricing', 'testimonial'],
     defaultProps: { columns: 3 },
     defaultStyles: {
@@ -121,8 +121,8 @@ export const COMPONENT_MANIFEST: Record<NodeType, ComponentManifestItem> = {
     category: 'Layout',
     icon: 'Layers',
     description: 'Vertical or horizontal auto-spaced stack.',
-    allowedParents: ['section', 'container', 'column'],
-    allowedChildren: ['heading', 'paragraph', 'button', 'image', 'badge', 'divider', 'spacer'],
+    allowedParents: ['section', 'container', 'column', 'grid'],
+    allowedChildren: ['heading', 'paragraph', 'text', 'button', 'link', 'image', 'divider', 'spacer', 'badge'],
     defaultProps: { direction: 'column', gap: '16px' },
     defaultStyles: {
       layout: { display: 'flex', width: '100%' },
@@ -136,7 +136,7 @@ export const COMPONENT_MANIFEST: Record<NodeType, ComponentManifestItem> = {
     category: 'Text',
     icon: 'Heading',
     description: 'SEO title or section header.',
-    allowedParents: ['section', 'container', 'column', 'stack', 'row'],
+    allowedParents: ['container', 'column', 'stack', 'grid'],
     isLeaf: true,
     defaultProps: { text: 'Craft Something Iconic', level: 2 },
     defaultStyles: {
@@ -157,7 +157,7 @@ export const COMPONENT_MANIFEST: Record<NodeType, ComponentManifestItem> = {
     category: 'Text',
     icon: 'Pilcrow',
     description: 'Body copy and descriptive text.',
-    allowedParents: ['section', 'container', 'column', 'stack'],
+    allowedParents: ['container', 'column', 'stack', 'grid'],
     isLeaf: true,
     defaultProps: { text: 'Elevate your online presence with a responsive, high-performance visual website engineered for conversion.' },
     defaultStyles: {
@@ -192,7 +192,7 @@ export const COMPONENT_MANIFEST: Record<NodeType, ComponentManifestItem> = {
     category: 'Text',
     icon: 'Type',
     description: 'Compact inline text block.',
-    allowedParents: ['section', 'container', 'column', 'stack', 'row'],
+    allowedParents: ['container', 'column', 'stack', 'grid'],
     isLeaf: true,
     defaultProps: { text: 'Short label or description' },
     defaultStyles: {
@@ -206,15 +206,14 @@ export const COMPONENT_MANIFEST: Record<NodeType, ComponentManifestItem> = {
     category: 'Buttons',
     icon: 'SquarePlay',
     description: 'Interactive call-to-action button.',
-    allowedParents: ['section', 'container', 'column', 'row', 'stack'],
+    allowedParents: ['container', 'column', 'stack', 'grid'],
     isLeaf: true,
     defaultProps: { label: 'Get Started', href: '#contact', variant: 'primary' },
     defaultStyles: {
       layout: { display: 'inline-flex' },
       spacing: { padding: { top: '12px', bottom: '12px', left: '24px', right: '24px' } },
-      background: { color: '#4F46E5' },
+      background: { color: 'primary' },
       typography: { fontSize: '15px', fontWeight: 600, color: '#FFFFFF' },
-      border: { radius: { all: '8px' } },
     },
   },
 
@@ -224,7 +223,7 @@ export const COMPONENT_MANIFEST: Record<NodeType, ComponentManifestItem> = {
     category: 'Buttons',
     icon: 'Link',
     description: 'Hyperlink with custom destination.',
-    allowedParents: ['section', 'container', 'column', 'stack', 'row'],
+    allowedParents: ['container', 'column', 'stack', 'grid'],
     isLeaf: true,
     defaultProps: { label: 'Learn more →', href: '#' },
     defaultStyles: {
@@ -238,7 +237,7 @@ export const COMPONENT_MANIFEST: Record<NodeType, ComponentManifestItem> = {
     category: 'Media',
     icon: 'Image',
     description: 'Optimized raster or vector image.',
-    allowedParents: ['section', 'container', 'column', 'grid', 'stack'],
+    allowedParents: ['container', 'column', 'grid', 'stack'],
     isLeaf: true,
     defaultProps: {
       src: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=1200&q=80',
@@ -358,7 +357,7 @@ export const COMPONENT_MANIFEST: Record<NodeType, ComponentManifestItem> = {
     category: 'Layout',
     icon: 'Minus',
     description: 'Subtle horizontal hairline line.',
-    allowedParents: ['section', 'container', 'column', 'stack'],
+    allowedParents: ['container', 'column', 'stack', 'grid'],
     isLeaf: true,
     defaultProps: {},
     defaultStyles: {
@@ -374,7 +373,7 @@ export const COMPONENT_MANIFEST: Record<NodeType, ComponentManifestItem> = {
     category: 'Layout',
     icon: 'MoveVertical',
     description: 'Empty vertical spacing cushion.',
-    allowedParents: ['section', 'container', 'column', 'stack'],
+    allowedParents: ['container', 'column', 'stack', 'grid'],
     isLeaf: true,
     defaultProps: { height: '32px' },
     defaultStyles: { size: { height: '32px' } },
@@ -581,5 +580,17 @@ export const COMPONENT_MANIFEST: Record<NodeType, ComponentManifestItem> = {
       background: { color: '#0B0D13' },
       border: { top: { width: '1px', style: 'solid', color: '#1E2430' } },
     },
+  },
+
+  'legacy-section': {
+    type: 'legacy-section',
+    name: 'Legacy Section',
+    category: 'Layout',
+    icon: 'LayoutTemplate',
+    description: 'V2 template section preserved after upgrade.',
+    allowedParents: ['page-root'],
+    isLeaf: true,
+    defaultProps: {},
+    defaultStyles: {},
   },
 };

@@ -1,8 +1,8 @@
 /**
  * KDBA V3 — Visual Builder State Store (Zustand)
  *
- * Implements centralized tree manipulation, transactional undo/redo,
- * selection, hover state, responsive viewport management, and debounced autosave.
+ * Persistent document state is separate from transient UI state.
+ * All document writes go through applyDocumentOperation().
  */
 
 import { create } from 'zustand';
@@ -15,10 +15,31 @@ import {
   ResponsiveVisibility,
   ThemeSystemV3,
   PageDocumentV3,
+  DocumentOperation,
 } from '@/types/v3-document';
 import { websitesApi } from '@/lib/api/websites';
+import {
+  applyDocumentOperation,
+  applyStylesForViewport,
+  clearResponsiveStyleGroup,
+  clearResponsiveViewport,
+  cloneNodeWithFreshIds,
+  createDefaultNode,
+  deepClone,
+  findNode as findNodeInTree,
+  findParent as findParentInTree,
+  generateNodeId,
+  getAncestry,
+  getStylesForViewport,
+} from '@/lib/document/v3-operations';
+import { canAcceptChild, resolveInsertTarget } from '@/lib/editor/nesting';
+import { COMPONENT_MANIFEST } from '@/lib/editor/component-manifest';
+import { toEditorDocument } from '@/lib/document/v3-wire';
 
 export type ViewportMode = 'desktop' | 'tablet' | 'mobile';
+export type SaveStatus = 'idle' | 'saving' | 'saved' | 'unsaved' | 'error';
+
+const HISTORY_COALESCE_MS = 700;
 
 export interface V3EditorState {
   websiteId: string | null;
@@ -26,40 +47,40 @@ export interface V3EditorState {
   revision: number;
   documentHash: string;
   isDirty: boolean;
-  saveStatus: 'idle' | 'saving' | 'saved' | 'unsaved' | 'error';
+  saveStatus: SaveStatus;
   lastSavedAt: Date | null;
   errorMessage: string | null;
+  hasConflict: boolean;
 
-  // Selection & Navigation
   activePageId: string;
   selectedNodeId: string | null;
   hoveredNodeId: string | null;
   activeNavTab: 'add' | 'pages' | 'layers' | 'assets' | 'theme' | null;
+  inspectorFocusKey: string | null;
   previewMode: boolean;
 
-  // Viewport & Zoom
   viewport: ViewportMode;
-  zoom: number; // 25 to 150 (percentage)
+  zoom: number;
   isInlineEditing: boolean;
   inlineEditingNodeId: string | null;
 
-  // Drag & Drop State
   isDragging: boolean;
   draggedNodeType: NodeType | null;
   draggedNodeId: string | null;
   dropTargetId: string | null;
   dropPosition: 'before' | 'after' | 'inside' | null;
 
-  // History Stacks
+  clipboardNode: WebsiteNode | null;
+
   undoStack: WebsiteDocumentV3[];
   redoStack: WebsiteDocumentV3[];
 
-  // Initialization & Store Setters
   setDocumentData: (websiteId: string, doc: WebsiteDocumentV3, revision?: number, hash?: string) => void;
   setActivePageId: (pageId: string) => void;
   setSelectedNodeId: (nodeId: string | null) => void;
   setHoveredNodeId: (nodeId: string | null) => void;
   setActiveNavTab: (tab: 'add' | 'pages' | 'layers' | 'assets' | 'theme' | null) => void;
+  focusInspectorSection: (key: string | null) => void;
   setViewport: (viewport: ViewportMode) => void;
   setZoom: (zoom: number) => void;
   setPreviewMode: (preview: boolean) => void;
@@ -68,92 +89,47 @@ export interface V3EditorState {
   setDragState: (isDragging: boolean, type?: NodeType | null, id?: string | null) => void;
   setDropTarget: (targetId: string | null, position?: 'before' | 'after' | 'inside' | null) => void;
 
-  // Tree Queries
   getActivePage: () => PageDocumentV3 | null;
   getSelectedNode: () => WebsiteNode | null;
   getNodePath: (nodeId: string) => WebsiteNode[];
   findNode: (nodeId: string) => WebsiteNode | null;
   findParent: (nodeId: string) => { parent: WebsiteNode; index: number } | null;
+  getInspectorStyles: (nodeId: string) => StyleDefinition;
 
-  // Document Operations (Mutations)
-  addNode: (parentId: string, node: Partial<WebsiteNode> & { type: NodeType }, index?: number) => WebsiteNode;
+  executeOperation: (op: DocumentOperation, options?: { coalesceKey?: string; selectId?: string | null }) => void;
+
+  addNode: (parentId: string, node: Partial<WebsiteNode> & { type: NodeType }, index?: number) => WebsiteNode | null;
+  insertNodeType: (type: NodeType, preferredParentId?: string | null) => WebsiteNode | null;
   removeNode: (nodeId: string) => void;
   duplicateNode: (nodeId: string) => WebsiteNode | null;
   moveNode: (nodeId: string, targetParentId: string, targetIndex?: number) => void;
+  updateNode: (nodeId: string, patch: Partial<WebsiteNode>) => void;
   updateProps: (nodeId: string, propsPatch: Record<string, unknown>) => void;
   updateStyles: (nodeId: string, stylesPatch: Partial<StyleDefinition>) => void;
   updateResponsive: (nodeId: string, responsivePatch: Partial<ResponsiveStyleDefinition>) => void;
+  resetViewportStyles: (nodeId: string) => void;
+  resetViewportStyleGroup: (nodeId: string, groups: Array<keyof StyleDefinition>) => void;
   setVisibility: (nodeId: string, visibilityPatch: Partial<ResponsiveVisibility>) => void;
   reorderChildren: (parentId: string, childIds: string[]) => void;
   updateTheme: (themePatch: Partial<ThemeSystemV3>) => void;
   addPage: (title: string, slug: string) => PageDocumentV3;
   updatePage: (pageId: string, patch: Partial<PageDocumentV3>) => void;
   removePage: (pageId: string) => void;
+  insertSectionPreset: (presetNode: WebsiteNode, afterNodeId?: string | null) => WebsiteNode | null;
 
-  // Undo / Redo / History
+  copySelectedNode: () => void;
+  pasteClipboard: () => WebsiteNode | null;
+
   undo: () => void;
   redo: () => void;
 
-  // Persistence
   saveDocument: () => Promise<boolean>;
   publishDocument: () => Promise<{ success: boolean; versionId?: string }>;
+  reloadFromServer: () => Promise<boolean>;
 }
 
-function deepClone<T>(val: T): T {
-  return JSON.parse(JSON.stringify(val));
-}
-
-function generateId(prefix: string): string {
-  return `${prefix}_${Math.random().toString(36).substring(2, 9)}`;
-}
-
-function recursivelyCloneWithFreshIds(node: WebsiteNode): WebsiteNode {
-  const cloned: WebsiteNode = {
-    ...deepClone(node),
-    id: generateId(node.type),
-  };
-  if (Array.isArray(cloned.children)) {
-    cloned.children = cloned.children.map((c) => recursivelyCloneWithFreshIds(c));
-  }
-  return cloned;
-}
-
-function searchNode(root: WebsiteNode, id: string): WebsiteNode | null {
-  if (root.id === id) return root;
-  if (!root.children) return null;
-  for (const child of root.children) {
-    const found = searchNode(child, id);
-    if (found) return found;
-  }
-  return null;
-}
-
-function searchParent(
-  root: WebsiteNode,
-  id: string,
-): { parent: WebsiteNode; index: number } | null {
-  if (!root.children) return null;
-  const idx = root.children.findIndex((c) => c.id === id);
-  if (idx !== -1) {
-    return { parent: root, index: idx };
-  }
-  for (const child of root.children) {
-    const found = searchParent(child, id);
-    if (found) return found;
-  }
-  return null;
-}
-
-function getAncestry(root: WebsiteNode, id: string, path: WebsiteNode[] = []): WebsiteNode[] | null {
-  const currentPath = [...path, root];
-  if (root.id === id) return currentPath;
-  if (!root.children) return null;
-  for (const child of root.children) {
-    const found = getAncestry(child, id, currentPath);
-    if (found) return found;
-  }
-  return null;
-}
+let lastCoalesceKey: string | null = null;
+let lastCoalesceAt = 0;
 
 export const useV3EditorStore = create<V3EditorState>((set, get) => ({
   websiteId: null,
@@ -164,11 +140,13 @@ export const useV3EditorStore = create<V3EditorState>((set, get) => ({
   saveStatus: 'idle',
   lastSavedAt: null,
   errorMessage: null,
+  hasConflict: false,
 
   activePageId: '',
   selectedNodeId: null,
   hoveredNodeId: null,
   activeNavTab: 'add',
+  inspectorFocusKey: null,
   previewMode: false,
 
   viewport: 'desktop',
@@ -182,16 +160,18 @@ export const useV3EditorStore = create<V3EditorState>((set, get) => ({
   dropTargetId: null,
   dropPosition: null,
 
+  clipboardNode: null,
+
   undoStack: [],
   redoStack: [],
 
-  // ─── SETTERS ────────────────────────────────────────────────────────────────
-
   setDocumentData: (websiteId, doc, revision = 1, hash = '') => {
-    const firstPageId = doc.pages?.[0]?.id || '';
+    const normalized = toEditorDocument(doc);
+    const firstPageId = normalized.pages?.[0]?.id || '';
+    lastCoalesceKey = null;
     set({
       websiteId,
-      document: deepClone(doc),
+      document: deepClone(normalized),
       revision,
       documentHash: hash,
       activePageId: firstPageId,
@@ -200,6 +180,8 @@ export const useV3EditorStore = create<V3EditorState>((set, get) => ({
       hoveredNodeId: null,
       isDirty: false,
       saveStatus: 'saved',
+      errorMessage: null,
+      hasConflict: false,
       undoStack: [],
       redoStack: [],
     });
@@ -213,12 +195,14 @@ export const useV3EditorStore = create<V3EditorState>((set, get) => ({
     })),
   setHoveredNodeId: (hoveredNodeId) => set({ hoveredNodeId }),
   setActiveNavTab: (activeNavTab) => set({ activeNavTab }),
+  focusInspectorSection: (inspectorFocusKey) => set({ inspectorFocusKey }),
   setViewport: (viewport) => set({ viewport }),
   setZoom: (zoom) => set({ zoom }),
   setPreviewMode: (previewMode) =>
     set({ previewMode, selectedNodeId: null, inlineEditingNodeId: null, hoveredNodeId: null }),
   setIsInlineEditing: (isInlineEditing) => set({ isInlineEditing }),
-  setInlineEditingNodeId: (inlineEditingNodeId) => set({ inlineEditingNodeId }),
+  setInlineEditingNodeId: (inlineEditingNodeId) =>
+    set({ inlineEditingNodeId, isInlineEditing: Boolean(inlineEditingNodeId) }),
 
   setDragState: (isDragging, draggedNodeType = null, draggedNodeId = null) => {
     set({
@@ -230,8 +214,6 @@ export const useV3EditorStore = create<V3EditorState>((set, get) => ({
   },
 
   setDropTarget: (dropTargetId, dropPosition = null) => set({ dropTargetId, dropPosition }),
-
-  // ─── TREE QUERIES ───────────────────────────────────────────────────────────
 
   getActivePage: () => {
     const { document, activePageId } = get();
@@ -247,421 +229,389 @@ export const useV3EditorStore = create<V3EditorState>((set, get) => ({
 
   findNode: (nodeId) => {
     const page = get().getActivePage();
-    if (!page || !page.root) return null;
-    return searchNode(page.root, nodeId);
+    if (!page?.root) return null;
+    return findNodeInTree(page.root, nodeId);
   },
 
   findParent: (nodeId) => {
     const page = get().getActivePage();
-    if (!page || !page.root) return null;
-    return searchParent(page.root, nodeId);
+    if (!page?.root) return null;
+    return findParentInTree(page.root, nodeId);
   },
 
   getNodePath: (nodeId) => {
     const page = get().getActivePage();
-    if (!page || !page.root) return [];
+    if (!page?.root) return [];
     return getAncestry(page.root, nodeId) || [];
   },
 
-  // ─── TREE MUTATIONS ─────────────────────────────────────────────────────────
+  getInspectorStyles: (nodeId) => {
+    const node = get().findNode(nodeId);
+    if (!node) return {};
+    return getStylesForViewport(node, get().viewport);
+  },
 
-  addNode: (parentId, nodeInput, index) => {
-    const { document, activePageId, undoStack } = get();
-    if (!document) throw new Error('No document loaded');
+  executeOperation: (op, options) => {
+    const { document, undoStack } = get();
+    if (!document) return;
 
-    // Save history snapshot
-    const prevDoc = deepClone(document);
+    const now = Date.now();
+    const coalesceKey = options?.coalesceKey;
+    const canCoalesce =
+      Boolean(coalesceKey) &&
+      lastCoalesceKey === coalesceKey &&
+      now - lastCoalesceAt < HISTORY_COALESCE_MS &&
+      undoStack.length > 0;
 
-    const docClone = deepClone(document);
-    const page = docClone.pages.find((p) => p.id === activePageId);
-    if (!page) throw new Error('Active page not found');
+    const nextDoc = applyDocumentOperation(document, op);
+    if (nextDoc === document) return;
 
-    const parent = searchNode(page.root, parentId);
-    if (!parent) throw new Error(`Parent node "${parentId}" not found`);
-
-    const newNode: WebsiteNode = {
-      id: nodeInput.id || generateId(nodeInput.type),
-      type: nodeInput.type,
-      name: nodeInput.name || nodeInput.type.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
-      children: nodeInput.children || [],
-      props: nodeInput.props || {},
-      styles: nodeInput.styles || {},
-      responsive: nodeInput.responsive || {},
-      visibility: nodeInput.visibility || { desktop: true, tablet: true, mobile: true },
-    };
-
-    if (!parent.children) parent.children = [];
-    if (typeof index === 'number' && index >= 0 && index <= parent.children.length) {
-      parent.children.splice(index, 0, newNode);
-    } else {
-      parent.children.push(newNode);
-    }
+    lastCoalesceKey = coalesceKey || null;
+    lastCoalesceAt = now;
 
     set({
-      document: docClone,
-      selectedNodeId: newNode.id,
+      document: nextDoc,
       isDirty: true,
       saveStatus: 'unsaved',
-      undoStack: [prevDoc, ...undoStack.slice(0, 49)],
-      redoStack: [],
+      errorMessage: null,
+      ...(typeof options?.selectId !== 'undefined' ? { selectedNodeId: options.selectId } : {}),
+      ...(canCoalesce
+        ? {}
+        : {
+            undoStack: [document, ...undoStack.slice(0, 49)],
+            redoStack: [],
+          }),
+    });
+  },
+
+  addNode: (parentId, nodeInput, index) => {
+    const { document, activePageId } = get();
+    if (!document) return null;
+    const page = get().getActivePage();
+    if (!page) return null;
+
+    const parent = findNodeInTree(page.root, parentId);
+    if (!parent) return null;
+    if (!canAcceptChild(parent.type, nodeInput.type)) return null;
+
+    const newNode = createDefaultNode(nodeInput.type, {
+      id: nodeInput.id,
+      name: nodeInput.name,
+      children: nodeInput.children,
+      props: nodeInput.props,
+      styles: nodeInput.styles,
+      responsive: nodeInput.responsive,
+      visibility: nodeInput.visibility,
     });
 
+    get().executeOperation(
+      { type: 'addNode', pageId: activePageId, parentId, node: newNode, index },
+      { selectId: newNode.id },
+    );
     return newNode;
   },
 
+  insertNodeType: (type, preferredParentId) => {
+    const page = get().getActivePage();
+    if (!page?.root) return null;
+    const manifest = COMPONENT_MANIFEST[type];
+    if (!manifest) return null;
+
+    let target = resolveInsertTarget(
+      page.root,
+      preferredParentId || get().selectedNodeId,
+      type,
+    );
+
+    if (!target && type !== 'section' && type !== 'navbar' && type !== 'footer') {
+      const sectionManifest = COMPONENT_MANIFEST.section;
+      const containerManifest = COMPONENT_MANIFEST.container;
+      const section = get().addNode(page.root.id, {
+        type: 'section',
+        name: sectionManifest.name,
+        props: sectionManifest.defaultProps,
+        styles: sectionManifest.defaultStyles,
+      });
+      if (section) {
+        const box = get().addNode(section.id, {
+          type: 'container',
+          name: containerManifest.name,
+          props: containerManifest.defaultProps,
+          styles: containerManifest.defaultStyles,
+        });
+        if (box) {
+          target = { parentId: box.id };
+        }
+      }
+    }
+
+    if (!target) return null;
+
+    return get().addNode(
+      target.parentId,
+      {
+        type,
+        name: manifest.name,
+        props: manifest.defaultProps,
+        styles: manifest.defaultStyles,
+      },
+      target.index,
+    );
+  },
+
   removeNode: (nodeId) => {
-    const { document, activePageId, undoStack, selectedNodeId } = get();
-    if (!document) return;
-
-    const prevDoc = deepClone(document);
-    const docClone = deepClone(document);
-    const page = docClone.pages.find((p) => p.id === activePageId);
-    if (!page || page.root.id === nodeId) return; // Prevent deleting root
-
-    const parentInfo = searchParent(page.root, nodeId);
-    if (!parentInfo) return;
-
-    parentInfo.parent.children?.splice(parentInfo.index, 1);
-
-    set({
-      document: docClone,
-      selectedNodeId: selectedNodeId === nodeId ? parentInfo.parent.id : selectedNodeId,
-      isDirty: true,
-      saveStatus: 'unsaved',
-      undoStack: [prevDoc, ...undoStack.slice(0, 49)],
-      redoStack: [],
-    });
+    const { activePageId } = get();
+    const page = get().getActivePage();
+    if (!page || page.root.id === nodeId) return;
+    const parentInfo = findParentInTree(page.root, nodeId);
+    get().executeOperation(
+      { type: 'removeNode', pageId: activePageId, nodeId },
+      { selectId: parentInfo?.parent.id ?? null },
+    );
   },
 
   duplicateNode: (nodeId) => {
-    const { document, activePageId, undoStack } = get();
+    const { document, activePageId } = get();
     if (!document) return null;
-
-    const prevDoc = deepClone(document);
-    const docClone = deepClone(document);
-    const page = docClone.pages.find((p) => p.id === activePageId);
+    const page = get().getActivePage();
     if (!page || page.root.id === nodeId) return null;
 
-    const parentInfo = searchParent(page.root, nodeId);
-    if (!parentInfo || !parentInfo.parent.children) return null;
-
-    const source = parentInfo.parent.children[parentInfo.index];
-    const duplicated = recursivelyCloneWithFreshIds(source);
+    const source = findNodeInTree(page.root, nodeId);
+    if (!source) return null;
+    const duplicated = cloneNodeWithFreshIds(source);
     duplicated.name = `${source.name || source.type} (Copy)`;
 
-    parentInfo.parent.children.splice(parentInfo.index + 1, 0, duplicated);
+    const parentInfo = findParentInTree(page.root, nodeId);
+    if (!parentInfo) return null;
 
-    set({
-      document: docClone,
-      selectedNodeId: duplicated.id,
-      isDirty: true,
-      saveStatus: 'unsaved',
-      undoStack: [prevDoc, ...undoStack.slice(0, 49)],
-      redoStack: [],
-    });
-
+    get().executeOperation(
+      {
+        type: 'addNode',
+        pageId: activePageId,
+        parentId: parentInfo.parent.id,
+        node: duplicated,
+        index: parentInfo.index + 1,
+      },
+      { selectId: duplicated.id },
+    );
     return duplicated;
   },
 
   moveNode: (nodeId, targetParentId, targetIndex) => {
-    const { document, activePageId, undoStack } = get();
-    if (!document) return;
+    const { activePageId } = get();
+    const page = get().getActivePage();
+    if (!page) return;
+    const node = findNodeInTree(page.root, nodeId);
+    const target = findNodeInTree(page.root, targetParentId);
+    if (!node || !target) return;
+    if (!canAcceptChild(target.type, node.type)) return;
 
-    const prevDoc = deepClone(document);
-    const docClone = deepClone(document);
-    const page = docClone.pages.find((p) => p.id === activePageId);
-    if (!page || nodeId === targetParentId) return;
+    get().executeOperation(
+      {
+        type: 'moveNode',
+        pageId: activePageId,
+        nodeId,
+        targetParentId,
+        targetIndex: typeof targetIndex === 'number' ? targetIndex : target.children?.length || 0,
+      },
+      { selectId: nodeId },
+    );
+  },
 
-    // Check circular move
-    const node = searchNode(page.root, nodeId);
-    if (!node) return;
-    if (searchNode(node, targetParentId)) return; // targetParentId is inside node
-
-    // Remove from current parent
-    const sourceParentInfo = searchParent(page.root, nodeId);
-    if (!sourceParentInfo || !sourceParentInfo.parent.children) return;
-
-    const [removedNode] = sourceParentInfo.parent.children.splice(sourceParentInfo.index, 1);
-
-    // Insert into target parent
-    const targetParent = searchNode(page.root, targetParentId);
-    if (!targetParent) return;
-    if (!targetParent.children) targetParent.children = [];
-
-    const insertIdx =
-      typeof targetIndex === 'number' && targetIndex >= 0
-        ? Math.min(targetIndex, targetParent.children.length)
-        : targetParent.children.length;
-
-    targetParent.children.splice(insertIdx, 0, removedNode);
-
-    set({
-      document: docClone,
-      selectedNodeId: nodeId,
-      isDirty: true,
-      saveStatus: 'unsaved',
-      undoStack: [prevDoc, ...undoStack.slice(0, 49)],
-      redoStack: [],
-    });
+  updateNode: (nodeId, patch) => {
+    const { activePageId } = get();
+    get().executeOperation(
+      { type: 'updateNode', pageId: activePageId, nodeId, patch },
+      { coalesceKey: `updateNode:${nodeId}` },
+    );
   },
 
   updateProps: (nodeId, propsPatch) => {
-    const { document, activePageId, undoStack } = get();
-    if (!document) return;
-
-    const prevDoc = deepClone(document);
-    const docClone = deepClone(document);
-    const page = docClone.pages.find((p) => p.id === activePageId);
-    if (!page) return;
-
-    const node = searchNode(page.root, nodeId);
-    if (!node) return;
-
-    node.props = { ...(node.props || {}), ...propsPatch };
-
-    set({
-      document: docClone,
-      isDirty: true,
-      saveStatus: 'unsaved',
-      undoStack: [prevDoc, ...undoStack.slice(0, 49)],
-      redoStack: [],
-    });
+    const { activePageId } = get();
+    get().executeOperation(
+      { type: 'updateProps', pageId: activePageId, nodeId, props: propsPatch },
+      { coalesceKey: `updateProps:${nodeId}` },
+    );
   },
 
   updateStyles: (nodeId, stylesPatch) => {
-    const { document, activePageId, undoStack } = get();
+    const { document, activePageId, viewport } = get();
     if (!document) return;
+    const { undoStack } = get();
+    const now = Date.now();
+    const coalesceKey = `updateStyles:${nodeId}:${viewport}`;
+    const canCoalesce =
+      lastCoalesceKey === coalesceKey && now - lastCoalesceAt < HISTORY_COALESCE_MS && undoStack.length > 0;
 
-    const prevDoc = deepClone(document);
-    const docClone = deepClone(document);
-    const page = docClone.pages.find((p) => p.id === activePageId);
-    if (!page) return;
+    const nextDoc = applyStylesForViewport(document, activePageId, nodeId, viewport, stylesPatch);
+    if (nextDoc === document) return;
 
-    const node = searchNode(page.root, nodeId);
-    if (!node) return;
-
-    node.styles = {
-      ...node.styles,
-      ...stylesPatch,
-      layout: { ...(node.styles?.layout || {}), ...(stylesPatch.layout || {}) },
-      flex: { ...(node.styles?.flex || {}), ...(stylesPatch.flex || {}) },
-      grid: { ...(node.styles?.grid || {}), ...(stylesPatch.grid || {}) },
-      size: { ...(node.styles?.size || {}), ...(stylesPatch.size || {}) },
-      spacing: {
-        ...(node.styles?.spacing || {}),
-        ...(stylesPatch.spacing || {}),
-        margin: { ...(node.styles?.spacing?.margin || {}), ...(stylesPatch.spacing?.margin || {}) },
-        padding: { ...(node.styles?.spacing?.padding || {}), ...(stylesPatch.spacing?.padding || {}) },
-      },
-      typography: { ...(node.styles?.typography || {}), ...(stylesPatch.typography || {}) },
-      background: { ...(node.styles?.background || {}), ...(stylesPatch.background || {}) },
-      border: { ...(node.styles?.border || {}), ...(stylesPatch.border || {}) },
-      effects: { ...(node.styles?.effects || {}), ...(stylesPatch.effects || {}) },
-      transform: { ...(node.styles?.transform || {}), ...(stylesPatch.transform || {}) },
-    };
+    lastCoalesceKey = coalesceKey;
+    lastCoalesceAt = now;
 
     set({
-      document: docClone,
+      document: nextDoc,
       isDirty: true,
       saveStatus: 'unsaved',
-      undoStack: [prevDoc, ...undoStack.slice(0, 49)],
-      redoStack: [],
+      errorMessage: null,
+      ...(canCoalesce ? {} : { undoStack: [document, ...undoStack.slice(0, 49)], redoStack: [] }),
     });
   },
 
   updateResponsive: (nodeId, responsivePatch) => {
-    const { document, activePageId, undoStack } = get();
-    if (!document) return;
+    const { activePageId } = get();
+    get().executeOperation(
+      { type: 'updateResponsive', pageId: activePageId, nodeId, responsive: responsivePatch },
+      { coalesceKey: `updateResponsive:${nodeId}` },
+    );
+  },
 
-    const prevDoc = deepClone(document);
-    const docClone = deepClone(document);
-    const page = docClone.pages.find((p) => p.id === activePageId);
-    if (!page) return;
-
-    const node = searchNode(page.root, nodeId);
-    if (!node) return;
-
-    node.responsive = {
-      ...node.responsive,
-      ...responsivePatch,
-    };
-
+  resetViewportStyles: (nodeId) => {
+    const { document, activePageId, viewport, undoStack } = get();
+    if (!document || viewport === 'desktop') return;
+    const nextDoc = clearResponsiveViewport(document, activePageId, nodeId, viewport);
     set({
-      document: docClone,
+      document: nextDoc,
       isDirty: true,
       saveStatus: 'unsaved',
-      undoStack: [prevDoc, ...undoStack.slice(0, 49)],
+      undoStack: [document, ...undoStack.slice(0, 49)],
+      redoStack: [],
+    });
+  },
+
+  resetViewportStyleGroup: (nodeId, groups) => {
+    const { document, activePageId, viewport, undoStack } = get();
+    if (!document || viewport === 'desktop') return;
+    const nextDoc = clearResponsiveStyleGroup(document, activePageId, nodeId, viewport, groups);
+    set({
+      document: nextDoc,
+      isDirty: true,
+      saveStatus: 'unsaved',
+      undoStack: [document, ...undoStack.slice(0, 49)],
       redoStack: [],
     });
   },
 
   setVisibility: (nodeId, visibilityPatch) => {
-    const { document, activePageId, undoStack } = get();
-    if (!document) return;
-
-    const prevDoc = deepClone(document);
-    const docClone = deepClone(document);
-    const page = docClone.pages.find((p) => p.id === activePageId);
-    if (!page) return;
-
-    const node = searchNode(page.root, nodeId);
-    if (!node) return;
-
-    node.visibility = {
-      ...node.visibility,
-      ...visibilityPatch,
-    };
-
-    set({
-      document: docClone,
-      isDirty: true,
-      saveStatus: 'unsaved',
-      undoStack: [prevDoc, ...undoStack.slice(0, 49)],
-      redoStack: [],
+    const { activePageId } = get();
+    get().executeOperation({
+      type: 'setVisibility',
+      pageId: activePageId,
+      nodeId,
+      visibility: visibilityPatch,
     });
   },
 
   reorderChildren: (parentId, childIds) => {
-    const { document, activePageId, undoStack } = get();
-    if (!document) return;
-
-    const prevDoc = deepClone(document);
-    const docClone = deepClone(document);
-    const page = docClone.pages.find((p) => p.id === activePageId);
-    if (!page) return;
-
-    const parent = searchNode(page.root, parentId);
-    if (!parent || !parent.children) return;
-
-    const childMap = new Map(parent.children.map((c) => [c.id, c]));
-    parent.children = childIds.map((id) => childMap.get(id)).filter(Boolean) as WebsiteNode[];
-
-    set({
-      document: docClone,
-      isDirty: true,
-      saveStatus: 'unsaved',
-      undoStack: [prevDoc, ...undoStack.slice(0, 49)],
-      redoStack: [],
-    });
+    const { activePageId } = get();
+    get().executeOperation({ type: 'reorderChildren', pageId: activePageId, parentId, childIds });
   },
 
   updateTheme: (themePatch) => {
-    const { document, undoStack } = get();
-    if (!document) return;
-
-    const prevDoc = deepClone(document);
-    const docClone = deepClone(document);
-
-    docClone.theme = {
-      ...docClone.theme,
-      ...themePatch,
-      colors: { ...(docClone.theme.colors || {}), ...(themePatch.colors || {}) },
-      typography: { ...(docClone.theme.typography || {}), ...(themePatch.typography || {}) },
-    };
-
-    set({
-      document: docClone,
-      isDirty: true,
-      saveStatus: 'unsaved',
-      undoStack: [prevDoc, ...undoStack.slice(0, 49)],
-      redoStack: [],
-    });
+    get().executeOperation(
+      { type: 'updateTheme', theme: themePatch },
+      { coalesceKey: 'updateTheme' },
+    );
   },
 
   addPage: (title, slug) => {
-    const { document, undoStack } = get();
+    const { document } = get();
     if (!document) throw new Error('No document loaded');
 
-    const prevDoc = deepClone(document);
-    const docClone = deepClone(document);
-
     const newPage: PageDocumentV3 = {
-      id: generateId('page'),
+      id: generateNodeId('page'),
       title,
       slug: slug.startsWith('/') ? slug : `/${slug}`,
       type: 'custom',
-      sortOrder: docClone.pages.length,
+      sortOrder: document.pages.length,
       enabled: true,
-      root: {
-        id: generateId('root'),
-        type: 'page-root',
+      root: createDefaultNode('page-root', {
         name: 'Page Root',
-        children: [],
-        props: {},
-        styles: { layout: { display: 'flex', position: 'relative', width: '100%' }, flex: { direction: 'column' } },
-      },
+        styles: {
+          layout: { display: 'flex', position: 'relative', width: '100%' },
+          flex: { direction: 'column' },
+        },
+      }),
     };
 
-    docClone.pages.push(newPage);
-
-    set({
-      document: docClone,
-      activePageId: newPage.id,
-      selectedNodeId: null,
-      isDirty: true,
-      saveStatus: 'unsaved',
-      undoStack: [prevDoc, ...undoStack.slice(0, 49)],
-      redoStack: [],
-    });
-
+    get().executeOperation({ type: 'addPage', page: newPage });
+    set({ activePageId: newPage.id, selectedNodeId: null });
     return newPage;
   },
 
   updatePage: (pageId, patch) => {
-    const { document, undoStack } = get();
-    if (!document) return;
-
-    const prevDoc = deepClone(document);
-    const docClone = deepClone(document);
-    const pageIdx = docClone.pages.findIndex((p) => p.id === pageId);
-    if (pageIdx === -1) return;
-
-    docClone.pages[pageIdx] = {
-      ...docClone.pages[pageIdx],
-      ...patch,
-    };
-
-    set({
-      document: docClone,
-      isDirty: true,
-      saveStatus: 'unsaved',
-      undoStack: [prevDoc, ...undoStack.slice(0, 49)],
-      redoStack: [],
-    });
+    get().executeOperation({ type: 'updatePage', pageId, patch });
   },
 
   removePage: (pageId) => {
-    const { document, undoStack, activePageId } = get();
-    if (!document || document.pages.length <= 1) return; // Keep at least one page
-
-    const prevDoc = deepClone(document);
-    const docClone = deepClone(document);
-    docClone.pages = docClone.pages.filter((p) => p.id !== pageId);
-
+    const { document, activePageId } = get();
+    if (!document || document.pages.length <= 1) return;
+    get().executeOperation({ type: 'removePage', pageId });
+    const remaining = get().document?.pages || [];
     set({
-      document: docClone,
-      activePageId: activePageId === pageId ? docClone.pages[0].id : activePageId,
+      activePageId: activePageId === pageId ? remaining[0]?.id || '' : get().activePageId,
       selectedNodeId: null,
-      isDirty: true,
-      saveStatus: 'unsaved',
-      undoStack: [prevDoc, ...undoStack.slice(0, 49)],
-      redoStack: [],
     });
   },
 
-  // ─── UNDO / REDO ────────────────────────────────────────────────────────────
+  insertSectionPreset: (presetNode, afterNodeId) => {
+    const { activePageId } = get();
+    const page = get().getActivePage();
+    if (!page?.root) return null;
+
+    let index: number | undefined;
+    if (afterNodeId) {
+      const parentInfo = findParentInTree(page.root, afterNodeId);
+      if (parentInfo) index = parentInfo.index + 1;
+    }
+
+    const parentId = page.root.id;
+    if (!canAcceptChild(page.root.type, presetNode.type)) return null;
+
+    get().executeOperation(
+      { type: 'addNode', pageId: activePageId, parentId, node: presetNode, index },
+      { selectId: presetNode.id },
+    );
+    return presetNode;
+  },
+
+  copySelectedNode: () => {
+    const node = get().getSelectedNode();
+    if (!node || node.type === 'page-root') return;
+    set({ clipboardNode: deepClone(node) });
+  },
+
+  pasteClipboard: () => {
+    const { clipboardNode, selectedNodeId } = get();
+    const page = get().getActivePage();
+    if (!clipboardNode || !page?.root) return null;
+
+    const cloned = cloneNodeWithFreshIds(clipboardNode);
+    const target = resolveInsertTarget(page.root, selectedNodeId, cloned.type);
+    if (!target) return null;
+
+    get().executeOperation(
+      {
+        type: 'addNode',
+        pageId: get().activePageId,
+        parentId: target.parentId,
+        node: cloned,
+        index: target.index,
+      },
+      { selectId: cloned.id },
+    );
+    return cloned;
+  },
 
   undo: () => {
     const { undoStack, redoStack, document } = get();
     if (!undoStack.length || !document) return;
-
+    lastCoalesceKey = null;
     const previousDoc = undoStack[0];
-    const newUndoStack = undoStack.slice(1);
-
     set({
-      document: deepClone(previousDoc),
-      undoStack: newUndoStack,
-      redoStack: [deepClone(document), ...redoStack.slice(0, 49)],
+      document: previousDoc,
+      undoStack: undoStack.slice(1),
+      redoStack: [document, ...redoStack.slice(0, 49)],
       isDirty: true,
       saveStatus: 'unsaved',
     });
@@ -670,20 +620,16 @@ export const useV3EditorStore = create<V3EditorState>((set, get) => ({
   redo: () => {
     const { undoStack, redoStack, document } = get();
     if (!redoStack.length || !document) return;
-
+    lastCoalesceKey = null;
     const nextDoc = redoStack[0];
-    const newRedoStack = redoStack.slice(1);
-
     set({
-      document: deepClone(nextDoc),
-      undoStack: [deepClone(document), ...undoStack.slice(0, 49)],
-      redoStack: newRedoStack,
+      document: nextDoc,
+      undoStack: [document, ...undoStack.slice(0, 49)],
+      redoStack: redoStack.slice(1),
       isDirty: true,
       saveStatus: 'unsaved',
     });
   },
-
-  // ─── PERSISTENCE ────────────────────────────────────────────────────────────
 
   saveDocument: async () => {
     const { websiteId, document, revision } = get();
@@ -699,22 +645,29 @@ export const useV3EditorStore = create<V3EditorState>((set, get) => ({
         saveStatus: 'saved',
         isDirty: false,
         lastSavedAt: new Date(),
+        hasConflict: false,
+        errorMessage: null,
       });
       return true;
     } catch (err: unknown) {
       const axiosErr = err as {
         response?: { status?: number; data?: { message?: string | string[]; error?: string } };
+        status?: number;
+        statusCode?: number;
         message?: string;
       };
-      console.error('Failed to save document error details:', axiosErr.response?.data || axiosErr.message || err);
-      const isConflict = axiosErr?.response?.status === 409;
-      const resMsg = axiosErr?.response?.data?.message;
+      const resMsg = axiosErr?.response?.data?.message || axiosErr?.message;
+      const status = axiosErr?.response?.status || axiosErr?.status || axiosErr?.statusCode;
+      const isConflict =
+        status === 409 || /revision|conflict|modified in another/i.test(String(resMsg || ''));
       const msg = isConflict
-        ? 'Document modified in another session. Please reload to sync changes.'
+        ? 'This website was modified in another session. Reload the latest version, or keep editing and retry — retry may fail until you reload.'
         : Array.isArray(resMsg)
-        ? resMsg.join(', ')
-        : (typeof resMsg === 'string' ? resMsg : axiosErr?.message) || 'Failed to save changes.';
-      set({ saveStatus: 'error', errorMessage: msg });
+          ? resMsg.join(', ')
+          : typeof resMsg === 'string'
+            ? resMsg
+            : 'Failed to save changes.';
+      set({ saveStatus: 'error', errorMessage: msg, hasConflict: isConflict });
       return false;
     }
   },
@@ -723,11 +676,41 @@ export const useV3EditorStore = create<V3EditorState>((set, get) => ({
     const { websiteId, saveDocument } = get();
     if (!websiteId) throw new Error('No website selected');
 
-    // Save first to guarantee latest draft is validated and pushed
     const saved = await saveDocument();
     if (!saved) throw new Error('Failed to save latest changes before publishing');
 
     const result = await websitesApi.publish(websiteId);
     return { success: true, versionId: result.versionId };
+  },
+
+  reloadFromServer: async () => {
+    const { websiteId } = get();
+    if (!websiteId) return false;
+    try {
+      const docRes = await websitesApi.getDocument(websiteId);
+      if (docRes?.document) {
+        get().setDocumentData(websiteId, docRes.document, docRes.revision || 1, docRes.documentHash || '');
+        return true;
+      }
+    } catch {
+      // Fall through to the website record, which is not schema-validated on read.
+    }
+
+    try {
+      const siteData = await websitesApi.getById(websiteId);
+      const raw =
+        (siteData as unknown as { draftDocument?: unknown; publishedDocument?: unknown }).draftDocument ||
+        (siteData as unknown as { publishedDocument?: unknown }).publishedDocument;
+      if (!raw) {
+        set({ errorMessage: 'Could not reload the latest document from the server.' });
+        return false;
+      }
+      const revision = (siteData as unknown as { documentRevision?: number }).documentRevision || 1;
+      get().setDocumentData(websiteId, toEditorDocument(raw), revision);
+      return true;
+    } catch {
+      set({ errorMessage: 'Could not reload the latest document from the server.' });
+      return false;
+    }
   },
 }));

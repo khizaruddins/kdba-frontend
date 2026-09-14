@@ -231,6 +231,8 @@ export interface PublicWebsiteResponse {
     seoDescription?: string;
     favicon?: string;
     publishedAt?: string;
+    publishedDocument?: import('./v3-document').WebsiteDocumentV3;
+    document?: import('./v3-document').WebsiteDocumentV3;
     pages: Array<{
       id: string;
       title: string;
@@ -248,6 +250,8 @@ export interface PublicWebsiteResponse {
   };
   products: Product[];
   pricingPlans: PricingPlan[];
+  publishedDocument?: import('./v3-document').WebsiteDocumentV3;
+  document?: import('./v3-document').WebsiteDocumentV3;
   isBlocked?: boolean;
   tenantStatus?: string;
   blockedReason?: string;

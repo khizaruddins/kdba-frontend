@@ -63,12 +63,15 @@ export const NAVIGATION_NODE_TYPES = [
   'footer',
 ] as const;
 
+export const COMPAT_NODE_TYPES = ['legacy-section'] as const;
+
 export const ALL_NODE_TYPES = [
   ...STRUCTURAL_NODE_TYPES,
   ...CONTENT_NODE_TYPES,
   ...MEDIA_NODE_TYPES,
   ...BUSINESS_NODE_TYPES,
   ...NAVIGATION_NODE_TYPES,
+  ...COMPAT_NODE_TYPES,
 ] as const;
 
 export type StructuralNodeType = (typeof STRUCTURAL_NODE_TYPES)[number];
@@ -301,6 +304,8 @@ export interface TypographyToken {
 }
 
 export interface TypographySystemV3 {
+  headingFont?: string;
+  bodyFont?: string;
   h1: TypographyToken;
   h2: TypographyToken;
   h3: TypographyToken;
@@ -336,6 +341,14 @@ export interface ThemeSystemV3 {
   borderRadius: 'none' | 'sm' | 'md' | 'lg' | 'full';
   shadows: 'none' | 'subtle' | 'medium' | 'dramatic';
   customCss?: string;
+  headingFont?: string;
+  bodyFont?: string;
+  primaryColor?: string;
+  secondaryColor?: string;
+  accentColor?: string;
+  backgroundColor?: string;
+  textColor?: string;
+  tokens?: Record<string, unknown>;
 }
 
 // ─── V3 PAGE DOCUMENT ─────────────────────────────────────────────────────────

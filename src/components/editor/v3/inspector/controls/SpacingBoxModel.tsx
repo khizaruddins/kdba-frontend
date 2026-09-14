@@ -19,9 +19,9 @@ export function SpacingBoxModel({
 }: SpacingBoxModelProps) {
   const [isLinked, setIsLinked] = React.useState(false);
 
-  const parseVal = (val?: string) => {
-    if (!val) return '0';
-    return val.replace('px', '').trim();
+  const parseVal = (val?: string | number) => {
+    if (val === undefined || val === null || val === '') return '0';
+    return String(val).replace('px', '').trim();
   };
 
   const handleMarginChange = (side: keyof BoxSpacing, val: string) => {
@@ -49,6 +49,7 @@ export function SpacingBoxModel({
       <div className="flex items-center justify-between text-xs text-slate-400">
         <span className="font-semibold text-slate-300">Box Model</span>
         <button
+          type="button"
           onClick={() => setIsLinked(!isLinked)}
           title={isLinked ? 'Unlink sides' : 'Link all sides'}
           className={`p-1 rounded-md transition-colors ${

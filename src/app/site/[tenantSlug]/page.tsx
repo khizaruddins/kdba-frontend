@@ -4,13 +4,16 @@ import * as React from 'react';
 import { useParams } from 'next/navigation';
 import { publishingApi } from '@/lib/api/publishing';
 import { WebsiteRenderer } from '@/components/renderer/WebsiteRenderer';
+import { PublicWebsiteResponse } from '@/types';
+import { WebsiteDocumentV3 } from '@/types/v3-document';
+import { toEditorDocument } from '@/lib/document/v3-wire';
 import { Loader2, AlertCircle } from 'lucide-react';
 
 export default function PublicSiteHomePage() {
   const params = useParams();
   const tenantSlug = params?.tenantSlug as string;
 
-  const [siteData, setSiteData] = React.useState<any | null>(null);
+  const [siteData, setSiteData] = React.useState<PublicWebsiteResponse | null>(null);
   const [activePageSlug, setActivePageSlug] = React.useState('/');
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
@@ -20,7 +23,7 @@ export default function PublicSiteHomePage() {
 
     publishingApi
       .getPublicSite(tenantSlug)
-      .then((data: any) => {
+      .then((data: PublicWebsiteResponse | null) => {
         if (data) {
           setSiteData(data);
           if (data.isBlocked) {
@@ -132,7 +135,37 @@ export default function PublicSiteHomePage() {
 
   const { website, business, products, pricingPlans, tenant } = siteData;
 
-  // Adapt to canonical WebsiteDocument format for WebsiteRenderer
+  const v3Candidates: Array<WebsiteDocumentV3 | undefined> = [
+    siteData.publishedDocument,
+    siteData.document,
+    website.publishedDocument,
+    website.document,
+  ];
+  const v3DocumentRaw =
+    v3Candidates.find((doc) => doc?.schemaVersion === '3.0' || Boolean(doc?.pages?.[0]?.root)) || null;
+  const v3Document = v3DocumentRaw ? toEditorDocument(v3DocumentRaw) : null;
+
+  if (v3Document) {
+    return (
+      <WebsiteRenderer
+        document={v3Document}
+        activePageSlug={activePageSlug}
+        products={products}
+        pricingPlans={pricingPlans}
+        isEditing={false}
+        onNavigate={(url) => {
+          if (url.startsWith('#')) {
+            const el = document.querySelector(url);
+            if (el) el.scrollIntoView({ behavior: 'smooth' });
+            return;
+          }
+          setActivePageSlug(url);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
+      />
+    );
+  }
+
   const websiteDocument = {
     id: website.id,
     name: website.name,

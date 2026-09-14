@@ -2,7 +2,8 @@
 
 import * as React from 'react';
 import { useV3EditorStore } from '@/stores/v3-editor-store';
-import { COMPONENT_MANIFEST, COMPONENT_CATEGORIES } from '@/lib/editor/component-manifest';
+import { COMPONENT_CATEGORIES } from '@/lib/editor/component-manifest';
+import { persistableManifestItems } from '@/lib/document/v3-wire';
 import { NodeType } from '@/types/v3-document';
 import {
   Search,
@@ -88,10 +89,8 @@ const ICON_MAP: Record<string, React.ReactNode> = {
 export function AddElementsPanel() {
   const {
     setActiveNavTab,
-    addNode,
+    insertNodeType,
     selectedNodeId,
-    getActivePage,
-    findNode,
     setDragState,
   } = useV3EditorStore();
 
@@ -102,7 +101,7 @@ export function AddElementsPanel() {
     setCollapsedCategories((prev) => ({ ...prev, [cat]: !prev[cat] }));
   };
 
-  const allItems = Object.values(COMPONENT_MANIFEST).filter((item) => item.type !== 'page-root');
+  const allItems = persistableManifestItems();
 
   const filteredItems = searchQuery.trim()
     ? allItems.filter(
@@ -114,38 +113,10 @@ export function AddElementsPanel() {
     : allItems;
 
   const handleAddElement = (type: NodeType) => {
-    const manifest = COMPONENT_MANIFEST[type];
-    if (!manifest) return;
-
-    const page = getActivePage();
-    if (!page || !page.root) return;
-
-    let targetParentId = page.root.id;
-
-    if (type === 'section') {
-      targetParentId = page.root.id;
-    } else if (selectedNodeId) {
-      const selected = findNode(selectedNodeId);
-      if (selected && ['container', 'section', 'column', 'grid', 'stack', 'row'].includes(selected.type)) {
-        targetParentId = selected.id;
-      } else {
-        // If selected is a leaf, find its parent
-        const parentInfo = useV3EditorStore.getState().findParent(selectedNodeId);
-        if (parentInfo) targetParentId = parentInfo.parent.id;
-      }
-    } else {
-      // Fallback: find first container in page
-      const firstSection = page.root.children?.[0];
-      const firstContainer = firstSection?.children?.find((c) => c.type === 'container') || firstSection;
-      if (firstContainer) targetParentId = firstContainer.id;
+    const created = insertNodeType(type, selectedNodeId);
+    if (created && ['heading', 'paragraph', 'text', 'button'].includes(type)) {
+      useV3EditorStore.getState().setInlineEditingNodeId(created.id);
     }
-
-    addNode(targetParentId, {
-      type,
-      name: manifest.name,
-      props: manifest.defaultProps,
-      styles: manifest.defaultStyles,
-    });
   };
 
   return (
@@ -168,7 +139,7 @@ export function AddElementsPanel() {
           <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-2.5" />
           <input
             type="text"
-            placeholder="Search elements or layout..."
+            placeholder="Search elements..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full h-8 pl-8 pr-3 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
@@ -210,6 +181,7 @@ export function AddElementsPanel() {
                       key={item.type}
                       draggable
                       onDragStart={(e) => {
+                        e.dataTransfer.effectAllowed = 'copy';
                         e.dataTransfer.setData('kdba/node-type', item.type);
                         setDragState(true, item.type);
                       }}

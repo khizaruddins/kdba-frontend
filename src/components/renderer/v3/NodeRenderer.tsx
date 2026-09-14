@@ -6,18 +6,24 @@ import {
   StyleDefinition,
   ResponsiveStyleDefinition,
 } from '@/types/v3-document';
-import { useV3EditorStore } from '@/stores/v3-editor-store';
+import { resolveThemeColor } from '@/lib/editor/theme-tokens';
+import { GRADIENT_PROP } from '@/lib/document/v3-wire';
 
 export interface NodeRendererProps {
   node: WebsiteNode;
   isEditing?: boolean;
   viewport?: 'desktop' | 'tablet' | 'mobile';
-  selectedNodeId?: string | null;
-  hoveredNodeId?: string | null;
-  onSelectNode?: (nodeId: string) => void;
-  onHoverNode?: (nodeId: string | null) => void;
-  onDoubleClickText?: (nodeId: string) => void;
+  inlineEditingNodeId?: string | null;
+  onCommitProps?: (nodeId: string, props: Record<string, unknown>) => void;
+  onEndInlineEdit?: () => void;
+  onStartInlineEdit?: (nodeId: string) => void;
   className?: string;
+}
+
+function asCss(value: unknown): string | number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.trim()) return value;
+  return undefined;
 }
 
 /**
@@ -73,9 +79,9 @@ export function resolveNodeStyles(
   if (flex.justifyContent) css.justifyContent = flex.justifyContent;
   if (flex.alignItems) css.alignItems = flex.alignItems;
   if (flex.alignContent) css.alignContent = flex.alignContent;
-  if (flex.gap) css.gap = flex.gap;
-  if (flex.rowGap) css.rowGap = flex.rowGap;
-  if (flex.columnGap) css.columnGap = flex.columnGap;
+  if (asCss(flex.gap)) css.gap = asCss(flex.gap);
+  if (asCss(flex.rowGap)) css.rowGap = asCss(flex.rowGap);
+  if (asCss(flex.columnGap)) css.columnGap = asCss(flex.columnGap);
   if (typeof flex.grow === 'number') css.flexGrow = flex.grow;
   if (typeof flex.shrink === 'number') css.flexShrink = flex.shrink;
   if (flex.basis) css.flexBasis = flex.basis;
@@ -98,32 +104,34 @@ export function resolveNodeStyles(
   if (size.aspectRatio) css.aspectRatio = size.aspectRatio;
 
   // Spacing (Margin & Padding)
-  if (spacing.margin.top) css.marginTop = spacing.margin.top;
-  if (spacing.margin.right) css.marginRight = spacing.margin.right;
-  if (spacing.margin.bottom) css.marginBottom = spacing.margin.bottom;
-  if (spacing.margin.left) css.marginLeft = spacing.margin.left;
+  if (asCss(spacing.margin.top)) css.marginTop = asCss(spacing.margin.top);
+  if (asCss(spacing.margin.right)) css.marginRight = asCss(spacing.margin.right);
+  if (asCss(spacing.margin.bottom)) css.marginBottom = asCss(spacing.margin.bottom);
+  if (asCss(spacing.margin.left)) css.marginLeft = asCss(spacing.margin.left);
 
-  if (spacing.padding.top) css.paddingTop = spacing.padding.top;
-  if (spacing.padding.right) css.paddingRight = spacing.padding.right;
-  if (spacing.padding.bottom) css.paddingBottom = spacing.padding.bottom;
-  if (spacing.padding.left) css.paddingLeft = spacing.padding.left;
+  if (asCss(spacing.padding.top)) css.paddingTop = asCss(spacing.padding.top);
+  if (asCss(spacing.padding.right)) css.paddingRight = asCss(spacing.padding.right);
+  if (asCss(spacing.padding.bottom)) css.paddingBottom = asCss(spacing.padding.bottom);
+  if (asCss(spacing.padding.left)) css.paddingLeft = asCss(spacing.padding.left);
 
   // Typography
   if (typography.fontFamily) css.fontFamily = typography.fontFamily;
-  if (typography.fontSize) css.fontSize = typography.fontSize;
+  if (asCss(typography.fontSize)) css.fontSize = asCss(typography.fontSize);
   if (typography.fontWeight) css.fontWeight = typography.fontWeight;
   if (typography.lineHeight) css.lineHeight = typography.lineHeight;
   if (typography.letterSpacing) css.letterSpacing = typography.letterSpacing;
   if (typography.textAlign) css.textAlign = typography.textAlign;
   if (typography.textTransform) css.textTransform = typography.textTransform;
   if (typography.textDecoration) css.textDecoration = typography.textDecoration;
-  if (typography.color) css.color = typography.color;
+  if (typography.color) css.color = resolveThemeColor(typography.color);
 
   // Background
-  if (background.color) css.backgroundColor = background.color;
+  if (background.color) css.backgroundColor = resolveThemeColor(background.color);
   if (background.gradient) {
     const angle = background.gradient.angle || 135;
-    const stops = background.gradient.stops.map((s) => `${s.color} ${s.offset}%`).join(', ');
+    const stops = background.gradient.stops
+      .map((s) => `${resolveThemeColor(s.color) || s.color} ${s.offset}%`)
+      .join(', ');
     css.backgroundImage = `linear-gradient(${angle}deg, ${stops})`;
   } else if (background.image) {
     css.backgroundImage = `url(${background.image})`;
@@ -135,7 +143,7 @@ export function resolveNodeStyles(
   // Border & Radius
   if (border.width) css.borderWidth = border.width;
   if (border.style) css.borderStyle = border.style;
-  if (border.color) css.borderColor = border.color;
+  if (border.color) css.borderColor = resolveThemeColor(border.color);
   if (border.radius?.all) {
     css.borderRadius = border.radius.all;
   } else if (border.radius) {
@@ -149,11 +157,11 @@ export function resolveNodeStyles(
   if (effects.boxShadow) {
     if (Array.isArray(effects.boxShadow)) {
       css.boxShadow = effects.boxShadow
-        .map((s) => `${s.inset ? 'inset ' : ''}${s.x}px ${s.y}px ${s.blur}px ${s.spread}px ${s.color}`)
+        .map((s) => `${s.inset ? 'inset ' : ''}${s.x}px ${s.y}px ${s.blur}px ${s.spread}px ${resolveThemeColor(s.color) || s.color}`)
         .join(', ');
     } else {
       const s = effects.boxShadow;
-      css.boxShadow = `${s.inset ? 'inset ' : ''}${s.x}px ${s.y}px ${s.blur}px ${s.spread}px ${s.color}`;
+      css.boxShadow = `${s.inset ? 'inset ' : ''}${s.x}px ${s.y}px ${s.blur}px ${s.spread}px ${resolveThemeColor(s.color) || s.color}`;
     }
   }
   if (typeof effects.opacity === 'number') css.opacity = effects.opacity;
@@ -172,67 +180,52 @@ export function resolveNodeStyles(
   return css;
 }
 
-export const NodeRenderer: React.FC<NodeRendererProps> = ({
+function NodeRendererInner({
   node,
   isEditing = false,
   viewport = 'desktop',
-  selectedNodeId,
-  hoveredNodeId,
-  onSelectNode,
-  onHoverNode,
-  onDoubleClickText,
+  inlineEditingNodeId = null,
+  onCommitProps,
+  onEndInlineEdit,
+  onStartInlineEdit,
   className = '',
-}) => {
-  const { inlineEditingNodeId, setInlineEditingNodeId, updateProps } = useV3EditorStore();
+}: NodeRendererProps) {
   const isInlineEditing = isEditing && inlineEditingNodeId === node.id;
 
-  // Check responsive visibility
   const isHiddenOnDevice = node.visibility && node.visibility[viewport] === false;
   if (isHiddenOnDevice && !isEditing) {
-    return null; // Don't render on public site
+    return null;
   }
 
-  const isSelected = isEditing && selectedNodeId === node.id;
-  const isHovered = isEditing && hoveredNodeId === node.id && !isSelected;
-  const resolvedStyles = resolveNodeStyles(node.styles, node.responsive, viewport);
+  const storedGradient = node.props?.[GRADIENT_PROP];
+  const mergedStyles: StyleDefinition = {
+    ...node.styles,
+    background: {
+      ...(node.styles?.background || {}),
+      ...(storedGradient && !node.styles?.background?.gradient
+        ? { gradient: storedGradient as NonNullable<StyleDefinition['background']>['gradient'] }
+        : {}),
+    },
+  };
+  const resolvedStyles = resolveNodeStyles(mergedStyles, node.responsive, viewport);
   const props = node.props || {};
 
-  const handleClick = (e: React.MouseEvent) => {
-    if (isEditing) {
-      e.stopPropagation();
-      if (onSelectNode) onSelectNode(node.id);
-    }
-  };
-
-  const handleMouseEnter = (e: React.MouseEvent) => {
-    if (isEditing) {
-      e.stopPropagation();
-      if (onHoverNode) onHoverNode(node.id);
-    }
-  };
-
-  const handleMouseLeave = () => {
-    if (isEditing && onHoverNode) {
-      onHoverNode(null);
-    }
+  const commitText = (key: string, value: string, extra?: Record<string, unknown>) => {
+    onCommitProps?.(node.id, { [key]: value, ...extra });
+    onEndInlineEdit?.();
   };
 
   const handleDoubleClick = (e: React.MouseEvent) => {
-    if (isEditing) {
-      e.stopPropagation();
-      setInlineEditingNodeId(node.id);
-      if (onDoubleClickText) {
-        onDoubleClickText(node.id);
-      }
-    }
+    if (!isEditing) return;
+    e.stopPropagation();
+    onStartInlineEdit?.(node.id);
   };
 
-  // Render children recursively
   const renderChildren = () => {
     if (!node.children || node.children.length === 0) {
-      if (isEditing && (node.type === 'container' || node.type === 'section' || node.type === 'column' || node.type === 'stack')) {
+      if (isEditing && (node.type === 'container' || node.type === 'section' || node.type === 'column' || node.type === 'stack' || node.type === 'row' || node.type === 'grid')) {
         return (
-          <div className="flex items-center justify-center p-6 border border-dashed border-slate-700/60 rounded-xl bg-slate-900/20 text-slate-500 text-xs select-none">
+          <div className="flex items-center justify-center p-6 border border-dashed border-slate-700/60 rounded-xl bg-slate-900/20 text-slate-500 text-xs select-none pointer-events-none">
             <span>Empty {node.type} — Drop or add elements here</span>
           </div>
         );
@@ -246,33 +239,23 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
         node={child}
         isEditing={isEditing}
         viewport={viewport}
-        selectedNodeId={selectedNodeId}
-        hoveredNodeId={hoveredNodeId}
-        onSelectNode={onSelectNode}
-        onHoverNode={onHoverNode}
-        onDoubleClickText={onDoubleClickText}
+        inlineEditingNodeId={inlineEditingNodeId}
+        onCommitProps={onCommitProps}
+        onEndInlineEdit={onEndInlineEdit}
+        onStartInlineEdit={onStartInlineEdit}
       />
     ));
   };
 
-  // Overlay classes in editor
   const editorClasses = isEditing
-    ? `relative transition-shadow duration-150 ${
-        isSelected
-          ? 'outline outline-2 outline-indigo-500 outline-offset-1 z-20'
-          : isHovered
-          ? 'outline outline-1 outline-indigo-400/60 outline-offset-1'
-          : ''
-      } ${isHiddenOnDevice ? 'opacity-30 grayscale' : ''}`
+    ? `relative ${isHiddenOnDevice ? 'opacity-30 grayscale' : ''}`
     : '';
 
   const commonProps = {
     'data-node-id': node.id,
     'data-node-type': node.type,
+    'data-node-name': node.name || node.type,
     style: resolvedStyles,
-    onClick: handleClick,
-    onMouseEnter: handleMouseEnter,
-    onMouseLeave: handleMouseLeave,
     className: `${editorClasses} ${className}`.trim(),
   };
 
@@ -299,7 +282,14 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
 
     case 'container':
       return (
-        <div {...commonProps} className={`w-full mx-auto relative ${commonProps.className}`}>
+        <div
+          {...commonProps}
+          style={{
+            ...commonProps.style,
+            maxWidth: commonProps.style.maxWidth || 'var(--kdba-container-max)',
+          }}
+          className={`w-full mx-auto relative ${commonProps.className}`}
+        >
           {renderChildren()}
         </div>
       );
@@ -342,15 +332,14 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
             contentEditable
             suppressContentEditableWarning
             onBlur={(e) => {
-              updateProps(node.id, { text: e.currentTarget.textContent || '' });
-              setInlineEditingNodeId(null);
+              commitText('text', e.currentTarget.textContent || '');
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault();
                 e.currentTarget.blur();
               } else if (e.key === 'Escape') {
-                setInlineEditingNodeId(null);
+                onEndInlineEdit?.();
               }
             }}
             className={`font-bold tracking-tight outline-none ring-2 ring-indigo-500 rounded px-1 bg-indigo-950/40 cursor-text ${commonProps.className}`}
@@ -378,12 +367,11 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
             contentEditable
             suppressContentEditableWarning
             onBlur={(e) => {
-              updateProps(node.id, { text: e.currentTarget.textContent || '' });
-              setInlineEditingNodeId(null);
+              commitText('text', e.currentTarget.textContent || '');
             }}
             onKeyDown={(e) => {
               if (e.key === 'Escape') {
-                setInlineEditingNodeId(null);
+                onEndInlineEdit?.();
               }
             }}
             className={`leading-relaxed outline-none ring-2 ring-indigo-500 rounded px-1 bg-indigo-950/40 cursor-text ${commonProps.className}`}
@@ -421,8 +409,7 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
             contentEditable
             suppressContentEditableWarning
             onBlur={(e) => {
-              updateProps(node.id, { text: e.currentTarget.textContent || '' });
-              setInlineEditingNodeId(null);
+              commitText('text', e.currentTarget.textContent || '');
             }}
             className={`outline-none ring-2 ring-indigo-500 rounded px-1 bg-indigo-950/40 cursor-text ${commonProps.className}`}
           >
@@ -438,16 +425,22 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
     }
 
     case 'button': {
+      const buttonStyle: React.CSSProperties = {
+        ...commonProps.style,
+        backgroundColor: commonProps.style.backgroundColor || 'var(--kdba-button-bg)',
+        color: commonProps.style.color || 'var(--kdba-button-fg)',
+        borderRadius: commonProps.style.borderRadius || 'var(--kdba-button-radius)',
+      };
       if (isInlineEditing) {
         return (
           <span
             {...commonProps}
+            style={buttonStyle}
             contentEditable
             suppressContentEditableWarning
             onBlur={(e) => {
               const val = e.currentTarget.textContent || '';
-              updateProps(node.id, { label: val, text: val });
-              setInlineEditingNodeId(null);
+              commitText('label', val, { text: val });
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
@@ -464,6 +457,7 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
       return (
         <a
           {...commonProps}
+          style={buttonStyle}
           href={isEditing ? undefined : (props.href as string) || '#'}
           onDoubleClick={handleDoubleClick}
           className={`inline-flex items-center justify-center font-medium transition-transform active:scale-95 cursor-pointer ${commonProps.className}`}
@@ -492,6 +486,7 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
           src={String(props.src || props.url || 'https://images.unsplash.com/photo-1516426122078-c23e76319801?auto=format&fit=crop&w=1200&q=80')}
           alt={String(props.alt || 'Section Image')}
           loading="lazy"
+          draggable={false}
           style={{
             ...commonProps.style,
             objectFit: (props.objectFit as React.CSSProperties['objectFit']) || 'cover',
@@ -519,15 +514,14 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
             contentEditable
             suppressContentEditableWarning
             onBlur={(e) => {
-              updateProps(node.id, { text: e.currentTarget.textContent || '' });
-              setInlineEditingNodeId(null);
+              commitText('text', e.currentTarget.textContent || '');
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault();
                 e.currentTarget.blur();
               } else if (e.key === 'Escape') {
-                setInlineEditingNodeId(null);
+                onEndInlineEdit?.();
               }
             }}
             className={`inline-flex items-center rounded-full text-xs font-semibold outline-none ring-2 ring-indigo-500 rounded px-1.5 py-0.5 bg-indigo-950/40 cursor-text ${commonProps.className}`}
@@ -583,8 +577,8 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
             contentEditable
             suppressContentEditableWarning
             onBlur={(e) => {
-              updateProps(node.id, { quote: e.currentTarget.textContent || '', text: e.currentTarget.textContent || '' });
-              setInlineEditingNodeId(null);
+              const quote = e.currentTarget.textContent || '';
+              commitText('quote', quote, { text: quote });
             }}
             className={`border-l-4 border-indigo-500 pl-4 py-1 italic outline-none ring-2 ring-indigo-500 rounded bg-indigo-950/40 cursor-text ${commonProps.className}`}
           >
@@ -793,4 +787,6 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
         </div>
       );
   }
-};
+}
+
+export const NodeRenderer = React.memo(NodeRendererInner);

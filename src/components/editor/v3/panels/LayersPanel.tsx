@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useV3EditorStore } from '@/stores/v3-editor-store';
-import { WebsiteNode } from '@/types/v3-document';
+import { WebsiteNode, NodeType } from '@/types/v3-document';
 import {
   X,
   Search,
@@ -27,6 +27,7 @@ import {
   PanelTop,
   PanelBottom,
 } from 'lucide-react';
+import { canAcceptChild, isContainerType } from '@/lib/editor/nesting';
 
 const NODE_ICONS: Record<string, React.ReactNode> = {
   section: <Maximize2 className="w-3.5 h-3.5 text-indigo-400" />,
@@ -62,6 +63,7 @@ function TreeItem({ node, depth = 0, searchFilter }: TreeItemProps) {
   } = useV3EditorStore();
 
   const [isExpanded, setIsExpanded] = React.useState(true);
+  const [dropHint, setDropHint] = React.useState<'before' | 'after' | 'inside' | null>(null);
   const isSelected = selectedNodeId === node.id;
   const hasChildren = Boolean(node.children && node.children.length > 0);
   const isHidden = node.visibility && node.visibility[viewport] === false;
@@ -80,12 +82,64 @@ function TreeItem({ node, depth = 0, searchFilter }: TreeItemProps) {
         onClick={() => setSelectedNodeId(node.id)}
         onMouseEnter={() => setHoveredNodeId(node.id)}
         onMouseLeave={() => setHoveredNodeId(null)}
+        draggable={node.type !== 'page-root'}
+        onDragStart={(e) => {
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('kdba/node-id', node.id);
+          e.dataTransfer.setData('kdba/node-type', node.type);
+          useV3EditorStore.getState().setDragState(true, node.type, node.id);
+        }}
+        onDragEnd={() => useV3EditorStore.getState().setDragState(false)}
+        onDragOver={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const rect = e.currentTarget.getBoundingClientRect();
+          const ratio = (e.clientY - rect.top) / Math.max(rect.height, 1);
+          const movedType = useV3EditorStore.getState().draggedNodeType;
+          const canNest = Boolean(movedType && canAcceptChild(node.type, movedType));
+          if (node.type === 'page-root' || (isContainerType(node.type) && canNest && ratio > 0.28 && ratio < 0.72)) {
+            setDropHint('inside');
+          } else if (ratio < 0.5) {
+            setDropHint('before');
+          } else {
+            setDropHint('after');
+          }
+        }}
+        onDragLeave={() => setDropHint(null)}
+        onDrop={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const movedId = e.dataTransfer.getData('kdba/node-id');
+          const movedType = (e.dataTransfer.getData('kdba/node-type') ||
+            useV3EditorStore.getState().draggedNodeType) as NodeType | null;
+          const hint = dropHint;
+          setDropHint(null);
+          if (!movedId || movedId === node.id) return;
+          const state = useV3EditorStore.getState();
+          if ((hint === 'inside' || node.type === 'page-root') && movedType && canAcceptChild(node.type, movedType)) {
+            state.moveNode(movedId, node.id);
+            return;
+          }
+          const parentInfo = state.findParent(node.id);
+          if (parentInfo && (!movedType || canAcceptChild(parentInfo.parent.type, movedType))) {
+            const index = hint === 'before' ? parentInfo.index : parentInfo.index + 1;
+            state.moveNode(movedId, parentInfo.parent.id, index);
+          }
+        }}
         style={{ paddingLeft: `${depth * 14 + 8}px` }}
         className={`group flex items-center justify-between h-8 pr-2 rounded-lg cursor-pointer transition-colors text-xs ${
           isSelected
             ? 'bg-indigo-600 text-white font-semibold'
             : 'text-slate-300 hover:bg-slate-900 hover:text-white'
-        } ${isHidden ? 'opacity-40' : ''}`}
+        } ${isHidden ? 'opacity-40' : ''} ${
+          dropHint === 'before'
+            ? 'border-t-2 border-indigo-400'
+            : dropHint === 'after'
+              ? 'border-b-2 border-indigo-400'
+              : dropHint === 'inside'
+                ? 'ring-1 ring-indigo-400 bg-indigo-950/50'
+                : ''
+        }`}
       >
         <div className="flex items-center gap-1.5 truncate flex-1">
           {hasChildren ? (

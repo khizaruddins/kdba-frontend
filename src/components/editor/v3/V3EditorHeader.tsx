@@ -145,6 +145,7 @@ export function V3EditorHeader({ onPublishSuccess }: V3EditorHeaderProps) {
                     ? 'bg-indigo-600 text-white shadow-md'
                     : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
                 }`}
+                aria-pressed={isActive}
               >
                 {opt.icon}
                 <span className="hidden md:inline">{opt.label}</span>
@@ -156,77 +157,95 @@ export function V3EditorHeader({ onPublishSuccess }: V3EditorHeaderProps) {
         {/* Zoom Selector */}
         <select
           value={zoom}
-          onChange={(e) => setZoom(Number(e.target.value))}
+          aria-label="Canvas zoom"
+          onChange={(e) => {
+            const next = e.target.value;
+            if (next === 'fit') {
+              const desktopWidth = viewport === 'desktop' ? 1280 : viewport === 'tablet' ? 768 : 390;
+              const available = Math.max(320, window.innerWidth - 420);
+              setZoom(Math.max(25, Math.min(125, Math.round((available / desktopWidth) * 100))));
+              return;
+            }
+            setZoom(Number(next));
+          }}
           className="h-8 px-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 text-xs focus:outline-none cursor-pointer"
         >
+          <option value="25">25%</option>
           <option value="50">50%</option>
           <option value="75">75%</option>
           <option value="100">100%</option>
           <option value="125">125%</option>
-          <option value="150">150%</option>
+          <option value="fit">Fit to screen</option>
         </select>
       </div>
 
-      {/* 3. Right: Undo/Redo, Preview, Save & Publish */}
       <div className="flex items-center gap-2">
-        {/* Undo / Redo */}
-        <div className="flex items-center gap-0.5 pr-2 border-r border-slate-800">
+        {previewMode ? (
           <button
             type="button"
-            disabled={!canUndo}
-            onClick={undo}
-            title="Undo (Cmd+Z)"
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-900 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+            onClick={() => setPreviewMode(false)}
+            title="Exit Preview"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-amber-500/10 border border-amber-500/40 text-amber-300"
           >
-            <Undo2 className="w-4 h-4" />
+            <EyeOff className="w-3.5 h-3.5" />
+            <span>Exit Preview</span>
           </button>
-          <button
-            type="button"
-            disabled={!canRedo}
-            onClick={redo}
-            title="Redo (Cmd+Shift+Z)"
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-900 disabled:opacity-30 disabled:pointer-events-none transition-colors"
-          >
-            <Redo2 className="w-4 h-4" />
-          </button>
-        </div>
+        ) : (
+          <>
+            <div className="flex items-center gap-0.5 pr-2 border-r border-slate-800">
+              <button
+                type="button"
+                disabled={!canUndo}
+                onClick={undo}
+                title="Undo (Cmd+Z)"
+                aria-label="Undo"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-900 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+              >
+                <Undo2 className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                disabled={!canRedo}
+                onClick={redo}
+                title="Redo (Cmd+Shift+Z)"
+                aria-label="Redo"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-900 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+              >
+                <Redo2 className="w-4 h-4" />
+              </button>
+            </div>
 
-        {/* Preview Button */}
-        <button
-          type="button"
-          onClick={() => setPreviewMode(!previewMode)}
-          title={previewMode ? 'Exit Preview' : 'Preview Live Website'}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
-            previewMode
-              ? 'bg-amber-500/10 border-amber-500/40 text-amber-300 shadow'
-              : 'border-slate-800 text-slate-300 hover:bg-slate-900 hover:text-white'
-          }`}
-        >
-          {previewMode ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-          <span>{previewMode ? 'Exit Preview' : 'Preview'}</span>
-        </button>
+            <button
+              type="button"
+              onClick={() => setPreviewMode(true)}
+              title="Preview Live Website"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border border-slate-800 text-slate-300 hover:bg-slate-900 hover:text-white"
+            >
+              <Eye className="w-3.5 h-3.5" />
+              <span>Preview</span>
+            </button>
 
-        {/* Save Button */}
-        <button
-          type="button"
-          onClick={() => saveDocument()}
-          disabled={saveStatus === 'saving'}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border border-slate-800 bg-slate-900 hover:bg-slate-800 text-white transition-colors"
-        >
-          {saveStatus === 'saving' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-          <span>Save</span>
-        </button>
+            <button
+              type="button"
+              onClick={() => saveDocument()}
+              disabled={saveStatus === 'saving'}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border border-slate-800 bg-slate-900 hover:bg-slate-800 text-white transition-colors"
+            >
+              {saveStatus === 'saving' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+              <span>{saveStatus === 'error' ? 'Retry save' : 'Save'}</span>
+            </button>
 
-        {/* Publish Button */}
-        <button
-          type="button"
-          disabled={isPublishing}
-          onClick={handlePublish}
-          className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white shadow-lg shadow-indigo-600/30 transition-all cursor-pointer"
-        >
-          {isPublishing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Rocket className="w-3.5 h-3.5" />}
-          <span>Publish</span>
-        </button>
+            <button
+              type="button"
+              disabled={isPublishing}
+              onClick={handlePublish}
+              className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white shadow-lg shadow-indigo-600/30 transition-all cursor-pointer"
+            >
+              {isPublishing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Rocket className="w-3.5 h-3.5" />}
+              <span>Publish</span>
+            </button>
+          </>
+        )}
       </div>
     </header>
   );

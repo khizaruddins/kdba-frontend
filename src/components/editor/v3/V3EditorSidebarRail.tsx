@@ -65,6 +65,7 @@ export function V3EditorSidebarRail() {
         <button
           type="button"
           title="Help & Shortcuts"
+          onClick={() => window.dispatchEvent(new Event('kdba-editor-help'))}
           className="w-9 h-9 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-300 hover:bg-slate-900 transition-colors"
         >
           <HelpCircle className="w-4 h-4" />

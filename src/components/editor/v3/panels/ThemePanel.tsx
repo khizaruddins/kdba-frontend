@@ -4,6 +4,7 @@ import * as React from 'react';
 import { useV3EditorStore } from '@/stores/v3-editor-store';
 import { Palette, X } from 'lucide-react';
 import { ColorTokensV3 } from '@/types/v3-document';
+import { getThemeLayoutTokens } from '@/lib/editor/theme-tokens';
 
 const FONTS = [
   'Inter',
@@ -46,8 +47,10 @@ export function ThemePanel() {
   const handleHeadingFontChange = (font: string) => {
     if (!document.theme?.typography) return;
     updateTheme({
+      headingFont: font,
       typography: {
         ...document.theme.typography,
+        headingFont: font,
         h1: { ...document.theme.typography.h1, fontFamily: font },
         h2: { ...document.theme.typography.h2, fontFamily: font },
         h3: { ...document.theme.typography.h3, fontFamily: font },
@@ -58,9 +61,22 @@ export function ThemePanel() {
   const handleBodyFontChange = (font: string) => {
     if (!document.theme?.typography) return;
     updateTheme({
+      bodyFont: font,
       typography: {
         ...document.theme.typography,
+        bodyFont: font,
         body: { ...document.theme.typography.body, fontFamily: font },
+      },
+    });
+  };
+
+  const layoutTokens = getThemeLayoutTokens(document.theme?.tokens);
+
+  const handleTokenChange = (key: 'containerMaxWidth' | 'buttonRadius' | 'buttonBackground' | 'buttonColor', val: string) => {
+    updateTheme({
+      tokens: {
+        ...(document.theme?.tokens || {}),
+        [key]: val,
       },
     });
   };
@@ -125,7 +141,7 @@ export function ThemePanel() {
           <div className="space-y-1.5">
             <label className="text-[11px] text-slate-400">Heading Font</label>
             <select
-              value={document.theme?.typography?.h1?.fontFamily || 'Inter'}
+              value={document.theme?.typography?.headingFont || document.theme?.typography?.h1?.fontFamily || 'Inter'}
               onChange={(e) => handleHeadingFontChange(e.target.value)}
               className="w-full h-8 px-2.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-200 text-xs focus:outline-none"
             >
@@ -140,7 +156,7 @@ export function ThemePanel() {
           <div className="space-y-1.5">
             <label className="text-[11px] text-slate-400">Body Font</label>
             <select
-              value={document.theme?.typography?.body?.fontFamily || 'Inter'}
+              value={document.theme?.typography?.bodyFont || document.theme?.typography?.body?.fontFamily || 'Inter'}
               onChange={(e) => handleBodyFontChange(e.target.value)}
               className="w-full h-8 px-2.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-200 text-xs focus:outline-none"
             >
@@ -150,6 +166,54 @@ export function ThemePanel() {
                 </option>
               ))}
             </select>
+          </div>
+        </div>
+
+        <div className="space-y-3 pt-3 border-t border-slate-800/80">
+          <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Layout & Buttons</h4>
+          <div className="space-y-1.5">
+            <label className="text-[11px] text-slate-400">Container width</label>
+            <input
+              type="text"
+              value={layoutTokens.containerMaxWidth}
+              onChange={(e) => handleTokenChange('containerMaxWidth', e.target.value)}
+              className="w-full h-8 px-2.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-200 text-xs focus:outline-none"
+              placeholder="1200px"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[11px] text-slate-400">Button radius</label>
+            <input
+              type="text"
+              value={layoutTokens.buttonRadius}
+              onChange={(e) => handleTokenChange('buttonRadius', e.target.value)}
+              className="w-full h-8 px-2.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-200 text-xs focus:outline-none"
+              placeholder="12px"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[11px] text-slate-400">Button background</label>
+            <select
+              value={layoutTokens.buttonBackground}
+              onChange={(e) => handleTokenChange('buttonBackground', e.target.value)}
+              className="w-full h-8 px-2.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-200 text-xs focus:outline-none"
+            >
+              <option value="primary">Primary</option>
+              <option value="secondary">Secondary</option>
+              <option value="accent">Accent</option>
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[11px] text-slate-400">Button text</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={layoutTokens.buttonColor.startsWith('#') ? layoutTokens.buttonColor : '#FFFFFF'}
+                onChange={(e) => handleTokenChange('buttonColor', e.target.value)}
+                className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent"
+              />
+              <span className="text-[11px] font-mono text-slate-300 uppercase truncate">{layoutTokens.buttonColor}</span>
+            </div>
           </div>
         </div>
       </div>

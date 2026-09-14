@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth-store';
 import { useV3EditorStore } from '@/stores/v3-editor-store';
 import { websitesApi } from '@/lib/api/websites';
-import { WebsiteDocumentV3 } from '@/types/v3-document';
+import { extractWebsiteDocument, toEditorDocument } from '@/lib/document/v3-wire';
 import { V3VisualBuilder } from '@/components/editor/v3/V3VisualBuilder';
 import { Button } from '@/components/ui/button';
 import { Loader2, Rocket } from 'lucide-react';
@@ -37,22 +37,25 @@ export default function WebsiteEditorPage() {
     setIsLoading(true);
     setError(null);
 
+    const applyDocument = (raw: unknown, revision?: number, hash?: string) => {
+      const doc = toEditorDocument(raw);
+      if (!doc.pages?.length) {
+        throw new Error('Website document is missing pages');
+      }
+      setDocumentData(websiteId, doc, revision || 1, hash || '');
+    };
+
     try {
       const docRes = await websitesApi.getDocument(websiteId);
 
       if (docRes && docRes.document) {
-        setDocumentData(
-          websiteId,
-          docRes.document,
-          docRes.revision || 1,
-          docRes.documentHash || '',
-        );
+        applyDocument(docRes.document, docRes.revision || 1, docRes.documentHash || '');
       } else {
         const siteData = await websitesApi.getById(websiteId);
-        const docRecord = siteData as unknown as { draftDocument?: WebsiteDocumentV3; publishedDocument?: WebsiteDocumentV3; documentRevision?: number };
-        if (docRecord && (docRecord.draftDocument || docRecord.publishedDocument)) {
-          const doc = (docRecord.draftDocument || docRecord.publishedDocument) as WebsiteDocumentV3;
-          setDocumentData(websiteId, doc, docRecord.documentRevision || 1);
+        const raw = extractWebsiteDocument(siteData);
+        if (raw) {
+          const revision = (siteData as unknown as { documentRevision?: number }).documentRevision || 1;
+          applyDocument(raw, revision);
         } else {
           setError('Website document not found');
         }
@@ -61,20 +64,33 @@ export default function WebsiteEditorPage() {
       console.error('Failed to load website builder document:', err);
       try {
         const siteData = await websitesApi.getById(websiteId);
-        const docRecord = siteData as unknown as { draftDocument?: WebsiteDocumentV3; publishedDocument?: WebsiteDocumentV3; documentRevision?: number };
-        if (docRecord && (docRecord.draftDocument || docRecord.publishedDocument)) {
-          const doc = (docRecord.draftDocument || docRecord.publishedDocument) as WebsiteDocumentV3;
-          setDocumentData(websiteId, doc, docRecord.documentRevision || 1);
+        const raw = extractWebsiteDocument(siteData);
+        if (raw) {
+          const revision = (siteData as unknown as { documentRevision?: number }).documentRevision || 1;
+          applyDocument(raw, revision);
           return;
         }
       } catch {
         // ignore secondary error
       }
 
-      const errorObj = err as { response?: { data?: { message?: string } }; message?: string };
+      const errorObj = err as {
+        response?: { data?: { message?: string; errors?: Array<{ path?: string; message?: string }> } };
+        message?: string;
+        errors?: Array<{ path?: string; message?: string }>;
+      };
+      const details = errorObj?.response?.data?.errors || errorObj?.errors;
+      const detailText = Array.isArray(details)
+        ? details
+            .slice(0, 3)
+            .map((item) => item.message)
+            .filter(Boolean)
+            .join(' ')
+        : '';
       setError(
         errorObj?.response?.data?.message ||
           errorObj?.message ||
+          (detailText ? `Document schema mismatch: ${detailText}` : null) ||
           'Failed to load website. It may have been removed or access is restricted.',
       );
     } finally {

@@ -411,8 +411,8 @@ export function ContentControl({ node, onChangeProps }: ContentControlProps) {
             <label className="text-[11px] font-medium text-slate-400">Plan Name</label>
             <input
               type="text"
-              value={String(props.plan || '')}
-              onChange={(e) => onChangeProps({ plan: e.target.value })}
+            value={String(props.planName || props.plan || '')}
+            onChange={(e) => onChangeProps({ planName: e.target.value, plan: e.target.value })}
               placeholder="Pro Studio"
               className="w-full h-8 px-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-100 text-xs focus:border-indigo-500 focus:outline-none"
             />
