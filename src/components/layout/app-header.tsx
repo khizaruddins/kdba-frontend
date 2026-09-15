@@ -39,6 +39,8 @@ const LABELS: Record<string, string> = {
   pricing: 'Pricing',
   settings: 'Settings',
   business: 'Business profile',
+  new: 'Add',
+  edit: 'Edit',
 };
 
 function crumbsFor(pathname: string) {
@@ -46,9 +48,14 @@ function crumbsFor(pathname: string) {
   if (parts.length === 0) return [{ href: '/dashboard', label: 'Overview', current: true }];
   return parts.map((part, index) => {
     const href = `/${parts.slice(0, index + 1).join('/')}`;
+    const parent = parts[index - 1];
+    const known = LABELS[part];
+    const label =
+      known ??
+      (parent === 'products' ? 'Detail' : parent === 'leads' ? 'Detail' : part);
     return {
       href,
-      label: LABELS[part] ?? part,
+      label,
       current: index === parts.length - 1,
     };
   });

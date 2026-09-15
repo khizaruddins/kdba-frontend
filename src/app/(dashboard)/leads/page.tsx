@@ -1,85 +1,91 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { MoreHorizontal, Search, Users } from 'lucide-react';
+import { toast } from 'sonner';
 import { apiClient } from '@/lib/api/client';
-import { Lead, LeadStats, LeadStatus } from '@/types';
+import { Lead, LeadStats } from '@/types';
 import { formatDate } from '@/lib/utils';
 import {
-  Users,
-  Search,
-  Trash2,
-  Eye,
-  Mail,
-  Phone,
-  Clock,
-  Sparkles,
-  CheckCircle2,
-} from 'lucide-react';
-import { toast } from 'sonner';
+  LEAD_STATUS_LABEL,
+  LEAD_STATUSES,
+  leadStatusVariant,
+  shortRef,
+} from '@/lib/workspace';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog } from '@/components/ui/dialog';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
 import { PageHeader } from '@/components/kdba/page-header';
+import { StatCard } from '@/components/kdba/stat-card';
 import { useConfirm } from '@/components/kdba/confirm-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
+const EMPTY_STATS: LeadStats = {
+  total: 0,
+  new: 0,
+  contacted: 0,
+  qualified: 0,
+  converted: 0,
+  lost: 0,
+};
 
 export default function LeadsPage() {
+  const router = useRouter();
   const { confirm, dialog } = useConfirm();
   const [leads, setLeads] = React.useState<Lead[]>([]);
-  const [stats, setStats] = React.useState<LeadStats>({
-    total: 0,
-    new: 0,
-    contacted: 0,
-    qualified: 0,
-    converted: 0,
-    lost: 0,
-  });
+  const [stats, setStats] = React.useState<LeadStats>(EMPTY_STATS);
   const [search, setSearch] = React.useState('');
+  const [debouncedSearch, setDebouncedSearch] = React.useState('');
   const [statusFilter, setStatusFilter] = React.useState('ALL');
   const [isLoading, setIsLoading] = React.useState(true);
 
-  // Detail Modal
-  const [selectedLead, setSelectedLead] = React.useState<Lead | null>(null);
+  React.useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedSearch(search), 250);
+    return () => window.clearTimeout(timer);
+  }, [search]);
 
-  const loadLeads = async () => {
+  const loadLeads = React.useCallback(async () => {
     try {
-      const [leadsData, statsData]: any = await Promise.all([
+      const [leadsData, statsData] = await Promise.all([
         apiClient.get('/leads', {
           params: {
-            search: search || undefined,
+            search: debouncedSearch || undefined,
             status: statusFilter !== 'ALL' ? statusFilter : undefined,
           },
         }),
-        apiClient.get('/leads/stats'),
+        apiClient.get('/leads/stats', { params: { days: 28 } }),
       ]);
-
       setLeads(Array.isArray(leadsData) ? leadsData : []);
-      if (statsData) setStats(statsData);
+      if (statsData) setStats(statsData as unknown as LeadStats);
     } catch (err) {
       console.error('Failed to load leads:', err);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [debouncedSearch, statusFilter]);
 
   React.useEffect(() => {
-    loadLeads();
-  }, [search, statusFilter]);
-
-  const handleStatusChange = async (id: string, newStatus: LeadStatus) => {
-    try {
-      await apiClient.patch(`/leads/${id}`, { status: newStatus });
-      loadLeads();
-      if (selectedLead && selectedLead.id === id) {
-        setSelectedLead({ ...selectedLead, status: newStatus });
-      }
-    } catch (err) {
-      console.error('Failed to update lead status:', err);
-    }
-  };
+    void loadLeads();
+  }, [loadLeads]);
 
   const handleDelete = (id: string) => {
     confirm({
@@ -89,271 +95,130 @@ export default function LeadsPage() {
       destructive: true,
       onConfirm: async () => {
         await apiClient.delete(`/leads/${id}`);
-        setSelectedLead(null);
         toast.success('Lead deleted');
         await loadLeads();
       },
     });
   };
 
-  const statusOptions: LeadStatus[] = [
-    'NEW',
-    'CONTACTED',
-    'QUALIFIED',
-    'CONVERTED',
-    'LOST',
-  ];
-
   return (
-    <div className="flex-1 space-y-6">
+    <div className="space-y-6">
       {dialog}
       <PageHeader
         title="Forms & leads"
         description="Inbound inquiries collected from published contact forms."
       />
 
-      {/* Stats Counters */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs font-medium">Total Leads</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? <Skeleton className="h-7 w-12" /> : <div className="text-2xl font-bold">{stats.total}</div>}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs font-medium text-primary">New</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? <Skeleton className="h-7 w-12" /> : <div className="text-2xl font-bold">{stats.new}</div>}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs font-medium text-amber-500">Contacted</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? <Skeleton className="h-7 w-12" /> : <div className="text-2xl font-bold">{stats.contacted}</div>}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs font-medium text-sky-500">Qualified</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? <Skeleton className="h-7 w-12" /> : <div className="text-2xl font-bold">{stats.qualified}</div>}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs font-medium text-emerald-500">Converted</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? <Skeleton className="h-7 w-12" /> : <div className="text-2xl font-bold">{stats.converted}</div>}
-          </CardContent>
-        </Card>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <StatCard title="Total" value={stats.total} trend={stats.change?.total} loading={isLoading} />
+        <StatCard title="New" value={stats.new} className="bg-sky-50 dark:bg-sky-950/30" loading={isLoading} />
+        <StatCard title="Contacted" value={stats.contacted} className="bg-amber-50 dark:bg-amber-950/30" loading={isLoading} />
+        <StatCard title="Qualified" value={stats.qualified} loading={isLoading} />
+        <StatCard title="Converted" value={stats.converted} className="bg-emerald-50 dark:bg-emerald-950/30" loading={isLoading} />
       </div>
 
-      {/* Filters & Search */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-        <div className="w-full sm:w-80">
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name, email, message..."
-            leftIcon={<Search className="h-4 w-4" />}
-          />
-        </div>
-
-        <div className="flex items-center gap-2 overflow-x-auto p-1 border rounded-lg bg-muted/50">
-          {['ALL', ...statusOptions].map((st) => (
-            <button
-              key={st}
-              type="button"
-              onClick={() => setStatusFilter(st)}
-              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${
-                statusFilter === st
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              {st}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Leads Table */}
       <Card>
-        <CardContent className="p-0 overflow-x-auto">
+        <CardContent className="space-y-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <Tabs value={statusFilter} onValueChange={setStatusFilter}>
+              <TabsList variant="line">
+                <TabsTrigger value="ALL">All</TabsTrigger>
+                {LEAD_STATUSES.map((status) => (
+                  <TabsTrigger key={status} value={status}>
+                    {LEAD_STATUS_LABEL[status]}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
+            <Input
+              className="lg:max-w-xs"
+              placeholder="Search name or email…"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              leftIcon={<Search />}
+            />
+          </div>
+
           {isLoading ? (
-            <div className="p-6 space-y-4">
+            <div className="space-y-3">
               {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="flex space-x-4 items-center">
-                  <Skeleton className="h-10 w-full" />
-                </div>
+                <Skeleton key={i} className="h-12 w-full" />
               ))}
             </div>
           ) : leads.length === 0 ? (
             <EmptyState
               icon={<Users className="h-6 w-6 text-muted-foreground" />}
               title="No leads found"
-              description="Inbound inquiries submitted by website visitors will appear here in real-time."
-              className="border-0 bg-transparent rounded-none my-8"
+              description="Inbound inquiries submitted by website visitors will appear here."
+              className="min-h-0 border-0 bg-transparent"
             />
           ) : (
-            <table className="w-full text-left text-sm">
-              <thead className="border-b bg-muted/50 text-muted-foreground font-medium">
-                <tr>
-                  <th className="py-3 px-6 h-10 align-middle">Name</th>
-                  <th className="py-3 px-6 h-10 align-middle">Contact Info</th>
-                  <th className="py-3 px-6 h-10 align-middle">Message Preview</th>
-                  <th className="py-3 px-6 h-10 align-middle">Status</th>
-                  <th className="py-3 px-6 h-10 align-middle">Received</th>
-                  <th className="py-3 px-6 h-10 align-middle text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Lead</TableHead>
+                  <TableHead>Contact</TableHead>
+                  <TableHead>Source</TableHead>
+                  <TableHead>Received</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="w-10" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {leads.map((lead) => (
-                  <tr
+                  <TableRow
                     key={lead.id}
-                    className="hover:bg-muted/50 transition-colors"
+                    className="cursor-pointer"
+                    onClick={() => router.push(`/leads/${lead.id}`)}
                   >
-                    <td className="py-4 px-6 font-medium">
-                      {lead.name}
-                    </td>
-                    <td className="py-4 px-6">
+                    <TableCell>
+                      <p className="font-medium">{lead.name}</p>
+                      <p className="text-xs text-muted-foreground">{shortRef(lead.id)}</p>
+                    </TableCell>
+                    <TableCell>
                       <p>{lead.email}</p>
-                      {lead.phone && (
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {lead.phone}
-                        </p>
-                      )}
-                    </td>
-                    <td className="py-4 px-6 max-w-[200px] truncate text-muted-foreground">
-                      {lead.message || 'No message'}
-                    </td>
-                    <td className="py-4 px-6">
-                      <select
-                        value={lead.status}
-                        onChange={(e) =>
-                          handleStatusChange(
-                            lead.id,
-                            e.target.value as LeadStatus,
-                          )
-                        }
-                        className="h-8 rounded-md border border-input bg-background px-2.5 py-1 text-xs font-medium cursor-pointer"
-                      >
-                        {statusOptions.map((opt) => (
-                          <option key={opt} value={opt}>
-                            {opt}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="py-4 px-6 text-muted-foreground">
-                      {formatDate(lead.createdAt)}
-                    </td>
-                    <td className="py-4 px-6 text-right space-x-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => setSelectedLead(lead)}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-destructive hover:text-destructive/90"
-                        onClick={() => handleDelete(lead.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </td>
-                  </tr>
+                      {lead.phone ? (
+                        <p className="text-xs text-muted-foreground">{lead.phone}</p>
+                      ) : null}
+                    </TableCell>
+                    <TableCell className="capitalize text-muted-foreground">
+                      {(lead.source || 'website').replace('_', ' ')}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{formatDate(lead.createdAt)}</TableCell>
+                    <TableCell>
+                      <Badge variant={leadStatusVariant(lead.status)}>
+                        {LEAD_STATUS_LABEL[lead.status]}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-8"
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            <MoreHorizontal />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" onClick={(event) => event.stopPropagation()}>
+                          <DropdownMenuItem asChild>
+                            <Link href={`/leads/${lead.id}`}>View</Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem variant="destructive" onClick={() => handleDelete(lead.id)}>
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           )}
         </CardContent>
       </Card>
-
-      {/* Lead Detail Dialog */}
-      <Dialog
-        isOpen={!!selectedLead}
-        onClose={() => setSelectedLead(null)}
-        title={selectedLead?.name}
-        description={`Submitted on ${selectedLead ? formatDate(selectedLead.createdAt) : ''}`}
-      >
-        {selectedLead && (
-          <div className="space-y-6 pt-2">
-            <div className="grid grid-cols-2 gap-4 p-4 rounded-xl border bg-muted/30">
-              <div>
-                <span className="text-[11px] font-semibold text-muted-foreground block mb-1">
-                  Email
-                </span>
-                <a
-                  href={`mailto:${selectedLead.email}`}
-                  className="text-sm font-medium hover:underline text-foreground block"
-                >
-                  {selectedLead.email}
-                </a>
-              </div>
-              <div>
-                <span className="text-[11px] font-semibold text-muted-foreground block mb-1">
-                  Phone
-                </span>
-                <span className="text-sm font-medium text-foreground block">
-                  {selectedLead.phone || 'Not provided'}
-                </span>
-              </div>
-            </div>
-
-            <div>
-              <span className="text-xs font-semibold text-muted-foreground block mb-2">
-                Inquiry Message
-              </span>
-              <div className="p-4 rounded-xl border bg-muted/30 text-sm text-foreground leading-relaxed whitespace-pre-wrap">
-                {selectedLead.message || 'No message provided.'}
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between pt-4 border-t">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">Update Status:</span>
-                <select
-                  value={selectedLead.status}
-                  onChange={(e) =>
-                    handleStatusChange(
-                      selectedLead.id,
-                      e.target.value as LeadStatus,
-                    )
-                  }
-                  className="h-9 rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium cursor-pointer"
-                >
-                  {statusOptions.map((opt) => (
-                    <option key={opt} value={opt}>
-                      {opt}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => handleDelete(selectedLead.id)}
-              >
-                Delete Lead
-              </Button>
-            </div>
-          </div>
-        )}
-      </Dialog>
     </div>
   );
 }

@@ -109,6 +109,10 @@ export function CommandMenu() {
               <LayoutTemplate />
               Browse templates
             </CommandItem>
+            <CommandItem onSelect={() => run(() => router.push('/products/new'))}>
+              <ShoppingBag />
+              Add product
+            </CommandItem>
             <CommandItem onSelect={() => run(() => router.push('/settings'))}>
               <Building2 />
               Business profile

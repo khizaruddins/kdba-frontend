@@ -164,10 +164,14 @@ export interface Product {
   tenantId: string;
   name: string;
   description?: string | null;
-  price: number;
+  price: number | string;
+  compareAtPrice?: number | string | null;
   currency: string;
   imageUrl?: string | null;
   category?: string | null;
+  brand?: string | null;
+  sku?: string | null;
+  stock?: number | null;
   ctaText?: string | null;
   ctaUrl?: string | null;
   isActive: boolean;
@@ -207,13 +211,66 @@ export interface Lead {
   updatedAt: string;
 }
 
-export interface LeadStats {
+export interface LeadStatusCounts {
   total: number;
   new: number;
   contacted: number;
   qualified: number;
   converted: number;
   lost: number;
+}
+
+export interface LeadStats extends LeadStatusCounts {
+  period?: {
+    days: number;
+    from: string;
+    to: string;
+  };
+  periodCounts?: LeadStatusCounts;
+  previousCounts?: LeadStatusCounts;
+  change?: {
+    total: number;
+    new: number;
+    converted: number;
+  };
+  conversionRate?: number;
+  series?: Array<{ date: string; count: number; converted: number }>;
+}
+
+export interface ProductStats {
+  total: number;
+  active: number;
+  inactive: number;
+  catalogValue: number;
+  discounted: number;
+  outOfStock: number;
+  byCategory: Array<{ category: string; count: number }>;
+}
+
+export interface DashboardOverview {
+  period: { days: number; from: string; to: string };
+  websites: { total: number; published: number; draft: number };
+  products: ProductStats;
+  leads: LeadStats;
+  recentLeads: Lead[];
+  topProducts: Array<{
+    id: string;
+    name: string;
+    category?: string | null;
+    imageUrl?: string | null;
+    price: number;
+    currency: string;
+    sku?: string | null;
+    stock?: number | null;
+    isActive: boolean;
+  }>;
+  websitesPreview: Array<{
+    id: string;
+    name: string;
+    slug: string;
+    status: WebsiteStatus;
+    updatedAt: string;
+  }>;
 }
 
 export interface PublicWebsiteResponse {
