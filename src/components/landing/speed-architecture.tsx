@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { motion } from 'framer-motion';
-import { Zap, Cpu, Server, Globe, Gauge, CheckCircle2 } from 'lucide-react';
+import { Cpu, Server, Globe, Gauge } from 'lucide-react';
 
 export function SpeedArchitecture() {
   const pillars = [
@@ -29,26 +29,20 @@ export function SpeedArchitecture() {
   ];
 
   return (
-    <section className="relative py-28 px-6 border-t border-slate-800/80 bg-slate-950 overflow-hidden">
-      <div className="relative mx-auto max-w-7xl">
+    <section className="relative py-28 px-6 bg-[#090D16]">
+      <div className="relative mx-auto max-w-[1440px]">
         {/* Section Header */}
-        <div className="text-center max-w-3xl mx-auto space-y-4 mb-20">
-          <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-3.5 py-1 text-xs font-bold uppercase tracking-wider text-amber-400">
-            <Zap className="h-3.5 w-3.5" />
-            <span>Architecture & Performance</span>
-          </div>
-
-          <h2 className="text-4xl font-black tracking-tight text-white sm:text-6xl leading-[1.08]">
+        <div className="max-w-3xl space-y-4 mb-16 px-6 lg:px-12">
+          <h2 className="text-[clamp(2.5rem,5vw,4rem)] font-normal tracking-[-0.03em] text-white leading-[1.1]">
             Built to be fast.
           </h2>
-
-          <p className="text-sm sm:text-base text-slate-400 max-w-xl mx-auto">
+          <p className="text-[17px] text-slate-400 max-w-xl">
             Engineered from first principles with modern edge caching, minimal JavaScript payloads, and responsive image pipelines.
           </p>
         </div>
 
         {/* 4 Architecture Pillars */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 px-6 lg:px-12">
           {pillars.map((pillar, idx) => {
             const Icon = pillar.icon;
             return (
@@ -58,17 +52,17 @@ export function SpeedArchitecture() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.4, delay: idx * 0.1 }}
-                className="rounded-3xl border border-slate-800 bg-slate-900/60 p-6 space-y-4 shadow-xl hover:border-slate-700 hover:bg-slate-900/90 transition-all"
+                className="rounded-2xl border border-white/10 bg-[#0f1422] p-6 space-y-6 shadow-sm hover:bg-[#121828] transition-colors"
               >
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 text-slate-300 border border-white/10">
                   <Icon className="h-5 w-5" />
                 </div>
 
-                <div className="space-y-2">
-                  <h3 className="text-base font-bold text-white tracking-tight">
+                <div className="space-y-3">
+                  <h3 className="text-[15px] font-semibold text-white tracking-tight">
                     {pillar.title}
                   </h3>
-                  <p className="text-xs text-slate-400 leading-relaxed">
+                  <p className="text-[13px] text-slate-400 leading-relaxed">
                     {pillar.desc}
                   </p>
                 </div>

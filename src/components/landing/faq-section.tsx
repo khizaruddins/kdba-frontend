@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { HelpCircle, ChevronDown, Sparkles } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 
 interface FaqItem {
   question: string;
@@ -52,47 +52,41 @@ export function FaqSection() {
   };
 
   return (
-    <section id="faq" className="relative py-28 px-6 border-t border-slate-800/80 bg-slate-950/90 overflow-hidden">
-      <div className="relative mx-auto max-w-4xl">
+    <section id="faq" className="relative py-28 px-6 border-t border-white/5 bg-[#090D16]">
+      <div className="relative mx-auto max-w-3xl">
         {/* Section Header */}
         <div className="text-center space-y-4 mb-16">
-          <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-3.5 py-1 text-xs font-bold uppercase tracking-wider text-amber-400">
-            <HelpCircle className="h-3.5 w-3.5" />
-            <span>Frequently Asked Questions</span>
-          </div>
-
-          <h2 className="text-4xl font-black tracking-tight text-white sm:text-5xl">
+          <h2 className="text-[clamp(2.5rem,5vw,3.5rem)] font-normal tracking-[-0.03em] text-white leading-[1.1]">
             Everything you need to know.
           </h2>
-
-          <p className="text-sm text-slate-400 max-w-md mx-auto">
+          <p className="text-[17px] text-slate-400 max-w-md mx-auto">
             Honest, transparent answers about KDBA capabilities, workflow, and platform roadmap.
           </p>
         </div>
 
         {/* Accordion List */}
-        <div className="space-y-3.5">
+        <div className="space-y-3">
           {FAQS.map((faq, idx) => {
             const isOpen = openIndex === idx;
             return (
               <div
                 key={idx}
-                className={`overflow-hidden rounded-2xl border transition-all ${
+                className={`overflow-hidden rounded-2xl border transition-colors ${
                   isOpen
-                    ? 'border-amber-500/40 bg-slate-900/90 shadow-xl shadow-amber-500/5'
-                    : 'border-slate-800 bg-slate-900/50 hover:border-slate-700'
+                    ? 'border-indigo-500/50 bg-[#141a2a]'
+                    : 'border-white/5 bg-[#0f1422] hover:bg-[#121828]'
                 }`}
               >
                 <button
                   onClick={() => toggleAccordion(idx)}
-                  className="w-full flex items-center justify-between p-5 text-left cursor-pointer transition-colors"
+                  className="w-full flex items-center justify-between p-6 text-left cursor-pointer transition-colors"
                 >
-                  <span className="text-sm sm:text-base font-bold text-white pr-4">
+                  <span className="text-[16px] font-semibold text-white pr-4">
                     {faq.question}
                   </span>
                   <div
-                    className={`flex h-8 w-8 items-center justify-center rounded-xl bg-slate-800 text-slate-300 shrink-0 transition-transform duration-200 ${
-                      isOpen ? 'rotate-180 bg-amber-500 text-slate-950 font-bold' : ''
+                    className={`flex h-8 w-8 items-center justify-center rounded-full text-slate-400 shrink-0 transition-transform duration-200 ${
+                      isOpen ? 'rotate-180 text-white bg-white/10' : 'bg-white/5 hover:bg-white/10'
                     }`}
                   >
                     <ChevronDown className="h-4 w-4" />
@@ -107,7 +101,7 @@ export function FaqSection() {
                       exit={{ height: 0, opacity: 0 }}
                       transition={{ duration: 0.25 }}
                     >
-                      <div className="p-5 pt-0 text-xs sm:text-sm text-slate-300 leading-relaxed border-t border-slate-800/60 mt-1">
+                      <div className="p-6 pt-0 text-[15px] text-slate-400 leading-relaxed">
                         {faq.answer}
                       </div>
                     </motion.div>

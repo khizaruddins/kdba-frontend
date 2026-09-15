@@ -170,9 +170,9 @@ export function HeroBuilderDemo() {
   return (
     <div className="relative mx-auto w-full max-w-6xl select-none">
       {/* Outer Studio Window */}
-      <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-slate-800 bg-[#0B0D13] shadow-2xl shadow-indigo-950/40 backdrop-blur-2xl">
+      <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#0B0D13] shadow-sm">
         {/* 1. Studio Top Navigation Bar */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 bg-slate-950/90 px-4 py-2.5 sm:px-6">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 bg-[#0f1422] px-4 py-2.5 sm:px-6">
           {/* Left: Window Controls + Site Indicator */}
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1.5">
@@ -229,7 +229,7 @@ export function HeroBuilderDemo() {
         {/* 2. Builder Workspace (3-Pane Layout) */}
         <div className="flex min-h-[520px] bg-[#0B0D13]">
           {/* Left Rail */}
-          <div className="w-12 shrink-0 border-r border-slate-800/80 bg-slate-950 flex flex-col items-center py-3 gap-2">
+          <div className="w-12 shrink-0 border-r border-white/5 bg-[#090D16] flex flex-col items-center py-3 gap-2">
             {[
               { id: 'add' as const, icon: Plus, title: 'Add Elements' },
               { id: 'layers' as const, icon: Layers, title: 'Layers' },
@@ -255,7 +255,7 @@ export function HeroBuilderDemo() {
           </div>
 
           {/* Left Flyout Drawer */}
-          <div className="w-56 shrink-0 border-r border-slate-800/80 bg-slate-950/80 p-3 flex flex-col gap-3">
+          <div className="w-56 shrink-0 border-r border-white/5 bg-[#0f1422] p-3 flex flex-col gap-3">
             {activeTab === 'add' && (
               <>
                 <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
@@ -499,7 +499,7 @@ export function HeroBuilderDemo() {
           </div>
 
           {/* Right Minimalist Inspector */}
-          <div className="w-60 shrink-0 border-l border-slate-800/80 bg-slate-950 p-3 space-y-4 text-xs">
+          <div className="w-60 shrink-0 border-l border-white/5 bg-[#090D16] p-3 space-y-4 text-xs">
             <div className="flex items-center justify-between pb-2 border-b border-slate-800 text-slate-400 text-[11px] font-bold uppercase tracking-wider">
               <span>Inspector</span>
               <span className="text-indigo-400 font-mono">{selectedElement.name}</span>

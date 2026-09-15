@@ -5,9 +5,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth-store';
 import { apiClient } from '@/lib/api/client';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { AlertCircle, Lock, Mail, User, Building2 } from 'lucide-react';
+import { AlertCircle, Lock, Mail, User, Building2, CheckCircle2 } from 'lucide-react';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -63,113 +62,213 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4 py-12">
-      {/* Background glow */}
-      <div className="pointer-events-none absolute h-[400px] w-[600px] rounded-full bg-purple-600/15 blur-[140px]" />
-
-      <div className="relative z-10 w-full max-w-md">
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2.5">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-500 font-extrabold text-white text-lg shadow-lg shadow-indigo-500/20">
-              K
-            </div>
-            <span className="text-xl font-bold tracking-tight text-white">
-              KDBA
-            </span>
-          </Link>
-          <h2 className="mt-4 text-2xl font-extrabold tracking-tight text-white">
-            Create Your Business Platform
-          </h2>
-          <p className="mt-1.5 text-xs text-slate-400">
-            Launch professional business websites in minutes
-          </p>
+    <div className="flex min-h-screen w-full bg-[#090D16]">
+      {/* Left Column: Image & Introduction */}
+      <div className="hidden lg:flex w-1/2 relative bg-black border-r border-white/5 flex-col justify-between overflow-hidden p-12">
+        {/* Background Image */}
+        <div className="absolute inset-0 opacity-40">
+          <img 
+            src="https://images.unsplash.com/photo-1557804506-669a67965ba0?q=80&w=2000&auto=format&fit=crop" 
+            alt="Workspace background" 
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#090D16] via-[#090D16]/60 to-transparent" />
         </div>
 
-        {/* Card */}
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-8 shadow-2xl backdrop-blur-xl">
-          {error && (
-            <div className="mb-5 flex items-center gap-2.5 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3.5 text-xs font-medium text-rose-300">
-              <AlertCircle className="h-4 w-4 shrink-0" />
-              <span>{error}</span>
+        {/* Branding Top Left */}
+        <div className="relative z-10">
+          <Link href="/" className="inline-flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-black font-bold text-[15px]">
+              K
             </div>
-          )}
+            <span className="text-[17px] font-semibold tracking-tight text-white">
+              KDBA Studio
+            </span>
+          </Link>
+        </div>
 
-          <form onSubmit={handleRegister} className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <Input
-                label="First Name"
-                required
-                value={formData.firstName}
-                onChange={(e) =>
-                  setFormData({ ...formData, firstName: e.target.value })
-                }
-                placeholder="Alex"
-                leftIcon={<User className="h-4 w-4" />}
-              />
-              <Input
-                label="Last Name"
-                required
-                value={formData.lastName}
-                onChange={(e) =>
-                  setFormData({ ...formData, lastName: e.target.value })
-                }
-                placeholder="Morgan"
-              />
+        {/* Content / Brief Summary Bottom Left */}
+        <div className="relative z-10 max-w-md space-y-8">
+          <div className="space-y-4">
+            <h1 className="text-4xl font-semibold text-white tracking-tight leading-tight">
+              Start building for free.
+            </h1>
+            <p className="text-[15px] text-slate-300 leading-relaxed">
+              Join thousands of creators and businesses managing their online presence with KDBA. Setup takes less than a minute.
+            </p>
+          </div>
+          
+          <div className="space-y-3 pt-4 border-t border-white/10">
+            <div className="flex items-center gap-3 text-[14px] text-slate-300 font-medium">
+              <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+              <span>30-day free trial on all plans</span>
             </div>
+            <div className="flex items-center gap-3 text-[14px] text-slate-300 font-medium">
+              <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+              <span>No credit card required to start</span>
+            </div>
+            <div className="flex items-center gap-3 text-[14px] text-slate-300 font-medium">
+              <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+              <span>Cancel anytime, no questions asked</span>
+            </div>
+          </div>
+        </div>
+      </div>
 
-            <Input
-              label="Business / Company Name"
-              required
-              value={formData.businessName}
-              onChange={(e) =>
-                setFormData({ ...formData, businessName: e.target.value })
-              }
-              placeholder="e.g. Apex Advisory"
-              leftIcon={<Building2 className="h-4 w-4" />}
-            />
-
-            <Input
-              label="Work Email"
-              type="email"
-              required
-              value={formData.email}
-              onChange={(e) =>
-                setFormData({ ...formData, email: e.target.value })
-              }
-              placeholder="alex@company.com"
-              leftIcon={<Mail className="h-4 w-4" />}
-            />
-
-            <Input
-              label="Password (min 8 characters)"
-              type="password"
-              required
-              value={formData.password}
-              onChange={(e) =>
-                setFormData({ ...formData, password: e.target.value })
-              }
-              placeholder="••••••••"
-              leftIcon={<Lock className="h-4 w-4" />}
-            />
-
-            <Button
-              type="submit"
-              className="w-full mt-2"
-              isLoading={isLoading}
-            >
-              Create Account & Start Builder
-            </Button>
-          </form>
-
-          <div className="mt-6 text-center text-xs text-slate-400">
-            Already have an account?{' '}
-            <Link
-              href="/login"
-              className="font-semibold text-indigo-400 hover:text-indigo-300"
-            >
-              Sign in
+      {/* Right Column: Registration Form */}
+      <div className="flex w-full lg:w-1/2 items-center justify-center p-6 sm:p-12">
+        <div className="w-full max-w-[420px] space-y-8">
+          
+          {/* Mobile Header (Only visible on small screens) */}
+          <div className="lg:hidden text-center mb-8">
+            <Link href="/" className="inline-flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-black font-bold text-[15px]">
+                K
+              </div>
+              <span className="text-[17px] font-semibold tracking-tight text-white">
+                KDBA
+              </span>
             </Link>
+          </div>
+
+          <div className="space-y-2">
+            <h2 className="text-2xl font-semibold tracking-tight text-white">
+              Create an account
+            </h2>
+            <p className="text-[14px] text-slate-400">
+              Enter your details to launch your business workspace
+            </p>
+          </div>
+
+          <div className="space-y-6">
+            {error && (
+              <div className="flex items-center gap-2.5 rounded-lg border border-red-500/20 bg-red-500/10 p-3.5 text-[13px] font-medium text-red-400">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleRegister} className="space-y-5">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-[13px] font-medium text-slate-300">
+                    First Name
+                  </label>
+                  <div className="relative">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">
+                      <User className="h-4 w-4" />
+                    </div>
+                    <input
+                      type="text"
+                      required
+                      value={formData.firstName}
+                      onChange={(e) =>
+                        setFormData({ ...formData, firstName: e.target.value })
+                      }
+                      placeholder="Alex"
+                      className="w-full rounded-xl border border-white/10 bg-[#0f1422] py-2.5 pl-10 pr-4 text-[14px] text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-colors"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[13px] font-medium text-slate-300">
+                    Last Name
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.lastName}
+                    onChange={(e) =>
+                      setFormData({ ...formData, lastName: e.target.value })
+                    }
+                    placeholder="Morgan"
+                    className="w-full rounded-xl border border-white/10 bg-[#0f1422] py-2.5 px-4 text-[14px] text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-colors"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[13px] font-medium text-slate-300">
+                  Business / Company Name
+                </label>
+                <div className="relative">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">
+                    <Building2 className="h-4 w-4" />
+                  </div>
+                  <input
+                    type="text"
+                    required
+                    value={formData.businessName}
+                    onChange={(e) =>
+                      setFormData({ ...formData, businessName: e.target.value })
+                    }
+                    placeholder="e.g. Apex Advisory"
+                    className="w-full rounded-xl border border-white/10 bg-[#0f1422] py-2.5 pl-10 pr-4 text-[14px] text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-colors"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[13px] font-medium text-slate-300">
+                  Work Email
+                </label>
+                <div className="relative">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">
+                    <Mail className="h-4 w-4" />
+                  </div>
+                  <input
+                    type="email"
+                    required
+                    value={formData.email}
+                    onChange={(e) =>
+                      setFormData({ ...formData, email: e.target.value })
+                    }
+                    placeholder="alex@company.com"
+                    className="w-full rounded-xl border border-white/10 bg-[#0f1422] py-2.5 pl-10 pr-4 text-[14px] text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-colors"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[13px] font-medium text-slate-300">
+                  Password <span className="text-slate-500 text-[11px] font-normal normal-case">(min 8 chars)</span>
+                </label>
+                <div className="relative">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">
+                    <Lock className="h-4 w-4" />
+                  </div>
+                  <input
+                    type="password"
+                    required
+                    value={formData.password}
+                    onChange={(e) =>
+                      setFormData({ ...formData, password: e.target.value })
+                    }
+                    placeholder="••••••••"
+                    className="w-full rounded-xl border border-white/10 bg-[#0f1422] py-2.5 pl-10 pr-4 text-[14px] text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-colors"
+                  />
+                </div>
+              </div>
+
+              <Button
+                type="submit"
+                className="w-full h-11 mt-2 rounded-xl bg-white text-black font-semibold text-[14px] hover:bg-slate-200 transition-colors cursor-pointer"
+                disabled={isLoading}
+              >
+                {isLoading ? 'Creating Account...' : 'Create Account & Start Builder'}
+              </Button>
+            </form>
+
+            <div className="text-center text-[13px] text-slate-400">
+              Already have an account?{' '}
+              <Link
+                href="/login"
+                className="font-semibold text-white hover:text-slate-200 transition-colors"
+              >
+                Sign in
+              </Link>
+            </div>
           </div>
         </div>
       </div>

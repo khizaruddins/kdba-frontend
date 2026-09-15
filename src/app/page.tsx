@@ -43,7 +43,7 @@ export const metadata: Metadata = {
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 selection:bg-amber-500 selection:text-slate-950 font-sans antialiased overflow-x-hidden">
+    <div className="min-h-screen bg-[#090D16] text-slate-300 selection:bg-indigo-500/30 selection:text-white font-sans antialiased overflow-x-hidden">
       {/* Sticky Navigation Bar */}
       <LandingNavbar />
 
