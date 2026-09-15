@@ -117,4 +117,36 @@ describe('v3 wire adapter', () => {
     expect(children.map((child) => child.type)).not.toContain('section');
     expect(children[0].type).toBe('stack');
   });
+
+  it('recovers navbar type when public publish stripped kdbaEditorType', () => {
+    const restored = toEditorDocument({
+      schemaVersion: '3.0',
+      site: { name: 'Studio', language: 'en' },
+      global: {
+        headerNode: {
+          id: 'global_header',
+          type: 'section',
+          props: {
+            brandName: 'Photography Merkhiz',
+            sticky: true,
+            useSiteNavigation: true,
+            ctaText: 'Get Started',
+            links: [{ href: '#', label: 'Home' }],
+          },
+          children: [],
+        },
+      },
+      pages: [
+        {
+          id: 'page_home',
+          title: 'Home',
+          slug: '/',
+          root: { id: 'root', type: 'page-root', children: [] },
+        },
+      ],
+    });
+
+    expect(restored.global?.headerNode?.type).toBe('navbar');
+    expect(restored.global?.headerNode?.props?.brandName).toBe('Photography Merkhiz');
+  });
 });

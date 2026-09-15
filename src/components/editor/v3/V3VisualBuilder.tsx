@@ -176,22 +176,44 @@ export function V3VisualBuilder() {
         {previewMode || compact ? (
           <V3EditorCanvas />
         ) : (
-          <ResizablePanelGroup orientation="horizontal" className="flex-1 min-w-0">
+          <ResizablePanelGroup
+            key={activeNavTab ? 'with-nav' : 'canvas-only'}
+            orientation="horizontal"
+            className="flex-1 min-w-0"
+          >
             {activeNavTab ? (
               <>
-                <ResizablePanel defaultSize={22} minSize={16} maxSize={40} className="min-w-[220px] overflow-hidden">
+                <ResizablePanel
+                  id="editor-nav"
+                  defaultSize={300}
+                  minSize={260}
+                  maxSize={420}
+                  className="overflow-hidden"
+                >
                   <EditorNavPanel tab={activeNavTab} />
                 </ResizablePanel>
-                <ResizableHandle withHandle />
+                <ResizableHandle withHandle className="w-1.5 hover:bg-primary/30 active:bg-primary/40" />
               </>
             ) : null}
-            <ResizablePanel defaultSize={activeNavTab ? 56 : 78} minSize={30} className="overflow-hidden">
+            <ResizablePanel
+              id="editor-canvas"
+              defaultSize={activeNavTab ? '55' : '78'}
+              minSize={360}
+              className="overflow-hidden"
+              groupResizeBehavior="preserve-relative-size"
+            >
               <div className="flex h-full min-h-0 flex-col">
                 <V3EditorCanvas />
               </div>
             </ResizablePanel>
-            <ResizableHandle withHandle />
-            <ResizablePanel defaultSize={22} minSize={16} maxSize={40} className="min-w-[220px] overflow-hidden">
+            <ResizableHandle withHandle className="w-1.5 hover:bg-primary/30 active:bg-primary/40" />
+            <ResizablePanel
+              id="editor-inspector"
+              defaultSize={300}
+              minSize={260}
+              maxSize={420}
+              className="overflow-hidden"
+            >
               <V3Inspector />
             </ResizablePanel>
           </ResizablePanelGroup>

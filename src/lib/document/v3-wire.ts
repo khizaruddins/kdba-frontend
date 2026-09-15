@@ -655,6 +655,30 @@ function flattenWireWrappers(nodes: WebsiteNode[]): WebsiteNode[] {
   return flattened;
 }
 
+/**
+ * Public publish historically stripped `kdbaEditorType`, leaving chrome nodes as
+ * plain section/stack. Recover semantic types from distinctive props so navbar /
+ * footer still render on /site.
+ */
+function recoverEditorTypeFromProps(
+  wireType: string,
+  props: Record<string, unknown>,
+): NodeType | null {
+  if (wireType !== 'section' && wireType !== 'stack') return null;
+  if (
+    props.brandName !== undefined ||
+    props.sticky !== undefined ||
+    (props.useSiteNavigation !== undefined &&
+      (props.ctaText !== undefined || Array.isArray(props.links)))
+  ) {
+    return 'navbar';
+  }
+  if (props.copyright !== undefined) {
+    return 'footer';
+  }
+  return null;
+}
+
 function toEditorNode(node: Record<string, unknown>, _parentType: string | null): WebsiteNode {
   const props = { ...((node.props as Record<string, unknown>) || {}) };
   const storedType = typeof props[EDITOR_TYPE_PROP] === 'string' ? String(props[EDITOR_TYPE_PROP]) : '';
@@ -662,6 +686,14 @@ function toEditorNode(node: Record<string, unknown>, _parentType: string | null)
   let type = storedType && EDITOR_TYPE_SET.has(storedType) ? (storedType as NodeType) : (rawType as NodeType);
   if (!EDITOR_TYPE_SET.has(type) && !WIRE_TYPE_SET.has(type)) {
     type = (TYPE_FALLBACK[rawType] || 'stack') as NodeType;
+  }
+  // Backend may already promote kdbaEditorType → type (navbar, footer, …).
+  // If publish stripped the prop and left a wire fallback, recover from props.
+  if (!storedType && (type === 'section' || type === 'stack')) {
+    const recovered = recoverEditorTypeFromProps(type, props);
+    if (recovered && EDITOR_TYPE_SET.has(recovered)) {
+      type = recovered;
+    }
   }
 
   const children = flattenWireWrappers(

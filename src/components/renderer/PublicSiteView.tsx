@@ -8,6 +8,7 @@ import { PublicWebsiteResponse } from '@/types';
 import { WebsiteDocumentV3 } from '@/types/v3-document';
 import { CmsRecord } from '@/types/cms';
 import { toEditorDocument } from '@/lib/document/v3-wire';
+import { ensureGlobalChrome, navItemsFromPages } from '@/lib/editor/global-chrome';
 import { normalizePublicCmsPayload } from '@/lib/cms/load-render-payload';
 import { CmsRenderPayload } from '@/lib/cms/bindings';
 import { resolvePublicPage, withBusinessOnDocument } from '@/lib/cms/public-page';
@@ -95,10 +96,18 @@ export function PublicSiteView({
       v3Candidates.find((doc) => doc?.schemaVersion === '3.0' || Boolean(doc?.pages?.[0]?.root)) ||
       null;
     if (!v3DocumentRaw) return null;
-    return withBusinessOnDocument(
-      toEditorDocument(v3DocumentRaw),
-      siteData.business as unknown as Record<string, unknown>,
-    );
+    let doc = ensureGlobalChrome(toEditorDocument(v3DocumentRaw));
+    if (!doc.navigation?.header?.length) {
+      doc = {
+        ...doc,
+        navigation: {
+          ...(doc.navigation || { header: [], footer: [] }),
+          header: navItemsFromPages(doc),
+          footer: doc.navigation?.footer || [],
+        },
+      };
+    }
+    return withBusinessOnDocument(doc, siteData.business as unknown as Record<string, unknown>);
   }, [siteData]);
 
   const resolved = React.useMemo(() => {
