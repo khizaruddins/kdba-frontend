@@ -31,9 +31,9 @@ export function ColorControl({ label, value, onChange, themeColors }: ColorContr
   return (
     <div className="space-y-2 text-xs">
       <div className="flex items-center justify-between gap-2">
-        <label className="text-[11px] font-medium text-slate-400">{label}</label>
+        <label className="text-[11px] font-medium text-muted-foreground">{label}</label>
         {token && (
-          <span className="rounded-full border border-indigo-500/40 bg-indigo-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-indigo-300">
+          <span className="rounded-full border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-primary">
             Theme · {THEME_COLOR_TOKEN_LABELS[token]}
           </span>
         )}
@@ -44,20 +44,20 @@ export function ColorControl({ label, value, onChange, themeColors }: ColorContr
           aria-label={`${label} picker`}
           value={hex}
           onChange={(e) => onChange(hexToRgba(e.target.value, opacity / 100))}
-          className="w-8 h-8 rounded border border-slate-800 bg-transparent cursor-pointer"
+          className="w-8 h-8 rounded border border-border bg-transparent cursor-pointer"
         />
         <input
           type="text"
           aria-label={`${label} hex`}
           value={token || (value && value.startsWith('#') ? value : hex)}
           onChange={(e) => onChange(e.target.value)}
-          className={`flex-1 h-8 px-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-100 font-mono text-xs focus:outline-none focus:border-indigo-500 ${
+          className={`flex-1 h-8 px-2 rounded-lg bg-muted/50 border border-border text-foreground font-mono text-xs focus:outline-none focus:border-ring ${
             token ? '' : 'uppercase'
           }`}
         />
       </div>
       <div className="flex items-center gap-2">
-        <span className="text-[10px] text-slate-500 w-14">Opacity</span>
+        <span className="text-[10px] text-muted-foreground w-14">Opacity</span>
         <input
           type="range"
           min={0}
@@ -65,9 +65,9 @@ export function ColorControl({ label, value, onChange, themeColors }: ColorContr
           aria-label={`${label} opacity`}
           value={opacity}
           onChange={(e) => onChange(hexToRgba(hex, Number(e.target.value) / 100))}
-          className="flex-1 accent-indigo-500"
+          className="flex-1 accent-primary"
         />
-        <span className="w-8 text-right font-mono text-[10px] text-indigo-300">{opacity}%</span>
+        <span className="w-8 text-right font-mono text-[10px] text-primary">{opacity}%</span>
       </div>
       <div className="grid grid-cols-8 gap-1">
         {THEME_COLOR_TOKEN_KEYS.map((key: ThemeColorToken) => {
@@ -82,7 +82,7 @@ export function ColorControl({ label, value, onChange, themeColors }: ColorContr
               aria-pressed={selected}
               onClick={() => onChange(key)}
               className={`h-5 rounded border transition-transform hover:scale-105 ${
-                selected ? 'border-indigo-400 ring-2 ring-indigo-500/40' : 'border-slate-800'
+                selected ? 'border-primary ring-2 ring-primary/40' : 'border-border'
               }`}
               style={{ backgroundColor: preview }}
             />

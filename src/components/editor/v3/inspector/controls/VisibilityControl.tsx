@@ -18,7 +18,7 @@ export function VisibilityControl({ visibility, onChange }: VisibilityControlPro
 
   return (
     <div className="space-y-2 text-xs">
-      <p className="text-[11px] text-slate-400">Show this element on:</p>
+      <p className="text-[11px] text-muted-foreground">Show this element on:</p>
       <div className="grid grid-cols-3 gap-1">
         {devices.map((device) => {
           const visible = visibility?.[device.id] !== false;
@@ -30,8 +30,8 @@ export function VisibilityControl({ visibility, onChange }: VisibilityControlPro
               onClick={() => onChange({ ...(visibility || {}), [device.id]: !visible })}
               className={`flex flex-col items-center gap-1 py-2 rounded-lg border text-[10px] font-medium ${
                 visible
-                  ? 'bg-indigo-600/20 border-indigo-500/40 text-indigo-200'
-                  : 'bg-slate-900 border-slate-800 text-slate-500'
+                  ? 'bg-primary/10 border-primary/40 text-primary'
+                  : 'bg-muted/50 border-border text-muted-foreground'
               }`}
             >
               {device.icon}

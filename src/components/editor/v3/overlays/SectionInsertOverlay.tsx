@@ -76,7 +76,7 @@ export function SectionInsertOverlay() {
           <button
             type="button"
             onClick={() => setOpenAfterId(openAfterId === bar.id ? null : bar.id)}
-            className="pointer-events-auto flex items-center gap-1 h-6 px-2 rounded-full bg-slate-950 border border-indigo-500/40 text-[10px] font-semibold text-indigo-300 hover:bg-indigo-600 hover:text-white shadow-lg"
+            className="pointer-events-auto flex items-center gap-1 h-6 px-2 rounded-full bg-background border border-primary/40 text-[10px] font-semibold text-primary hover:bg-primary hover:text-primary-foreground shadow-lg"
           >
             <Plus className="w-3 h-3" />
             Add Section
@@ -91,12 +91,12 @@ export function SectionInsertOverlay() {
           onClick={() => setOpenAfterId(null)}
         >
           <div
-            className="w-full max-w-2xl rounded-2xl border border-slate-800 bg-slate-950 p-4 shadow-2xl"
+            className="w-full max-w-2xl rounded-2xl border border-border bg-background p-4 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-white">Insert section</h3>
-              <button type="button" onClick={() => setOpenAfterId(null)} className="p-1 text-slate-400 hover:text-white">
+              <h3 className="text-sm font-semibold text-foreground">Insert section</h3>
+              <button type="button" onClick={() => setOpenAfterId(null)} className="p-1 text-muted-foreground hover:text-foreground">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -109,10 +109,10 @@ export function SectionInsertOverlay() {
                     insertSectionPreset(preset.build(), openAfterId);
                     setOpenAfterId(null);
                   }}
-                  className="text-left p-3 rounded-xl bg-slate-900 border border-slate-800 hover:border-indigo-500/50 hover:bg-slate-900/80"
+                  className="text-left p-3 rounded-xl bg-muted/50 border border-border hover:border-primary/50 hover:bg-muted/50"
                 >
-                  <div className="text-xs font-semibold text-white">{preset.name}</div>
-                  <div className="text-[10px] text-slate-500 mt-1 leading-snug">{preset.description}</div>
+                  <div className="text-xs font-semibold text-foreground">{preset.name}</div>
+                  <div className="text-[10px] text-muted-foreground mt-1 leading-snug">{preset.description}</div>
                 </button>
               ))}
             </div>

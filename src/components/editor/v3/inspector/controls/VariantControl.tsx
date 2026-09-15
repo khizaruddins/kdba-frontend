@@ -41,7 +41,7 @@ export function VariantControl({
 
   return (
     <div className="space-y-1">
-      <label className="text-[11px] font-medium text-slate-400">{label}</label>
+      <label className="text-[11px] font-medium text-muted-foreground">{label}</label>
       <div className="grid grid-cols-2 gap-1">
         {options.map((option) => (
           <button
@@ -50,8 +50,8 @@ export function VariantControl({
             onClick={() => onChangeProps({ variant: option })}
             className={`h-7 rounded-lg px-2 text-[11px] capitalize ${
               current === option
-                ? 'bg-indigo-600 text-white'
-                : 'bg-slate-900 border border-slate-800 text-slate-300 hover:text-white'
+                ? 'bg-primary text-primary-foreground'
+                : 'border bg-background text-muted-foreground hover:text-foreground'
             }`}
           >
             {option.replace('-', ' ')}

@@ -12,6 +12,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PageHeader } from '@/components/kdba/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
+import { MediaPickerModal } from '@/components/ui/media-picker-modal';
+import { Label } from '@/components/ui/label';
 
 export default function SettingsPage() {
   const [business, setBusiness] = React.useState<Business | null>(null);
@@ -20,6 +22,7 @@ export default function SettingsPage() {
     description: '',
     category: '',
     logoUrl: '',
+    favicon: '',
     email: '',
     phone: '',
     whatsapp: '',
@@ -29,9 +32,17 @@ export default function SettingsPage() {
     country: '',
     zipCode: '',
     website: '',
+    socialMedia: {
+      facebook: '',
+      instagram: '',
+      linkedin: '',
+      twitter: '',
+      youtube: '',
+    },
   });
   const [isLoading, setIsLoading] = React.useState(true);
   const [isSaving, setIsSaving] = React.useState(false);
+  const [mediaTarget, setMediaTarget] = React.useState<'logoUrl' | 'favicon' | null>(null);
 
   React.useEffect(() => {
     apiClient
@@ -41,11 +52,13 @@ export default function SettingsPage() {
         if (b && typeof b === 'object') {
           const next = b as Business;
           setBusiness(next);
+          const social = (next.socialMedia || {}) as Record<string, string>;
           setFormData({
             name: next.name || '',
             description: next.description || '',
             category: next.category || '',
             logoUrl: next.logoUrl || '',
+            favicon: next.favicon || '',
             email: next.email || '',
             phone: next.phone || '',
             whatsapp: next.whatsapp || '',
@@ -55,6 +68,13 @@ export default function SettingsPage() {
             country: next.country || '',
             zipCode: next.zipCode || '',
             website: next.website || '',
+            socialMedia: {
+              facebook: social.facebook || '',
+              instagram: social.instagram || '',
+              linkedin: social.linkedin || '',
+              twitter: social.twitter || '',
+              youtube: social.youtube || '',
+            },
           });
         }
       })
@@ -67,7 +87,13 @@ export default function SettingsPage() {
     if (!business) return;
     setIsSaving(true);
     try {
-      const updated: Business = await apiClient.patch(`/businesses/${business.id}`, formData);
+      const payload = {
+        ...formData,
+        socialMedia: Object.fromEntries(
+          Object.entries(formData.socialMedia).filter(([, value]) => Boolean(value.trim())),
+        ),
+      };
+      const updated: Business = await apiClient.patch(`/businesses/${business.id}`, payload);
       setBusiness(updated);
       toast.success('Business profile saved');
     } catch (err) {
@@ -100,8 +126,8 @@ export default function SettingsPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <PageHeader
-        title="Settings"
-        description="Business identity used across your published websites and contact forms."
+        title="Business Profile"
+        description="Reusable business details for your websites, footers, contact sections, and CMS bindings."
         actions={
           <Button type="submit" form="business-settings" size="sm" isLoading={isSaving}>
             <Save />
@@ -139,12 +165,58 @@ export default function SettingsPage() {
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             />
-            <Input
-              label="Logo URL"
-              value={formData.logoUrl}
-              onChange={(e) => setFormData({ ...formData, logoUrl: e.target.value })}
-              leftIcon={<ImageIcon />}
-            />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Logo</Label>
+                <div className="flex items-center gap-3">
+                  {formData.logoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={formData.logoUrl}
+                      alt=""
+                      className="size-14 rounded-lg border object-cover"
+                    />
+                  ) : (
+                    <div className="flex size-14 items-center justify-center rounded-lg border bg-muted text-muted-foreground">
+                      <ImageIcon className="size-5" />
+                    </div>
+                  )}
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setMediaTarget('logoUrl')}
+                  >
+                    Select from media
+                  </Button>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Favicon</Label>
+                <div className="flex items-center gap-3">
+                  {formData.favicon ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={formData.favicon}
+                      alt=""
+                      className="size-14 rounded-lg border object-cover"
+                    />
+                  ) : (
+                    <div className="flex size-14 items-center justify-center rounded-lg border bg-muted text-muted-foreground">
+                      <ImageIcon className="size-5" />
+                    </div>
+                  )}
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setMediaTarget('favicon')}
+                  >
+                    Select from media
+                  </Button>
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
@@ -186,6 +258,39 @@ export default function SettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
+              <Globe className="size-4 text-muted-foreground" />
+              Social links
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-4 sm:grid-cols-2">
+            {(
+              [
+                ['facebook', 'Facebook'],
+                ['instagram', 'Instagram'],
+                ['linkedin', 'LinkedIn'],
+                ['twitter', 'X / Twitter'],
+                ['youtube', 'YouTube'],
+              ] as const
+            ).map(([key, label]) => (
+              <Input
+                key={key}
+                label={label}
+                value={formData.socialMedia[key]}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    socialMedia: { ...formData.socialMedia, [key]: e.target.value },
+                  })
+                }
+                placeholder="https://"
+              />
+            ))}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
               <MapPin className="size-4 text-muted-foreground" />
               Location
             </CardTitle>
@@ -197,14 +302,40 @@ export default function SettingsPage() {
               onChange={(e) => setFormData({ ...formData, address: e.target.value })}
             />
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <Input label="City" value={formData.city} onChange={(e) => setFormData({ ...formData, city: e.target.value })} />
-              <Input label="State" value={formData.state} onChange={(e) => setFormData({ ...formData, state: e.target.value })} />
-              <Input label="Postal code" value={formData.zipCode} onChange={(e) => setFormData({ ...formData, zipCode: e.target.value })} />
-              <Input label="Country" value={formData.country} onChange={(e) => setFormData({ ...formData, country: e.target.value })} />
+              <Input
+                label="City"
+                value={formData.city}
+                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+              />
+              <Input
+                label="State"
+                value={formData.state}
+                onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+              />
+              <Input
+                label="Postal code"
+                value={formData.zipCode}
+                onChange={(e) => setFormData({ ...formData, zipCode: e.target.value })}
+              />
+              <Input
+                label="Country"
+                value={formData.country}
+                onChange={(e) => setFormData({ ...formData, country: e.target.value })}
+              />
             </div>
           </CardContent>
         </Card>
       </form>
+
+      <MediaPickerModal
+        isOpen={Boolean(mediaTarget)}
+        onClose={() => setMediaTarget(null)}
+        onSelect={(url) => {
+          if (!mediaTarget) return;
+          setFormData((prev) => ({ ...prev, [mediaTarget]: url }));
+          setMediaTarget(null);
+        }}
+      />
     </div>
   );
 }

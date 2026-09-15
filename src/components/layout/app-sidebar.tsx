@@ -2,19 +2,29 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth-store';
 import {
   BarChart3,
+  Briefcase,
+  Building2,
+  ChevronDown,
   CreditCard,
   ExternalLink,
+  FileText,
+  FolderKanban,
   Globe,
+  HelpCircle,
   Image as ImageIcon,
   LayoutDashboard,
   LayoutTemplate,
+  LogOut,
+  MessageSquareQuote,
+  Newspaper,
   Settings,
   ShoppingBag,
   Users,
+  UsersRound,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -30,14 +40,27 @@ import {
   SidebarRail,
   SidebarSeparator,
 } from '@/components/ui/sidebar';
+import { BUILTIN_CONTENT_LINKS } from '@/types/cms';
 import { ThemeToggle } from '@/components/kdba/theme-toggle';
+import { HelpDialog } from '@/components/kdba/help-menu';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { apiClient } from '@/lib/api/client';
+import { Website } from '@/types';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 const PRIMARY_NAV = [
   { name: 'Overview', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Websites', href: '/websites', icon: Globe },
   { name: 'Templates', href: '/templates', icon: LayoutTemplate },
   { name: 'Media', href: '/media', icon: ImageIcon },
-  { name: 'Forms & leads', href: '/leads', icon: Users },
+  { name: 'Forms', href: '/leads', icon: Users },
   { name: 'Analytics', href: '/analytics', icon: BarChart3 },
 ];
 
@@ -46,15 +69,36 @@ const CATALOG_NAV = [
   { name: 'Pricing', href: '/pricing', icon: CreditCard },
 ];
 
+const CONTENT_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  'blog-posts': Newspaper,
+  services: Briefcase,
+  team: UsersRound,
+  testimonials: MessageSquareQuote,
+  faq: HelpCircle,
+  projects: FolderKanban,
+};
+
 function isActivePath(pathname: string, href: string) {
   if (href === '/dashboard') return pathname === '/dashboard';
   if (href === '/settings') return pathname === '/settings' || pathname.startsWith('/business');
+  if (href === '/content') return pathname === '/content';
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
 export function AppSidebar() {
   const pathname = usePathname();
-  const { tenant } = useAuthStore();
+  const router = useRouter();
+  const { tenant, user, logout } = useAuthStore();
+  const [sites, setSites] = React.useState<Website[]>([]);
+  const [helpOpen, setHelpOpen] = React.useState(false);
+  const initials = `${user?.firstName?.[0] ?? 'U'}${user?.lastName?.[0] ?? ''}`.toUpperCase();
+
+  React.useEffect(() => {
+    apiClient
+      .get('/websites')
+      .then((data) => setSites(Array.isArray(data) ? data : []))
+      .catch(() => setSites([]));
+  }, []);
 
   return (
     <Sidebar collapsible="icon" variant="inset">
@@ -75,6 +119,35 @@ export function AppSidebar() {
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
+          {sites.length > 0 ? (
+            <SidebarMenuItem>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <SidebarMenuButton tooltip="Open a website">
+                    <Globe />
+                    <span className="truncate">{sites[0]?.name || 'Websites'}</span>
+                    <ChevronDown className="ml-auto size-3.5" />
+                  </SidebarMenuButton>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-56">
+                  <DropdownMenuLabel>Open website</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {sites.slice(0, 8).map((site) => (
+                    <DropdownMenuItem key={site.id} asChild>
+                      <Link href={`/editor/${site.id}`}>{site.name}</Link>
+                    </DropdownMenuItem>
+                  ))}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/websites">All websites</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/templates">Create website</Link>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </SidebarMenuItem>
+          ) : null}
         </SidebarMenu>
       </SidebarHeader>
 
@@ -97,6 +170,67 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Content</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={isActivePath(pathname, '/content')}
+                  tooltip="Content"
+                >
+                  <Link href="/content">
+                    <FileText />
+                    <span>Overview</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={isActivePath(pathname, '/content/collections')}
+                  tooltip="Collections"
+                >
+                  <Link href="/content/collections">
+                    <FolderKanban />
+                    <span>Collections</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              {BUILTIN_CONTENT_LINKS.map((item) => {
+                const Icon = CONTENT_ICONS[item.slug] || FileText;
+                return (
+                  <SidebarMenuItem key={item.slug}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={isActivePath(pathname, item.href)}
+                      tooltip={item.label}
+                    >
+                      <Link href={item.href}>
+                        <Icon />
+                        <span>{item.label}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={isActivePath(pathname, '/settings')}
+                  tooltip="Business profile"
+                >
+                  <Link href="/settings">
+                    <Building2 />
+                    <span>Business Profile</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -151,11 +285,58 @@ export function AppSidebar() {
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton tooltip="Help" onClick={() => setHelpOpen(true)}>
+              <HelpCircle />
+              <span>Help</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <SidebarMenuButton tooltip="Account">
+                  <Avatar size="sm" className="size-4">
+                    <AvatarFallback className="text-[9px]">{initials}</AvatarFallback>
+                  </Avatar>
+                  <span className="truncate">
+                    {user?.firstName || user?.email || 'Account'}
+                  </span>
+                </SidebarMenuButton>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" side="top" className="w-56">
+                <DropdownMenuLabel>
+                  <p className="truncate font-medium">
+                    {user?.firstName} {user?.lastName}
+                  </p>
+                  <p className="truncate text-xs font-normal text-muted-foreground">{user?.email}</p>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => router.push('/settings')}>
+                  <Settings />
+                  Account settings
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={async () => {
+                    await logout();
+                    router.push('/login');
+                  }}
+                >
+                  <LogOut />
+                  Sign out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </SidebarMenuItem>
         </SidebarMenu>
-        <div className="flex items-center justify-between px-2 py-1 group-data-[collapsible=icon]:hidden">
-          <span className="text-xs text-muted-foreground">Appearance</span>
+        <div className="flex items-center justify-between px-2 py-1 group-data-[collapsible=icon]:justify-center">
+          <span className="text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
+            Theme
+          </span>
           <ThemeToggle />
         </div>
+        <HelpDialog open={helpOpen} onOpenChange={setHelpOpen} />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

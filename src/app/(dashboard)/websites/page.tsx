@@ -5,22 +5,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { apiClient } from '@/lib/api/client';
-import { websitesApi } from '@/lib/api/websites';
 import { Website, Template } from '@/types';
 import { formatDate } from '@/lib/utils';
-import {
-  Copy,
-  ExternalLink,
-  Globe,
-  LayoutGrid,
-  List,
-  MoreHorizontal,
-  Pencil,
-  Plus,
-  Rocket,
-  Search,
-  Trash2,
-} from 'lucide-react';
+import { ExternalLink, Globe, LayoutGrid, List, Pencil, Plus, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,13 +15,6 @@ import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import {
   Table,
   TableBody,
@@ -44,7 +24,14 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { PageHeader } from '@/components/kdba/page-header';
-import { useConfirm } from '@/components/kdba/confirm-dialog';
+import { WebsiteActionsMenu } from '@/components/kdba/website-actions-menu';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 type StatusFilter = 'ALL' | 'PUBLISHED' | 'DRAFT';
 type SortKey = 'updated' | 'name' | 'status';
@@ -52,12 +39,12 @@ type ViewMode = 'grid' | 'list';
 
 export default function WebsitesPage() {
   const router = useRouter();
-  const { confirm, dialog } = useConfirm();
   const [websites, setWebsites] = React.useState<Website[]>([]);
   const [templates, setTemplates] = React.useState<Template[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [query, setQuery] = React.useState('');
   const [statusFilter, setStatusFilter] = React.useState<StatusFilter>('ALL');
+  const [templateFilter, setTemplateFilter] = React.useState('ALL');
   const [sortKey, setSortKey] = React.useState<SortKey>('updated');
   const [view, setView] = React.useState<ViewMode>('grid');
 
@@ -97,14 +84,18 @@ export default function WebsitesPage() {
         site.name.toLowerCase().includes(q) ||
         site.slug.toLowerCase().includes(q);
       const matchesStatus = statusFilter === 'ALL' || site.status === statusFilter;
-      return matchesQuery && matchesStatus;
+      const matchesTemplate =
+        templateFilter === 'ALL' ||
+        site.templateId === templateFilter ||
+        site.template?.id === templateFilter;
+      return matchesQuery && matchesStatus && matchesTemplate;
     });
     return list.sort((a, b) => {
       if (sortKey === 'name') return a.name.localeCompare(b.name);
       if (sortKey === 'status') return a.status.localeCompare(b.status);
       return new Date(b.updatedAt || b.createdAt || 0).getTime() - new Date(a.updatedAt || a.createdAt || 0).getTime();
     });
-  }, [websites, query, statusFilter, sortKey]);
+  }, [websites, query, statusFilter, templateFilter, sortKey]);
 
   const handleCreateWebsite = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -137,51 +128,8 @@ export default function WebsitesPage() {
     }
   };
 
-  const handleDuplicate = async (website: Website) => {
-    try {
-      const copy = await websitesApi.duplicate(website.id, { name: `${website.name} copy` });
-      toast.success('Website duplicated');
-      await loadWebsites();
-      if (copy?.id) router.push(`/editor/${copy.id}`);
-    } catch (err) {
-      console.error(err);
-      toast.error('Could not duplicate website');
-    }
-  };
-
-  const handlePublish = async (website: Website) => {
-    try {
-      if (website.status === 'PUBLISHED') {
-        await websitesApi.unpublish(website.id);
-        toast.success('Website unpublished');
-      } else {
-        await websitesApi.publish(website.id);
-        toast.success('Website published');
-      }
-      await loadWebsites();
-    } catch (err) {
-      console.error(err);
-      toast.error('Could not update publish state');
-    }
-  };
-
-  const handleDelete = (website: Website) => {
-    confirm({
-      title: `Delete ${website.name}?`,
-      description: 'This cannot be undone. The site and its published version will be removed.',
-      confirmLabel: 'Delete website',
-      destructive: true,
-      onConfirm: async () => {
-        await websitesApi.delete(website.id);
-        toast.success('Website deleted');
-        await loadWebsites();
-      },
-    });
-  };
-
   return (
     <div className="space-y-6">
-      {dialog}
       <PageHeader
         title="Websites"
         description="Create, edit, publish, and manage every site in this workspace."
@@ -214,16 +162,31 @@ export default function WebsitesPage() {
               {status === 'ALL' ? 'All' : status === 'PUBLISHED' ? 'Live' : 'Draft'}
             </Button>
           ))}
-          <select
-            value={sortKey}
-            onChange={(e) => setSortKey(e.target.value as SortKey)}
-            className="h-8 rounded-lg border border-input bg-transparent px-2 text-sm"
-            aria-label="Sort websites"
-          >
-            <option value="updated">Recently updated</option>
-            <option value="name">Name</option>
-            <option value="status">Status</option>
-          </select>
+          <Select value={sortKey} onValueChange={(value) => setSortKey(value as SortKey)}>
+            <SelectTrigger className="w-[180px]" size="sm" aria-label="Sort websites">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="updated">Recently updated</SelectItem>
+              <SelectItem value="name">Name</SelectItem>
+              <SelectItem value="status">Status</SelectItem>
+            </SelectContent>
+          </Select>
+          {templates.length > 0 ? (
+            <Select value={templateFilter} onValueChange={setTemplateFilter}>
+              <SelectTrigger className="w-[180px]" size="sm" aria-label="Filter by template">
+                <SelectValue placeholder="Template" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All templates</SelectItem>
+                {templates.map((tpl) => (
+                  <SelectItem key={tpl.id} value={tpl.id}>
+                    {tpl.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : null}
           <div className="flex rounded-lg border p-0.5">
             <Button
               size="icon-sm"
@@ -285,12 +248,7 @@ export default function WebsitesPage() {
                     <Badge variant={isPublished ? 'success' : 'secondary'}>
                       {isPublished ? 'Live' : 'Draft'}
                     </Badge>
-                    <WebsiteActions
-                      website={website}
-                      onDuplicate={() => void handleDuplicate(website)}
-                      onPublish={() => void handlePublish(website)}
-                      onDelete={() => handleDelete(website)}
-                    />
+                    <WebsiteActionsMenu website={website} onChanged={() => void loadWebsites()} />
                   </div>
                   <CardTitle className="truncate">{website.name}</CardTitle>
                   <p className="truncate font-mono text-xs text-muted-foreground">/site/{website.slug}</p>
@@ -345,12 +303,7 @@ export default function WebsitesPage() {
                     {formatDate(website.updatedAt || website.createdAt || '')}
                   </TableCell>
                   <TableCell>
-                    <WebsiteActions
-                      website={website}
-                      onDuplicate={() => void handleDuplicate(website)}
-                      onPublish={() => void handlePublish(website)}
-                      onDelete={() => handleDelete(website)}
-                    />
+                    <WebsiteActionsMenu website={website} onChanged={() => void loadWebsites()} />
                   </TableCell>
                 </TableRow>
               ))}
@@ -406,57 +359,5 @@ export default function WebsitesPage() {
         </form>
       </Dialog>
     </div>
-  );
-}
-
-function WebsiteActions({
-  website,
-  onDuplicate,
-  onPublish,
-  onDelete,
-}: {
-  website: Website;
-  onDuplicate: () => void;
-  onPublish: () => void;
-  onDelete: () => void;
-}) {
-  const isPublished = website.status === 'PUBLISHED';
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button size="icon-sm" variant="ghost" aria-label={`Actions for ${website.name}`}>
-          <MoreHorizontal />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem asChild>
-          <Link href={`/editor/${website.id}`}>
-            <Pencil />
-            Edit
-          </Link>
-        </DropdownMenuItem>
-        {isPublished ? (
-          <DropdownMenuItem asChild>
-            <Link href={`/site/${website.slug}`} target="_blank">
-              <ExternalLink />
-              Preview
-            </Link>
-          </DropdownMenuItem>
-        ) : null}
-        <DropdownMenuItem onClick={onDuplicate}>
-          <Copy />
-          Duplicate
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={onPublish}>
-          <Rocket />
-          {isPublished ? 'Unpublish' : 'Publish'}
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem variant="destructive" onClick={onDelete}>
-          <Trash2 />
-          Delete
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
   );
 }

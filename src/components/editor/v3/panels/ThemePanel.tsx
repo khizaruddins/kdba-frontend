@@ -82,17 +82,17 @@ export function ThemePanel() {
   };
 
   return (
-    <div className="w-80 shrink-0 border-r border-slate-800/80 bg-slate-950/95 flex flex-col h-full overflow-hidden select-none z-20">
+    <div className="flex h-full w-full min-w-0 shrink-0 flex-col overflow-hidden border-r border-border bg-card z-20 select-none">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-slate-800/80">
+      <div className="flex items-center justify-between p-4 border-b border-border">
         <div className="flex items-center gap-2">
-          <Palette className="w-4 h-4 text-indigo-400" />
-          <h3 className="font-bold text-sm text-white tracking-tight">Site Design</h3>
+          <Palette className="w-4 h-4 text-primary" />
+          <h3 className="font-bold text-sm text-foreground tracking-tight">Site Design</h3>
         </div>
         <button
           type="button"
           onClick={() => setActiveNavTab(null)}
-          className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+          className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
         >
           <X className="w-4 h-4" />
         </button>
@@ -102,7 +102,7 @@ export function ThemePanel() {
       <div className="flex-1 overflow-y-auto p-4 space-y-6 text-xs">
         {/* Color Palette */}
         <div className="space-y-3">
-          <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Brand Color Palette</h4>
+          <h4 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Brand Color Palette</h4>
           <div className="grid grid-cols-2 gap-2">
             {([
               { id: 'primary', label: 'Primary', val: colors.primary },
@@ -114,8 +114,8 @@ export function ThemePanel() {
               { id: 'muted', label: 'Muted', val: colors.muted },
               { id: 'border', label: 'Border', val: colors.border },
             ] as Array<{ id: keyof ColorTokensV3; label: string; val: string }>).map((color) => (
-              <div key={color.id} className="p-2 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
-                <div className="flex justify-between items-center text-[10px] text-slate-400 font-medium">
+              <div key={color.id} className="p-2 rounded-xl bg-muted/50 border border-border space-y-1">
+                <div className="flex justify-between items-center text-[10px] text-muted-foreground font-medium">
                   <span>{color.label}</span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -125,7 +125,7 @@ export function ThemePanel() {
                     onChange={(e) => handleColorChange(color.id, e.target.value)}
                     className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent"
                   />
-                  <span className="text-[11px] font-mono text-slate-300 uppercase truncate">
+                  <span className="text-[11px] font-mono text-muted-foreground uppercase truncate">
                     {color.val || '#FFFFFF'}
                   </span>
                 </div>
@@ -135,15 +135,15 @@ export function ThemePanel() {
         </div>
 
         {/* Global Typography Tokens */}
-        <div className="space-y-3 pt-3 border-t border-slate-800/80">
-          <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Typography System</h4>
+        <div className="space-y-3 pt-3 border-t border-border">
+          <h4 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Typography System</h4>
 
           <div className="space-y-1.5">
-            <label className="text-[11px] text-slate-400">Heading Font</label>
+            <label className="text-[11px] text-muted-foreground">Heading Font</label>
             <select
               value={document.theme?.typography?.headingFont || document.theme?.typography?.h1?.fontFamily || 'Inter'}
               onChange={(e) => handleHeadingFontChange(e.target.value)}
-              className="w-full h-8 px-2.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-200 text-xs focus:outline-none"
+              className="w-full h-8 px-2.5 rounded-lg bg-muted/50 border border-border text-foreground text-xs focus:outline-none"
             >
               {FONTS.map((f) => (
                 <option key={f} value={f}>
@@ -154,11 +154,11 @@ export function ThemePanel() {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-[11px] text-slate-400">Body Font</label>
+            <label className="text-[11px] text-muted-foreground">Body Font</label>
             <select
               value={document.theme?.typography?.bodyFont || document.theme?.typography?.body?.fontFamily || 'Inter'}
               onChange={(e) => handleBodyFontChange(e.target.value)}
-              className="w-full h-8 px-2.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-200 text-xs focus:outline-none"
+              className="w-full h-8 px-2.5 rounded-lg bg-muted/50 border border-border text-foreground text-xs focus:outline-none"
             >
               {FONTS.map((f) => (
                 <option key={f} value={f}>
@@ -169,34 +169,34 @@ export function ThemePanel() {
           </div>
         </div>
 
-        <div className="space-y-3 pt-3 border-t border-slate-800/80">
-          <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Layout & Buttons</h4>
+        <div className="space-y-3 pt-3 border-t border-border">
+          <h4 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Layout & Buttons</h4>
           <div className="space-y-1.5">
-            <label className="text-[11px] text-slate-400">Container width</label>
+            <label className="text-[11px] text-muted-foreground">Container width</label>
             <input
               type="text"
               value={layoutTokens.containerMaxWidth}
               onChange={(e) => handleTokenChange('containerMaxWidth', e.target.value)}
-              className="w-full h-8 px-2.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-200 text-xs focus:outline-none"
+              className="w-full h-8 px-2.5 rounded-lg bg-muted/50 border border-border text-foreground text-xs focus:outline-none"
               placeholder="1200px"
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-[11px] text-slate-400">Button radius</label>
+            <label className="text-[11px] text-muted-foreground">Button radius</label>
             <input
               type="text"
               value={layoutTokens.buttonRadius}
               onChange={(e) => handleTokenChange('buttonRadius', e.target.value)}
-              className="w-full h-8 px-2.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-200 text-xs focus:outline-none"
+              className="w-full h-8 px-2.5 rounded-lg bg-muted/50 border border-border text-foreground text-xs focus:outline-none"
               placeholder="12px"
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-[11px] text-slate-400">Button background</label>
+            <label className="text-[11px] text-muted-foreground">Button background</label>
             <select
               value={layoutTokens.buttonBackground}
               onChange={(e) => handleTokenChange('buttonBackground', e.target.value)}
-              className="w-full h-8 px-2.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-200 text-xs focus:outline-none"
+              className="w-full h-8 px-2.5 rounded-lg bg-muted/50 border border-border text-foreground text-xs focus:outline-none"
             >
               <option value="primary">Primary</option>
               <option value="secondary">Secondary</option>
@@ -204,7 +204,7 @@ export function ThemePanel() {
             </select>
           </div>
           <div className="space-y-1.5">
-            <label className="text-[11px] text-slate-400">Button text</label>
+            <label className="text-[11px] text-muted-foreground">Button text</label>
             <div className="flex items-center gap-2">
               <input
                 type="color"
@@ -212,15 +212,15 @@ export function ThemePanel() {
                 onChange={(e) => handleTokenChange('buttonColor', e.target.value)}
                 className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent"
               />
-              <span className="text-[11px] font-mono text-slate-300 uppercase truncate">{layoutTokens.buttonColor}</span>
+              <span className="text-[11px] font-mono text-muted-foreground uppercase truncate">{layoutTokens.buttonColor}</span>
             </div>
           </div>
         </div>
 
-        <div className="space-y-3 pt-3 border-t border-slate-800/80">
-          <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Type scale</h4>
+        <div className="space-y-3 pt-3 border-t border-border">
+          <h4 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Type scale</h4>
           <label className="block space-y-1">
-            <span className="text-[11px] text-slate-400">Heading scale</span>
+            <span className="text-[11px] text-muted-foreground">Heading scale</span>
             <input
               type="range"
               min="0.8"
@@ -228,11 +228,11 @@ export function ThemePanel() {
               step="0.05"
               value={Number(layoutTokens.headingScale) || 1}
               onChange={(e) => handleTokenChange('headingScale', e.target.value)}
-              className="w-full accent-indigo-500"
+              className="w-full accent-primary"
             />
           </label>
           <label className="block space-y-1">
-            <span className="text-[11px] text-slate-400">Body scale</span>
+            <span className="text-[11px] text-muted-foreground">Body scale</span>
             <input
               type="range"
               min="0.85"
@@ -240,45 +240,45 @@ export function ThemePanel() {
               step="0.05"
               value={Number(layoutTokens.bodyScale) || 1}
               onChange={(e) => handleTokenChange('bodyScale', e.target.value)}
-              className="w-full accent-indigo-500"
+              className="w-full accent-primary"
             />
           </label>
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
-              <span className="text-[11px] text-slate-400">Heading line height</span>
+              <span className="text-[11px] text-muted-foreground">Heading line height</span>
               <input
                 value={layoutTokens.headingLineHeight}
                 onChange={(e) => handleTokenChange('headingLineHeight', e.target.value)}
-                className="w-full h-8 px-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-200"
+                className="w-full h-8 px-2 rounded-lg bg-muted/50 border border-border text-foreground"
               />
             </div>
             <div className="space-y-1">
-              <span className="text-[11px] text-slate-400">Body line height</span>
+              <span className="text-[11px] text-muted-foreground">Body line height</span>
               <input
                 value={layoutTokens.bodyLineHeight}
                 onChange={(e) => handleTokenChange('bodyLineHeight', e.target.value)}
-                className="w-full h-8 px-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-200"
+                className="w-full h-8 px-2 rounded-lg bg-muted/50 border border-border text-foreground"
               />
             </div>
           </div>
           <div className="space-y-1">
-            <span className="text-[11px] text-slate-400">Letter spacing</span>
+            <span className="text-[11px] text-muted-foreground">Letter spacing</span>
             <input
               value={layoutTokens.letterSpacing}
               onChange={(e) => handleTokenChange('letterSpacing', e.target.value)}
-              className="w-full h-8 px-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-200"
+              className="w-full h-8 px-2 rounded-lg bg-muted/50 border border-border text-foreground"
             />
           </div>
         </div>
 
-        <div className="space-y-3 pt-3 border-t border-slate-800/80">
-          <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Radius, shadow, spacing</h4>
+        <div className="space-y-3 pt-3 border-t border-border">
+          <h4 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Radius, shadow, spacing</h4>
           <div className="space-y-1">
-            <span className="text-[11px] text-slate-400">Corner radius</span>
+            <span className="text-[11px] text-muted-foreground">Corner radius</span>
             <select
               value={String(document.theme?.tokens?.radius || 'md')}
               onChange={(e) => handleTokenChange('radius', e.target.value)}
-              className="w-full h-8 px-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-200"
+              className="w-full h-8 px-2 rounded-lg bg-muted/50 border border-border text-foreground"
             >
               <option value="none">None</option>
               <option value="sm">Small</option>
@@ -288,11 +288,11 @@ export function ThemePanel() {
             </select>
           </div>
           <div className="space-y-1">
-            <span className="text-[11px] text-slate-400">Shadow</span>
+            <span className="text-[11px] text-muted-foreground">Shadow</span>
             <select
               value={String(document.theme?.tokens?.shadow || 'subtle')}
               onChange={(e) => handleTokenChange('shadow', e.target.value)}
-              className="w-full h-8 px-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-200"
+              className="w-full h-8 px-2 rounded-lg bg-muted/50 border border-border text-foreground"
             >
               <option value="none">None</option>
               <option value="subtle">Subtle</option>
@@ -301,11 +301,11 @@ export function ThemePanel() {
             </select>
           </div>
           <div className="space-y-1">
-            <span className="text-[11px] text-slate-400">Spacing scale</span>
+            <span className="text-[11px] text-muted-foreground">Spacing scale</span>
             <input
               value={layoutTokens.spaceScale}
               onChange={(e) => handleTokenChange('spaceScale', e.target.value)}
-              className="w-full h-8 px-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-200"
+              className="w-full h-8 px-2 rounded-lg bg-muted/50 border border-border text-foreground"
               placeholder="8px"
             />
           </div>

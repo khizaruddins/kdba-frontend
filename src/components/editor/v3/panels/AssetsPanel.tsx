@@ -19,41 +19,41 @@ export function AssetsPanel() {
   };
 
   return (
-    <div className="w-80 shrink-0 border-r border-slate-800/80 bg-slate-950/95 flex flex-col h-full overflow-hidden z-20">
-      <div className="flex items-center justify-between p-4 border-b border-slate-800/80">
+    <div className="flex h-full w-full min-w-0 shrink-0 flex-col overflow-hidden border-r border-border bg-card z-20">
+      <div className="flex items-center justify-between p-4 border-b border-border">
         <div className="flex items-center gap-2">
-          <FolderOpen className="w-4 h-4 text-indigo-400" />
-          <h3 className="font-bold text-sm text-white tracking-tight">Assets</h3>
+          <FolderOpen className="w-4 h-4 text-primary" />
+          <h3 className="font-bold text-sm text-foreground tracking-tight">Assets</h3>
         </div>
         <button
           type="button"
           onClick={() => setActiveNavTab(null)}
-          className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
+          className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted"
           aria-label="Close assets panel"
         >
           <X className="w-4 h-4" />
         </button>
       </div>
       <div className="p-4 space-y-3 text-xs">
-        <p className="text-slate-400">Insert an image from a URL onto the canvas.</p>
-        <label className="text-[11px] font-medium text-slate-400" htmlFor="asset-url">
+        <p className="text-muted-foreground">Insert an image from a URL onto the canvas.</p>
+        <label className="text-[11px] font-medium text-muted-foreground" htmlFor="asset-url">
           Image URL
         </label>
         <div className="flex items-center gap-1.5">
-          <ImageIcon className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+          <ImageIcon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
           <input
             id="asset-url"
             type="url"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             placeholder="https://..."
-            className="flex-1 h-8 px-2.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-100 focus:outline-none focus:border-indigo-500"
+            className="flex-1 h-8 px-2.5 rounded-lg bg-muted/50 border border-border text-foreground focus:outline-none focus:border-ring"
           />
         </div>
         <button
           type="button"
           onClick={handleInsertImage}
-          className="w-full h-8 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold flex items-center justify-center gap-1.5"
+          className="w-full h-8 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground font-semibold flex items-center justify-center gap-1.5"
         >
           <Plus className="w-3.5 h-3.5" />
           Insert {COMPONENT_MANIFEST.image.name}

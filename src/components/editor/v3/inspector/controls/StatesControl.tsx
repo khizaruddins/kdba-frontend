@@ -40,7 +40,7 @@ export function StatesControl({
 
   return (
     <div className="space-y-2">
-      <p className="text-[11px] text-slate-500">Structured interaction states. No custom CSS or scripts.</p>
+      <p className="text-[11px] text-muted-foreground">Structured interaction states. No custom CSS or scripts.</p>
       <div className="grid grid-cols-4 gap-1">
         {STATE_KEYS.map((key) => (
           <button
@@ -48,7 +48,7 @@ export function StatesControl({
             type="button"
             onClick={() => setActive(key)}
             className={`h-7 rounded-lg text-[10px] capitalize ${
-              active === key ? 'bg-indigo-600 text-white' : 'bg-slate-900 text-slate-400 hover:text-white'
+              active === key ? 'bg-primary text-primary-foreground' : 'bg-muted/50 text-muted-foreground hover:text-foreground'
             }`}
           >
             {key}
@@ -68,13 +68,13 @@ export function StatesControl({
         onChange={(color) => updateSlice({ background: { color } })}
       />
       {node.type === 'button' && (
-        <label className="flex items-center justify-between text-[11px] text-slate-400 pt-1">
+        <label className="flex items-center justify-between text-[11px] text-muted-foreground pt-1">
           <span>Disabled</span>
           <input
             type="checkbox"
             checked={Boolean(node.props?.disabled)}
             onChange={(e) => onChangeProps({ disabled: e.target.checked })}
-            className="accent-indigo-500"
+            className="accent-primary"
           />
         </label>
       )}

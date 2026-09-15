@@ -288,6 +288,16 @@ export interface AnimationDefinition {
 
 // ─── V3 HIERARCHICAL NODE MODEL ───────────────────────────────────────────────
 
+export type NodeBindingSource = 'collection' | 'record' | 'business';
+
+export interface NodeBinding {
+  source: NodeBindingSource;
+  collection?: string;
+  field?: string;
+  recordSlug?: string;
+  fallback?: string;
+}
+
 export interface WebsiteNode {
   id: string;
   type: NodeType;
@@ -300,6 +310,7 @@ export interface WebsiteNode {
   interactions?: InteractionDefinition[];
   animations?: AnimationDefinition;
   locked?: boolean;
+  binding?: NodeBinding;
 }
 
 // ─── V3 THEME SYSTEM ──────────────────────────────────────────────────────────
@@ -380,6 +391,13 @@ export interface PageSeo {
   canonicalUrl?: string;
 }
 
+export type PageKind = 'static' | 'collection-index' | 'collection-item';
+
+export interface PageCollectionRef {
+  slug: string;
+  itemParam?: 'slug';
+}
+
 export interface PageDocumentV3 {
   id: string;
   title: string;
@@ -387,6 +405,8 @@ export interface PageDocumentV3 {
   type: PageType;
   sortOrder: number;
   enabled: boolean;
+  kind?: PageKind;
+  collection?: PageCollectionRef;
   seo?: PageSeo;
   root: WebsiteNode; // Top-level node of type 'page-root'
 }

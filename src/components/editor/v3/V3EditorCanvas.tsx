@@ -10,6 +10,8 @@ import { COMPONENT_MANIFEST } from '@/lib/editor/component-manifest';
 import { NodeType } from '@/types/v3-document';
 import { resolveDrop, TEXT_EDITABLE_TYPES } from '@/lib/editor/nesting';
 import { findNodeLocation } from '@/lib/document/v3-operations';
+import { CmsRenderPayload, collectCmsSlugsFromDocument } from '@/lib/cms/bindings';
+import { loadCmsRenderPayload } from '@/lib/cms/load-render-payload';
 
 const VIEWPORT_WIDTH: Record<string, number> = {
   desktop: 1280,
@@ -19,6 +21,7 @@ const VIEWPORT_WIDTH: Record<string, number> = {
 
 export function V3EditorCanvas() {
   const document = useV3EditorStore((s) => s.document);
+  const websiteId = useV3EditorStore((s) => s.websiteId);
   const activePageId = useV3EditorStore((s) => s.activePageId);
   const viewport = useV3EditorStore((s) => s.viewport);
   const zoom = useV3EditorStore((s) => s.zoom);
@@ -35,6 +38,40 @@ export function V3EditorCanvas() {
   const findNode = useV3EditorStore((s) => s.findNode);
   const setDropTarget = useV3EditorStore((s) => s.setDropTarget);
   const setDragState = useV3EditorStore((s) => s.setDragState);
+
+  const [cms, setCms] = React.useState<CmsRenderPayload | null>(null);
+  const cmsSlugKey = React.useMemo(() => {
+    if (!document) return '';
+    return collectCmsSlugsFromDocument(document).sort().join(',');
+  }, [document]);
+  const activePage = getActivePage();
+  const previewRecord = React.useMemo(() => {
+    if (!cms || !activePage?.collection?.slug) return null;
+    if (activePage.kind !== 'collection-item') return null;
+    const collection = cms.collections.find((item) => item.slug === activePage.collection?.slug);
+    return collection?.records[0] || null;
+  }, [cms, activePage?.id, activePage?.kind, activePage?.collection?.slug]);
+
+  React.useEffect(() => {
+    if (!websiteId) {
+      setCms(null);
+      return;
+    }
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      void loadCmsRenderPayload(websiteId, document)
+        .then((payload) => {
+          if (!cancelled) setCms(payload);
+        })
+        .catch(() => {
+          if (!cancelled) setCms({ collections: [] });
+        });
+    }, 300);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [websiteId, cmsSlugKey]);
 
   const canvasRef = React.useRef<HTMLDivElement>(null);
   const [dropIndicator, setDropIndicator] = React.useState<{
@@ -217,9 +254,9 @@ export function V3EditorCanvas() {
   const viewportStyles = {
     desktop: 'w-full max-w-[1280px] min-h-screen',
     tablet:
-      'w-[768px] max-w-[768px] rounded-[28px] border-[8px] border-slate-800 shadow-2xl shadow-black/50 my-8 overflow-hidden flex flex-col',
+      'w-[768px] max-w-[768px] rounded-[28px] border-[8px] border-border shadow-2xl shadow-black/50 my-8 overflow-hidden flex flex-col',
     mobile:
-      'w-[390px] max-w-[390px] rounded-[40px] border-[10px] border-slate-800 shadow-2xl shadow-black/50 my-8 overflow-hidden flex flex-col',
+      'w-[390px] max-w-[390px] rounded-[40px] border-[10px] border-border shadow-2xl shadow-black/50 my-8 overflow-hidden flex flex-col',
   }[viewport];
 
   return (
@@ -244,13 +281,13 @@ export function V3EditorCanvas() {
         className={`flex justify-center ${viewportStyles}`}
       >
         {viewport === 'mobile' && !previewMode && (
-          <div className="h-7 w-full bg-slate-900 flex items-center justify-center shrink-0" data-editor-chrome>
-            <div className="h-3 w-28 rounded-full bg-slate-950" />
+          <div className="h-7 w-full bg-muted/50 flex items-center justify-center shrink-0" data-editor-chrome>
+            <div className="h-3 w-28 rounded-full bg-background" />
           </div>
         )}
         {viewport === 'tablet' && !previewMode && (
-          <div className="h-5 w-full bg-slate-900 flex items-center justify-center shrink-0" data-editor-chrome>
-            <div className="h-1.5 w-16 rounded-full bg-slate-800" />
+          <div className="h-5 w-full bg-muted/50 flex items-center justify-center shrink-0" data-editor-chrome>
+            <div className="h-1.5 w-16 rounded-full bg-muted" />
           </div>
         )}
 
@@ -267,6 +304,8 @@ export function V3EditorCanvas() {
               setSelectedNodeId(id);
               setInlineEditingNodeId(id);
             }}
+            cms={cms}
+            activeRecord={previewRecord}
           />
         </div>
       </div>
@@ -286,12 +325,12 @@ export function V3EditorCanvas() {
             zIndex: 50,
           }}
           className={`h-0.5 rounded-full flex items-center justify-center ${
-            dropIndicator.valid ? 'bg-indigo-500 shadow-[0_0_12px_rgba(99,102,241,0.7)]' : 'bg-rose-500'
+            dropIndicator.valid ? 'bg-primary shadow-[0_0_10px_color-mix(in_oklch,var(--primary)_45%,transparent)]' : 'bg-destructive'
           }`}
         >
           <div
             className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider shadow ${
-              dropIndicator.valid ? 'bg-indigo-600 text-white' : 'bg-rose-600 text-white'
+              dropIndicator.valid ? 'bg-primary text-primary-foreground' : 'bg-destructive text-destructive-foreground'
             }`}
           >
             {dropIndicator.label}

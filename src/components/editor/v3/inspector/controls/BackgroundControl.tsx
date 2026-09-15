@@ -99,7 +99,7 @@ export function BackgroundControl({ background = {}, onChangeBackground }: Backg
 
   return (
     <div className="space-y-3.5 select-none text-xs">
-      <div className="grid grid-cols-3 gap-1 p-0.5 rounded-lg bg-slate-900 border border-slate-800">
+      <div className="grid grid-cols-3 gap-1 p-0.5 rounded-lg bg-muted/50 border border-border">
         {([
           { id: 'solid', label: 'Solid' },
           { id: 'gradient', label: 'Gradient' },
@@ -110,7 +110,7 @@ export function BackgroundControl({ background = {}, onChangeBackground }: Backg
             type="button"
             onClick={() => setMode(item.id)}
             className={`py-1 rounded font-medium ${
-              mode === item.id ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
+              mode === item.id ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             {item.label}
@@ -120,9 +120,9 @@ export function BackgroundControl({ background = {}, onChangeBackground }: Backg
 
       {mode !== 'gradient' && (
         <div className="space-y-1.5">
-          <label className="text-[11px] font-medium text-slate-400">Background Color</label>
+          <label className="text-[11px] font-medium text-muted-foreground">Background Color</label>
           <div className="flex items-center gap-2">
-            <div className="relative w-9 h-8 rounded-lg border border-slate-800 bg-slate-900 flex items-center justify-center overflow-hidden shrink-0 shadow-sm cursor-pointer">
+            <div className="relative w-9 h-8 rounded-lg border border-border bg-muted/50 flex items-center justify-center overflow-hidden shrink-0 shadow-sm cursor-pointer">
               <div
                 className="w-full h-full"
                 style={{
@@ -148,14 +148,14 @@ export function BackgroundControl({ background = {}, onChangeBackground }: Backg
               value={currentColor}
               onChange={(e) => handleColorChange(e.target.value)}
               placeholder="#0F172A or transparent"
-              className="flex-1 h-8 px-2.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-100 text-xs font-mono uppercase focus:border-indigo-500 focus:outline-none transition-colors"
+              className="flex-1 h-8 px-2.5 rounded-lg bg-muted/50 border border-border text-foreground text-xs font-mono uppercase focus:border-ring focus:outline-none transition-colors"
             />
             {currentColor !== 'transparent' && (
               <button
                 type="button"
                 onClick={() => handleColorChange('transparent')}
                 title="Set to transparent"
-                className="p-2 rounded-lg bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+                className="p-2 rounded-lg bg-muted/50 border border-border hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
@@ -166,8 +166,8 @@ export function BackgroundControl({ background = {}, onChangeBackground }: Backg
 
       {mode === 'solid' && (
         <div className="space-y-1">
-          <label className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Preset Swatches</label>
-          <div className="grid grid-cols-6 gap-1.5 p-2 rounded-xl bg-slate-900/60 border border-slate-800/80">
+          <label className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Preset Swatches</label>
+          <div className="grid grid-cols-6 gap-1.5 p-2 rounded-xl bg-muted/40 border border-border">
             {PRESET_SWATCHES.map((swatch) => (
               <button
                 key={swatch.value}
@@ -176,8 +176,8 @@ export function BackgroundControl({ background = {}, onChangeBackground }: Backg
                 title={swatch.label}
                 className={`group relative h-6 rounded-md border flex items-center justify-center transition-transform hover:scale-105 ${
                   currentColor.toLowerCase() === swatch.value.toLowerCase()
-                    ? 'border-indigo-500 ring-2 ring-indigo-500/40'
-                    : 'border-slate-800 hover:border-slate-600'
+                    ? 'border-primary ring-2 ring-primary/40'
+                    : 'border-border hover:border-border'
                 }`}
                 style={{
                   backgroundColor: swatch.value === 'transparent' ? 'transparent' : swatch.value,
@@ -191,7 +191,7 @@ export function BackgroundControl({ background = {}, onChangeBackground }: Backg
                 {currentColor.toLowerCase() === swatch.value.toLowerCase() && (
                   <Check
                     className={`w-3 h-3 ${
-                      swatch.value === '#FFFFFF' || swatch.value === 'transparent' ? 'text-black' : 'text-white'
+                      swatch.value === '#FFFFFF' || swatch.value === 'transparent' ? 'text-black' : 'text-foreground'
                     }`}
                   />
                 )}
@@ -204,7 +204,7 @@ export function BackgroundControl({ background = {}, onChangeBackground }: Backg
       {mode === 'gradient' && (
         <div className="space-y-2.5">
           <div
-            className="h-10 rounded-lg border border-slate-800"
+            className="h-10 rounded-lg border border-border"
             style={{
               backgroundImage: `linear-gradient(${gradient.angle || 135}deg, ${gradient.stops
                 .map((stop) => `${stop.color} ${stop.offset}%`)
@@ -212,9 +212,9 @@ export function BackgroundControl({ background = {}, onChangeBackground }: Backg
             }}
           />
           <div className="space-y-1">
-            <div className="flex justify-between text-[11px] text-slate-400">
+            <div className="flex justify-between text-[11px] text-muted-foreground">
               <span>Angle</span>
-              <span className="font-mono text-indigo-300">{gradient.angle || 135}°</span>
+              <span className="font-mono text-primary">{gradient.angle || 135}°</span>
             </div>
             <input
               type="range"
@@ -228,7 +228,7 @@ export function BackgroundControl({ background = {}, onChangeBackground }: Backg
                   gradient: { ...gradient, angle: Number(e.target.value) },
                 })
               }
-              className="w-full accent-indigo-500"
+              className="w-full accent-primary"
             />
           </div>
           {gradient.stops.slice(0, 2).map((stop, index) => (
@@ -238,13 +238,13 @@ export function BackgroundControl({ background = {}, onChangeBackground }: Backg
                 aria-label={`Gradient stop ${index + 1}`}
                 value={stop.color.startsWith('#') ? stop.color.slice(0, 7) : '#4F46E5'}
                 onChange={(e) => updateStop(index, { color: e.target.value })}
-                className="w-8 h-8 rounded border border-slate-800 bg-transparent cursor-pointer"
+                className="w-8 h-8 rounded border border-border bg-transparent cursor-pointer"
               />
               <input
                 type="text"
                 value={stop.color}
                 onChange={(e) => updateStop(index, { color: e.target.value })}
-                className="h-8 px-2 rounded-lg bg-slate-900 border border-slate-800 font-mono text-xs text-slate-100"
+                className="h-8 px-2 rounded-lg bg-muted/50 border border-border font-mono text-xs text-foreground"
               />
               <input
                 type="number"
@@ -252,7 +252,7 @@ export function BackgroundControl({ background = {}, onChangeBackground }: Backg
                 max={100}
                 value={stop.offset}
                 onChange={(e) => updateStop(index, { offset: Number(e.target.value) })}
-                className="h-8 px-2 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-100"
+                className="h-8 px-2 rounded-lg bg-muted/50 border border-border text-xs text-foreground"
                 aria-label={`Stop ${index + 1} offset`}
               />
             </div>
@@ -262,22 +262,22 @@ export function BackgroundControl({ background = {}, onChangeBackground }: Backg
 
       {mode === 'image' && (
         <div className="space-y-1.5">
-          <label className="text-[11px] font-medium text-slate-400">Background Image URL</label>
+          <label className="text-[11px] font-medium text-muted-foreground">Background Image URL</label>
           <div className="flex items-center gap-1.5">
-            <ImageIcon className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+            <ImageIcon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
             <input
               type="text"
               value={currentImage}
               onChange={(e) => handleImageChange(e.target.value)}
               placeholder="https://... image pattern or photo"
-              className="flex-1 h-8 px-2.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-100 text-xs focus:border-indigo-500 focus:outline-none"
+              className="flex-1 h-8 px-2.5 rounded-lg bg-muted/50 border border-border text-foreground text-xs focus:border-ring focus:outline-none"
             />
             {currentImage && (
               <button
                 type="button"
                 onClick={() => handleImageChange('')}
                 title="Clear background image"
-                className="p-2 rounded-lg bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-400 hover:text-white"
+                className="p-2 rounded-lg bg-muted/50 border border-border hover:bg-muted text-muted-foreground hover:text-foreground"
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>

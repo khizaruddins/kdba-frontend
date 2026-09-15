@@ -42,11 +42,11 @@ export function TypographyControl({ typography = {}, onChange }: TypographyContr
     <div className="space-y-3 select-none text-xs">
       {/* Font Family */}
       <div className="space-y-1">
-        <label className="text-[11px] font-medium text-slate-400">Typeface</label>
+        <label className="text-[11px] font-medium text-muted-foreground">Typeface</label>
         <select
           value={typography.fontFamily || 'Inter'}
           onChange={(e) => handleChange('fontFamily', e.target.value)}
-          className="w-full h-8 px-2.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-200 text-xs focus:outline-none focus:border-indigo-500 cursor-pointer"
+          className="w-full h-8 px-2.5 rounded-lg bg-muted/50 border border-border text-foreground text-xs focus:outline-none focus:border-ring cursor-pointer"
         >
           {POPULAR_FONTS.map((font) => (
             <option key={font} value={font} style={{ fontFamily: font }}>
@@ -59,11 +59,11 @@ export function TypographyControl({ typography = {}, onChange }: TypographyContr
       {/* Weight & Size in 2 Columns */}
       <div className="grid grid-cols-2 gap-2">
         <div className="space-y-1">
-          <label className="text-[11px] font-medium text-slate-400">Weight</label>
+          <label className="text-[11px] font-medium text-muted-foreground">Weight</label>
           <select
             value={String(typography.fontWeight || '400')}
             onChange={(e) => handleChange('fontWeight', e.target.value)}
-            className="w-full h-8 px-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-200 text-xs focus:outline-none focus:border-indigo-500 cursor-pointer"
+            className="w-full h-8 px-2 rounded-lg bg-muted/50 border border-border text-foreground text-xs focus:outline-none focus:border-ring cursor-pointer"
           >
             {WEIGHTS.map((w) => (
               <option key={w.value} value={w.value}>
@@ -74,7 +74,7 @@ export function TypographyControl({ typography = {}, onChange }: TypographyContr
         </div>
 
         <div className="space-y-1">
-          <label className="text-[11px] font-medium text-slate-400">Size (px)</label>
+          <label className="text-[11px] font-medium text-muted-foreground">Size (px)</label>
           <div className="relative">
             <input
               type="number"
@@ -82,9 +82,9 @@ export function TypographyControl({ typography = {}, onChange }: TypographyContr
               max="160"
               value={parseNum(typography.fontSize, '16')}
               onChange={(e) => handleChange('fontSize', `${e.target.value}px`)}
-              className="w-full h-8 pl-2.5 pr-6 rounded-lg bg-slate-900 border border-slate-800 text-slate-200 text-xs focus:outline-none focus:border-indigo-500"
+              className="w-full h-8 pl-2.5 pr-6 rounded-lg bg-muted/50 border border-border text-foreground text-xs focus:outline-none focus:border-ring"
             />
-            <span className="absolute right-2 top-2 text-[10px] text-slate-500">px</span>
+            <span className="absolute right-2 top-2 text-[10px] text-muted-foreground">px</span>
           </div>
         </div>
       </div>
@@ -92,24 +92,24 @@ export function TypographyControl({ typography = {}, onChange }: TypographyContr
       {/* Line Height & Letter Spacing */}
       <div className="grid grid-cols-2 gap-2">
         <div className="space-y-1">
-          <label className="text-[11px] font-medium text-slate-400">Line Height</label>
+          <label className="text-[11px] font-medium text-muted-foreground">Line Height</label>
           <input
             type="text"
             placeholder="1.4"
             value={typography.lineHeight || ''}
             onChange={(e) => handleChange('lineHeight', e.target.value)}
-            className="w-full h-8 px-2.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-200 text-xs focus:outline-none focus:border-indigo-500"
+            className="w-full h-8 px-2.5 rounded-lg bg-muted/50 border border-border text-foreground text-xs focus:outline-none focus:border-ring"
           />
         </div>
 
         <div className="space-y-1">
-          <label className="text-[11px] font-medium text-slate-400">Letter Spacing</label>
+          <label className="text-[11px] font-medium text-muted-foreground">Letter Spacing</label>
           <input
             type="text"
             placeholder="-0.02em"
             value={typography.letterSpacing || ''}
             onChange={(e) => handleChange('letterSpacing', e.target.value)}
-            className="w-full h-8 px-2.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-200 text-xs focus:outline-none focus:border-indigo-500"
+            className="w-full h-8 px-2.5 rounded-lg bg-muted/50 border border-border text-foreground text-xs focus:outline-none focus:border-ring"
           />
         </div>
       </div>
@@ -118,8 +118,8 @@ export function TypographyControl({ typography = {}, onChange }: TypographyContr
       <div className="grid grid-cols-2 gap-2 pt-1">
         {/* Alignment */}
         <div className="space-y-1">
-          <label className="text-[11px] font-medium text-slate-400">Align</label>
-          <div className="flex h-8 rounded-lg bg-slate-900 p-0.5 border border-slate-800">
+          <label className="text-[11px] font-medium text-muted-foreground">Align</label>
+          <div className="flex h-8 rounded-lg bg-muted/50 p-0.5 border border-border">
             {[
               { align: 'left', icon: <AlignLeft className="w-3.5 h-3.5" /> },
               { align: 'center', icon: <AlignCenter className="w-3.5 h-3.5" /> },
@@ -132,8 +132,8 @@ export function TypographyControl({ typography = {}, onChange }: TypographyContr
                 onClick={() => handleChange('textAlign', align)}
                 className={`flex-1 flex items-center justify-center rounded transition-colors ${
                   typography.textAlign === align
-                    ? 'bg-indigo-600 text-white shadow'
-                    : 'text-slate-400 hover:text-white'
+                    ? 'bg-primary text-primary-foreground shadow'
+                    : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 {icon}
@@ -144,8 +144,8 @@ export function TypographyControl({ typography = {}, onChange }: TypographyContr
 
         {/* Text Transform */}
         <div className="space-y-1">
-          <label className="text-[11px] font-medium text-slate-400">Case</label>
-          <div className="flex h-8 rounded-lg bg-slate-900 p-0.5 border border-slate-800 font-bold text-[10px]">
+          <label className="text-[11px] font-medium text-muted-foreground">Case</label>
+          <div className="flex h-8 rounded-lg bg-muted/50 p-0.5 border border-border font-bold text-[10px]">
             {[
               { val: 'uppercase', label: 'AG' },
               { val: 'capitalize', label: 'Ag' },
@@ -158,8 +158,8 @@ export function TypographyControl({ typography = {}, onChange }: TypographyContr
                 onClick={() => handleChange('textTransform', val)}
                 className={`flex-1 flex items-center justify-center rounded transition-colors ${
                   typography.textTransform === val
-                    ? 'bg-indigo-600 text-white shadow'
-                    : 'text-slate-400 hover:text-white'
+                    ? 'bg-primary text-primary-foreground shadow'
+                    : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 {label}
@@ -171,8 +171,8 @@ export function TypographyControl({ typography = {}, onChange }: TypographyContr
 
       {/* Color Swatch & Hex */}
       <div className="space-y-1 pt-1">
-        <label className="text-[11px] font-medium text-slate-400">Color</label>
-        <div className="flex items-center gap-2 h-8 px-2 rounded-lg bg-slate-900 border border-slate-800">
+        <label className="text-[11px] font-medium text-muted-foreground">Color</label>
+        <div className="flex items-center gap-2 h-8 px-2 rounded-lg bg-muted/50 border border-border">
           <input
             type="color"
             value={typography.color || '#FFFFFF'}
@@ -183,7 +183,7 @@ export function TypographyControl({ typography = {}, onChange }: TypographyContr
             type="text"
             value={typography.color || '#FFFFFF'}
             onChange={(e) => handleChange('color', e.target.value)}
-            className="flex-1 bg-transparent text-slate-200 text-xs font-mono uppercase focus:outline-none"
+            className="flex-1 bg-transparent text-foreground text-xs font-mono uppercase focus:outline-none"
           />
         </div>
       </div>

@@ -5,6 +5,8 @@ import { WebsiteDocumentV3 } from '@/types/v3-document';
 import { NodeRenderer } from './NodeRenderer';
 import { V3RenderProvider } from './V3RenderContext';
 import { getThemeLayoutTokens, resolveThemeColor } from '@/lib/editor/theme-tokens';
+import { CmsRenderPayload } from '@/lib/cms/bindings';
+import { CmsRecord } from '@/types/cms';
 
 export interface V3WebsiteRendererProps {
   document: WebsiteDocumentV3;
@@ -19,6 +21,8 @@ export interface V3WebsiteRendererProps {
   className?: string;
   style?: React.CSSProperties;
   tenantSlug?: string | null;
+  cms?: CmsRenderPayload | null;
+  activeRecord?: CmsRecord | null;
 }
 
 export function V3WebsiteRenderer({
@@ -34,6 +38,8 @@ export function V3WebsiteRenderer({
   className = '',
   style = {},
   tenantSlug,
+  cms = null,
+  activeRecord = null,
 }: V3WebsiteRendererProps) {
   if (!document) {
     return (
@@ -125,6 +131,8 @@ export function V3WebsiteRenderer({
         isEditing,
         viewport,
         tenantSlug: tenantSlug || document.settings?.subdomain || document.settings?.customDomain || null,
+        cms,
+        activeRecord,
       }}
     >
       <div

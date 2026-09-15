@@ -28,9 +28,9 @@ export function HoverOverlay() {
         pointerEvents: 'none',
         zIndex: 35,
       }}
-      className="border border-indigo-400/50 rounded-sm"
+      className="border border-primary/50 rounded-sm"
     >
-      <div className="absolute -top-5 left-0 px-1.5 h-4 rounded-t bg-slate-800/90 text-indigo-200 font-medium text-[9px] uppercase tracking-wide">
+      <div className="absolute -top-5 left-0 px-1.5 h-4 rounded-t bg-muted/90 text-primary font-medium text-[9px] uppercase tracking-wide">
         {node.name || node.type}
       </div>
     </div>

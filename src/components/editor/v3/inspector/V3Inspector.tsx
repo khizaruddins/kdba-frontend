@@ -15,6 +15,10 @@ import { VisibilityControl } from './controls/VisibilityControl';
 import { VariantControl } from './controls/VariantControl';
 import { StatesControl } from './controls/StatesControl';
 import { RichTextControl } from './controls/RichTextControl';
+import { BindingControl, CollectionListControl } from './controls/BindingControl';
+import { cmsApi } from '@/lib/api/cms';
+import { CmsCollection } from '@/types/cms';
+import { NodeBinding } from '@/types/v3-document';
 import { isStyleGroupOverridden, StyleGroupKey, hasViewportOverride, isStylePathOverridden } from '@/lib/document/v3-operations';
 import { INSTANCE_OF_PROP } from '@/lib/editor/rich-text';
 import {
@@ -48,8 +52,8 @@ function OverrideBadge({
     <span
       className={`rounded-full px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wide ${
         overridden
-          ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
-          : 'bg-slate-800 text-slate-400 border border-slate-700'
+          ? 'bg-warning/15 text-warning border border-warning/30'
+          : 'bg-muted text-muted-foreground border border-border'
       }`}
     >
       {overridden ? 'Overridden' : 'Inherited'}
@@ -83,7 +87,7 @@ function InspectorSection({
       <button
         type="button"
         onClick={onToggle}
-        className="w-full flex items-center justify-between text-xs font-bold text-slate-300 hover:text-white mb-2"
+        className="w-full flex items-center justify-between text-xs font-bold text-muted-foreground hover:text-foreground mb-2"
         aria-expanded={open}
         aria-controls={`inspector-${id}`}
       >
@@ -108,7 +112,7 @@ function InspectorSection({
                   onReset();
                 }
               }}
-              className="flex items-center gap-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-400 hover:underline"
+              className="flex items-center gap-0.5 text-[9px] font-semibold uppercase tracking-wide text-warning hover:underline"
               title="Reset this section to the inherited desktop value"
             >
               <RotateCcw className="w-3 h-3" />
@@ -141,10 +145,24 @@ export function V3Inspector() {
     inspectorFocusKey,
     saveReusableFromSelection,
     syncReusableFromSelection,
+    getActivePage,
+    updateNode,
+    websiteId,
   } = useV3EditorStore();
 
   const selectedNode = getSelectedNode();
-  const path = selectedNodeId ? getNodePath(selectedNodeId) : [];
+  const path = selectedNodeId ? getNodePath(selectedNodeId).filter((item) => item.type !== 'page-root') : [];
+  const activePage = getActivePage();
+  const [cmsCollections, setCmsCollections] = React.useState<CmsCollection[]>([]);
+
+  React.useEffect(() => {
+    if (!websiteId) return;
+    void cmsApi
+      .bootstrap(websiteId)
+      .then(() => cmsApi.listCollections(websiteId))
+      .then((list) => setCmsCollections(Array.isArray(list) ? list : []))
+      .catch(() => setCmsCollections([]));
+  }, [websiteId]);
   const styles = selectedNodeId ? getInspectorStyles(selectedNodeId) : {};
   const themeColors = document?.theme?.colors;
 
@@ -175,10 +193,10 @@ export function V3Inspector() {
 
   if (!selectedNode) {
     return (
-      <aside className="w-80 shrink-0 border-l border-slate-800/80 bg-slate-950/95 flex flex-col items-center justify-center p-8 text-center text-slate-500 select-none">
-        <Layers className="w-8 h-8 text-slate-700 mb-3" />
-        <p className="text-sm font-semibold text-slate-400">No Element Selected</p>
-        <p className="text-xs text-slate-500 mt-1">
+      <aside className="flex h-full w-full min-w-0 shrink-0 flex-col items-center justify-center border-l border-border bg-card p-8 text-center text-muted-foreground select-none">
+        <Layers className="w-8 h-8 text-muted-foreground mb-3" />
+        <p className="text-sm font-semibold text-muted-foreground">No Element Selected</p>
+        <p className="text-xs text-muted-foreground mt-1">
           Click any element on the canvas or in the Layers panel to inspect and customize styles.
         </p>
       </aside>
@@ -208,19 +226,27 @@ export function V3Inspector() {
   };
 
   return (
-    <aside className="w-80 shrink-0 border-l border-slate-800/80 bg-slate-950 flex flex-col h-full overflow-hidden select-none text-slate-100 z-20">
-      <div className="p-3 border-b border-slate-800/80 bg-slate-900/60">
-        <div className="flex items-center gap-1 text-[11px] text-slate-400 font-medium overflow-x-auto scrollbar-none py-0.5">
+    <aside className="flex h-full w-full min-w-0 shrink-0 flex-col overflow-hidden border-l border-border bg-background z-20 select-none text-foreground">
+      <div className="p-3 border-b border-border bg-muted/40">
+        <div className="flex items-center gap-1 text-[11px] text-muted-foreground font-medium overflow-x-auto scrollbar-none py-0.5">
+          {activePage ? (
+            <>
+              <span className="truncate max-w-[90px] px-1.5 py-0.5" title={activePage.title}>
+                {activePage.title}
+              </span>
+              {(path.length > 0) && <ChevronRight className="w-3 h-3 text-muted-foreground shrink-0" />}
+            </>
+          ) : null}
           {path.map((item, idx) => (
             <React.Fragment key={item.id}>
-              {idx > 0 && <ChevronRight className="w-3 h-3 text-slate-600 shrink-0" />}
+              {idx > 0 && <ChevronRight className="w-3 h-3 text-muted-foreground shrink-0" />}
               <button
                 type="button"
                 onClick={() => setSelectedNodeId(item.id)}
                 className={`truncate max-w-[90px] px-1.5 py-0.5 rounded transition-colors ${
                   item.id === selectedNode.id
-                    ? 'bg-indigo-600 text-white font-semibold'
-                    : 'hover:bg-slate-800 text-slate-300'
+                    ? 'bg-primary text-primary-foreground font-semibold'
+                    : 'hover:bg-muted text-muted-foreground'
                 }`}
                 title={item.name || item.type}
               >
@@ -231,37 +257,37 @@ export function V3Inspector() {
         </div>
       </div>
 
-      <div className="flex items-center justify-between px-3 py-2 border-b border-slate-800/80 bg-slate-900/30 text-slate-400">
-        <span className="text-[10px] uppercase tracking-wider font-bold text-slate-500">Align</span>
-        <div className="flex items-center gap-0.5 bg-slate-900 rounded-lg p-0.5 border border-slate-800">
-          <button type="button" title="Align left" aria-label="Align left" onClick={() => updateStyles(selectedNode.id, { typography: { textAlign: 'left' }, flex: { justifyContent: 'flex-start' } })} className="p-1 rounded hover:bg-slate-800 hover:text-white">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-muted/30 text-muted-foreground">
+        <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Align</span>
+        <div className="flex items-center gap-0.5 bg-muted/50 rounded-lg p-0.5 border border-border">
+          <button type="button" title="Align left" aria-label="Align left" onClick={() => updateStyles(selectedNode.id, { typography: { textAlign: 'left' }, flex: { justifyContent: 'flex-start' } })} className="p-1 rounded hover:bg-muted hover:text-foreground">
             <AlignLeft className="w-3.5 h-3.5" />
           </button>
-          <button type="button" title="Align center" aria-label="Align center" onClick={() => updateStyles(selectedNode.id, { typography: { textAlign: 'center' }, flex: { justifyContent: 'center' } })} className="p-1 rounded hover:bg-slate-800 hover:text-white">
+          <button type="button" title="Align center" aria-label="Align center" onClick={() => updateStyles(selectedNode.id, { typography: { textAlign: 'center' }, flex: { justifyContent: 'center' } })} className="p-1 rounded hover:bg-muted hover:text-foreground">
             <AlignCenter className="w-3.5 h-3.5" />
           </button>
-          <button type="button" title="Align right" aria-label="Align right" onClick={() => updateStyles(selectedNode.id, { typography: { textAlign: 'right' }, flex: { justifyContent: 'flex-end' } })} className="p-1 rounded hover:bg-slate-800 hover:text-white">
+          <button type="button" title="Align right" aria-label="Align right" onClick={() => updateStyles(selectedNode.id, { typography: { textAlign: 'right' }, flex: { justifyContent: 'flex-end' } })} className="p-1 rounded hover:bg-muted hover:text-foreground">
             <AlignRight className="w-3.5 h-3.5" />
           </button>
-          <button type="button" title="Align top" aria-label="Align top" onClick={() => updateStyles(selectedNode.id, { flex: { alignItems: 'flex-start' } })} className="p-1 rounded hover:bg-slate-800 hover:text-white">
+          <button type="button" title="Align top" aria-label="Align top" onClick={() => updateStyles(selectedNode.id, { flex: { alignItems: 'flex-start' } })} className="p-1 rounded hover:bg-muted hover:text-foreground">
             <AlignStartVertical className="w-3.5 h-3.5" />
           </button>
-          <button type="button" title="Align middle" aria-label="Align middle" onClick={() => updateStyles(selectedNode.id, { flex: { alignItems: 'center' } })} className="p-1 rounded hover:bg-slate-800 hover:text-white">
+          <button type="button" title="Align middle" aria-label="Align middle" onClick={() => updateStyles(selectedNode.id, { flex: { alignItems: 'center' } })} className="p-1 rounded hover:bg-muted hover:text-foreground">
             <AlignCenterVertical className="w-3.5 h-3.5" />
           </button>
-          <button type="button" title="Align bottom" aria-label="Align bottom" onClick={() => updateStyles(selectedNode.id, { flex: { alignItems: 'flex-end' } })} className="p-1 rounded hover:bg-slate-800 hover:text-white">
+          <button type="button" title="Align bottom" aria-label="Align bottom" onClick={() => updateStyles(selectedNode.id, { flex: { alignItems: 'flex-end' } })} className="p-1 rounded hover:bg-muted hover:text-foreground">
             <AlignEndVertical className="w-3.5 h-3.5" />
           </button>
-          <button type="button" title="Equal spacing" aria-label="Equal spacing" onClick={() => updateStyles(selectedNode.id, { flex: { justifyContent: 'space-between' } })} className="p-1 rounded hover:bg-slate-800 hover:text-white">
+          <button type="button" title="Equal spacing" aria-label="Equal spacing" onClick={() => updateStyles(selectedNode.id, { flex: { justifyContent: 'space-between' } })} className="p-1 rounded hover:bg-muted hover:text-foreground">
             <AlignHorizontalDistributeCenter className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto divide-y divide-slate-800/80">
+      <div className="flex-1 overflow-y-auto divide-y divide-border">
         {viewport !== 'desktop' && (
-          <div className="px-4 py-2 bg-indigo-950/30 border-b border-indigo-900/40 flex items-center justify-between text-[11px]">
-            <div className="flex items-center gap-1.5 text-indigo-300 font-medium">
+          <div className="px-4 py-2 bg-primary/10 border-b border-primary/30 flex items-center justify-between text-[11px]">
+            <div className="flex items-center gap-1.5 text-primary font-medium">
               {viewport === 'tablet' ? <Tablet className="w-3.5 h-3.5" /> : <Smartphone className="w-3.5 h-3.5" />}
               <span>Editing {viewport}</span>
             </div>
@@ -269,7 +295,7 @@ export function V3Inspector() {
               <button
                 type="button"
                 onClick={() => resetViewportStyles(selectedNode.id)}
-                className="flex items-center gap-1 text-[10px] text-amber-400 hover:underline"
+                className="flex items-center gap-1 text-[10px] text-warning hover:underline"
               >
                 <RotateCcw className="w-3 h-3" />
                 <span>Reset all</span>
@@ -278,17 +304,17 @@ export function V3Inspector() {
           </div>
         )}
 
-        <div className="p-3 bg-slate-900/30">
+        <div className="p-3 bg-muted/30">
           <button
             type="button"
             onClick={() => toggleSection('content')}
-            className="w-full flex items-center justify-between text-xs font-bold text-slate-200 hover:text-white mb-2"
+            className="w-full flex items-center justify-between text-xs font-bold text-foreground hover:text-foreground mb-2"
           >
             <div className="flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+              <Sparkles className="w-3.5 h-3.5 text-primary" />
               <span>Content & Settings</span>
             </div>
-            {openSections.content ? <ChevronUp className="w-3.5 h-3.5 text-slate-400" /> : <ChevronDown className="w-3.5 h-3.5 text-slate-400" />}
+            {openSections.content ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />}
           </button>
           {openSections.content && (
             <div className="space-y-3">
@@ -301,11 +327,25 @@ export function V3Inspector() {
                 node={selectedNode}
                 onChangeProps={(propsPatch) => updateProps(selectedNode.id, propsPatch)}
               />
+              <BindingControl
+                node={selectedNode}
+                collections={cmsCollections}
+                onChangeBinding={(binding: NodeBinding | undefined) =>
+                  updateNode(selectedNode.id, { binding })
+                }
+              />
+              {selectedNode.type === 'section' || selectedNode.type === 'container' || selectedNode.type === 'grid' ? (
+                <CollectionListControl
+                  node={selectedNode}
+                  collections={cmsCollections}
+                  onChangeProps={(propsPatch) => updateProps(selectedNode.id, propsPatch)}
+                />
+              ) : null}
               {selectedNode.props?.[INSTANCE_OF_PROP] ? (
                 <button
                   type="button"
                   onClick={() => syncReusableFromSelection()}
-                  className="w-full h-8 rounded-lg bg-indigo-600/20 border border-indigo-500/40 text-[11px] font-semibold text-indigo-200"
+                  className="w-full h-8 rounded-lg bg-primary/10 border border-primary/40 text-[11px] font-semibold text-primary"
                 >
                   Update all instances
                 </button>
@@ -313,7 +353,7 @@ export function V3Inspector() {
                 <button
                   type="button"
                   onClick={() => saveReusableFromSelection()}
-                  className="w-full h-8 rounded-lg bg-slate-900 border border-slate-800 text-[11px] font-semibold text-slate-300 hover:text-white"
+                  className="w-full h-8 rounded-lg bg-muted/50 border border-border text-[11px] font-semibold text-muted-foreground hover:text-foreground"
                 >
                   Save as reusable
                 </button>
@@ -373,7 +413,7 @@ export function V3Inspector() {
             <button
               type="button"
               onClick={() => resetViewportStylePath(selectedNode.id, ['layout', 'overflow'])}
-              className="mt-2 text-[10px] text-amber-400 hover:underline"
+              className="mt-2 text-[10px] text-warning hover:underline"
             >
               Reset overflow to inherited
             </button>
@@ -473,7 +513,7 @@ export function V3Inspector() {
           overridden={groupOverridden(['background'])}
           viewport={viewport}
           onReset={() => resetGroup(['background'])}
-          icon={<Palette className="w-3.5 h-3.5 text-indigo-400" />}
+          icon={<Palette className="w-3.5 h-3.5 text-primary" />}
         >
           <BackgroundControl
             background={styles.background}
@@ -527,7 +567,7 @@ export function V3Inspector() {
           onReset={() => resetViewportStyles(selectedNode.id)}
         >
           <div className="space-y-3">
-            <p className="text-[11px] text-slate-500 leading-relaxed">
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
               Tablet and mobile edits are stored as overrides. Desktop values stay intact until you change them on
               desktop.
             </p>

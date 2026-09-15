@@ -2,14 +2,17 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import { useAuthStore } from '@/stores/auth-store';
 import { apiClient } from '@/lib/api/client';
+import { websitesApi } from '@/lib/api/websites';
+import { businessApi } from '@/lib/api/business';
 import { DashboardOverview } from '@/types';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { formatPeriodRange } from '@/lib/workspace';
 import {
   ArrowRight,
-  ExternalLink,
   Globe,
   Pencil,
   Plus,
@@ -22,6 +25,8 @@ import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle }
 import { Skeleton } from '@/components/ui/skeleton';
 import { PageHeader } from '@/components/kdba/page-header';
 import { StatCard } from '@/components/kdba/stat-card';
+import { WebsiteActionsMenu } from '@/components/kdba/website-actions-menu';
+import { EmptyState } from '@/components/ui/empty-state';
 import { LeadsBarChart } from '@/components/kdba/workspace-charts';
 import { leadStatusVariant, LEAD_STATUS_LABEL, shortRef } from '@/lib/workspace';
 
@@ -53,24 +58,84 @@ const EMPTY_OVERVIEW: DashboardOverview = {
 };
 
 export default function DashboardPage() {
+  const router = useRouter();
   const { user, tenant } = useAuthStore();
   const [data, setData] = React.useState<DashboardOverview>(EMPTY_OVERVIEW);
   const [isLoading, setIsLoading] = React.useState(true);
 
-  React.useEffect(() => {
-    apiClient
+  const [isCreatingBlank, setIsCreatingBlank] = React.useState(false);
+
+  const loadDashboard = React.useCallback(() => {
+    return apiClient
       .get('/dashboard', { params: { days: 28 } })
       .then((payload) => setData(payload as unknown as DashboardOverview))
-      .catch((err) => console.error('Error fetching dashboard data:', err))
-      .finally(() => setIsLoading(false));
+      .catch(() => {
+        toast.error('Could not load dashboard metrics');
+      });
   }, []);
 
+  React.useEffect(() => {
+    loadDashboard().finally(() => setIsLoading(false));
+  }, [loadDashboard]);
+
   const primaryWebsite = data.websitesPreview[0];
-  const isPublished = primaryWebsite?.status === 'PUBLISHED';
   const firstName = user?.firstName || 'there';
   const pipelineTotal = Math.max(data.leads.total, 1);
   const series = data.leads.series ?? [];
   const periodLeads = data.leads.periodCounts?.total ?? 0;
+
+  const activity = React.useMemo(() => {
+    const items = [
+      ...data.websitesPreview.map((site) => ({
+        id: `site-${site.id}`,
+        title: site.status === 'PUBLISHED' ? 'Website published' : 'Page edited',
+        detail: site.name,
+        at: site.updatedAt,
+      })),
+      ...data.recentLeads.map((lead) => ({
+        id: `lead-${lead.id}`,
+        title: 'Form submission received',
+        detail: lead.name,
+        at: lead.createdAt,
+      })),
+    ];
+    return items
+      .filter((item) => item.at)
+      .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
+      .slice(0, 8);
+  }, [data.websitesPreview, data.recentLeads]);
+
+  const handleCreateBlank = async () => {
+    setIsCreatingBlank(true);
+    try {
+      const businesses = await businessApi.getAll();
+      let businessId = businesses[0]?.id;
+      if (!businessId) {
+        const created = await businessApi.create({ name: tenant?.name || 'My business' });
+        businessId = created.id;
+      }
+      const templates = (await apiClient.get('/templates').catch(() => [])) as Array<{
+        id?: string;
+        slug?: string;
+      }>;
+      const starter = Array.isArray(templates) ? templates[0] : null;
+      if (!starter?.id && !starter?.slug) {
+        toast.error('No starter templates are available yet. Seed templates, then try again.');
+        setIsCreatingBlank(false);
+        return;
+      }
+      const site = await websitesApi.create({
+        businessId,
+        templateId: starter.slug || starter.id,
+        name: 'Untitled website',
+      });
+      toast.success('Website created');
+      router.push(`/editor/${site.id}`);
+    } catch {
+      toast.error('Could not create a blank website');
+      setIsCreatingBlank(false);
+    }
+  };
 
   return (
     <div className="space-y-8">
@@ -82,34 +147,110 @@ export default function DashboardPage() {
             <div className="hidden items-center rounded-lg border bg-background px-3 py-1.5 text-xs text-muted-foreground sm:flex">
               {formatPeriodRange(data.period.from, data.period.to)}
             </div>
-            {primaryWebsite ? (
-              <>
-                <Button size="sm" asChild>
-                  <Link href={`/editor/${primaryWebsite.id}`}>
-                    <Pencil />
-                    Edit website
-                  </Link>
-                </Button>
-                {isPublished ? (
-                  <Button size="sm" variant="outline" asChild>
-                    <Link href={`/site/${tenant?.slug || primaryWebsite.slug}`} target="_blank">
-                      <ExternalLink />
-                      View live site
-                    </Link>
-                  </Button>
-                ) : null}
-              </>
-            ) : (
-              <Button size="sm" asChild>
-                <Link href="/templates">
-                  <Plus />
-                  Create website
-                </Link>
-              </Button>
-            )}
+            <Button size="sm" variant="outline" asChild>
+              <Link href="/templates">Start from template</Link>
+            </Button>
+            <Button size="sm" asChild>
+              <Link href={primaryWebsite ? `/editor/${primaryWebsite.id}` : '/templates'}>
+                {primaryWebsite ? <Pencil /> : <Plus />}
+                {primaryWebsite ? 'Open recent website' : 'Create website'}
+              </Link>
+            </Button>
           </>
         }
       />
+
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {[
+          { href: '/templates', title: 'Create website', body: 'Start from an industry template.' },
+          { href: '/templates', title: 'Start from template', body: 'Browse the template library.' },
+          {
+            href: primaryWebsite ? `/editor/${primaryWebsite.id}` : '/websites',
+            title: 'Open recent website',
+            body: primaryWebsite ? primaryWebsite.name : 'No sites yet — create one first.',
+          },
+        ].map((action) => (
+          <Link key={action.title} href={action.href}>
+            <Card className="h-full transition-colors hover:bg-muted/40">
+              <CardHeader>
+                <CardTitle className="text-sm">{action.title}</CardTitle>
+                <CardDescription>{action.body}</CardDescription>
+              </CardHeader>
+            </Card>
+          </Link>
+        ))}
+        <button type="button" className="text-left" onClick={() => void handleCreateBlank()} disabled={isCreatingBlank}>
+          <Card className="h-full transition-colors hover:bg-muted/40">
+            <CardHeader>
+              <CardTitle className="text-sm">Create blank website</CardTitle>
+              <CardDescription>
+                {isCreatingBlank ? 'Creating…' : 'Start empty and add blocks in the editor.'}
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        </button>
+      </div>
+
+      <Card>
+        <CardHeader className="flex flex-row items-start justify-between">
+          <div>
+            <CardTitle>Websites</CardTitle>
+            <CardDescription>Open a site, publish it, or start another from a template.</CardDescription>
+          </div>
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/websites">
+              View all
+              <ArrowRight />
+            </Link>
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
+            </div>
+          ) : data.websitesPreview.length === 0 ? (
+            <EmptyState
+              icon={<Globe className="size-5" />}
+              title="No websites yet"
+              description="Choose a template to create your first site. You can publish it when it is ready."
+              actionLabel="Create website"
+              onAction={() => router.push('/templates')}
+              className="min-h-0 border-0 bg-transparent"
+            />
+          ) : (
+            <ul className="divide-y">
+              {data.websitesPreview.map((site) => (
+                <li key={site.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                  <div className="flex size-9 items-center justify-center rounded-md border bg-muted">
+                    <Globe className="size-4 text-muted-foreground" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{site.name}</p>
+                    <p className="truncate text-xs text-muted-foreground">/{site.slug}</p>
+                  </div>
+                  <Badge variant={site.status === 'PUBLISHED' ? 'success' : 'secondary'}>
+                    {site.status === 'PUBLISHED' ? 'Live' : 'Draft'}
+                  </Badge>
+                  <span className="hidden text-xs text-muted-foreground sm:inline">
+                    {formatDate(site.updatedAt)}
+                  </span>
+                  <Button size="sm" variant="outline" asChild>
+                    <Link href={`/editor/${site.id}`}>Open</Link>
+                  </Button>
+                  <WebsiteActionsMenu
+                    website={site}
+                    tenantSlug={tenant?.slug}
+                    onChanged={() => void loadDashboard()}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 lg:grid-cols-7">
         <Card className="lg:col-span-4">
@@ -228,10 +369,10 @@ export default function DashboardPage() {
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
               {(
                 [
-                  ['New', data.leads.new, 'bg-sky-500'],
-                  ['Contacted', data.leads.contacted, 'bg-amber-500'],
-                  ['Qualified', data.leads.qualified, 'bg-violet-500'],
-                  ['Converted', data.leads.converted, 'bg-emerald-500'],
+                  ['New', data.leads.new, 'bg-chart-2'],
+                  ['Contacted', data.leads.contacted, 'bg-chart-4'],
+                  ['Qualified', data.leads.qualified, 'bg-chart-1'],
+                  ['Converted', data.leads.converted, 'bg-chart-3'],
                 ] as const
               ).map(([label, value, bar]) => (
                 <div key={label}>
@@ -289,6 +430,38 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent activity</CardTitle>
+          <CardDescription>Website edits and inbound form submissions from this workspace.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-10 w-full" />
+              ))}
+            </div>
+          ) : activity.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Activity appears here after you edit a website or receive a form submission.
+            </p>
+          ) : (
+            <ul className="divide-y">
+              {activity.map((item) => (
+                <li key={item.id} className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">{item.title}</p>
+                    <p className="truncate text-xs text-muted-foreground">{item.detail}</p>
+                  </div>
+                  <span className="shrink-0 text-xs text-muted-foreground">{formatDate(item.at)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

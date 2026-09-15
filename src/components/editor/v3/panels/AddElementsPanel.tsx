@@ -4,7 +4,11 @@ import * as React from 'react';
 import { useV3EditorStore } from '@/stores/v3-editor-store';
 import { persistableManifestItems } from '@/lib/document/v3-wire';
 import { NodeType } from '@/types/v3-document';
-import { SECTION_PRESETS } from '@/lib/editor/section-presets';
+import {
+  BLOCK_LIBRARY_CATEGORIES,
+  SECTION_PRESETS,
+  getPresetCategory,
+} from '@/lib/editor/section-presets';
 import {
   Search,
   X,
@@ -94,7 +98,6 @@ const DISPLAY_CATEGORIES = [
   'Forms',
   'Media',
   'Navigation',
-  'Sections',
   'Business',
 ] as const;
 
@@ -146,46 +149,74 @@ export function AddElementsPanel() {
   const filteredPresets = query
     ? SECTION_PRESETS.filter(
         (preset) =>
-          preset.name.toLowerCase().includes(query) || preset.description.toLowerCase().includes(query),
+          preset.name.toLowerCase().includes(query) ||
+          preset.description.toLowerCase().includes(query) ||
+          getPresetCategory(preset).toLowerCase().includes(query) ||
+          (preset.variantLabel || '').toLowerCase().includes(query),
       )
     : SECTION_PRESETS;
 
+  const leftoverPresets = filteredPresets.filter(
+    (preset) =>
+      !(BLOCK_LIBRARY_CATEGORIES as readonly string[]).includes(getPresetCategory(preset)),
+  );
+
   const handleAddElement = (type: NodeType) => {
+    if (type === 'contact-form') {
+      window.dispatchEvent(new Event('kdba-editor-contact-picker'));
+      return;
+    }
     const created = insertNodeType(type, selectedNodeId);
     if (created && ['heading', 'paragraph', 'text', 'button'].includes(type)) {
       useV3EditorStore.getState().setInlineEditingNodeId(created.id);
     }
   };
 
+  const renderCategory = (category: string, body: React.ReactNode, empty: boolean) => {
+    if (empty) return null;
+    const isCollapsed = collapsedCategories[category];
+    return (
+      <div key={category} className="space-y-1.5">
+        <button
+          type="button"
+          onClick={() => toggleCategory(category)}
+          className="w-full flex items-center justify-between px-1 py-1 text-xs font-bold text-muted-foreground hover:text-foreground"
+        >
+          <span>{category}</span>
+          {isCollapsed ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
+        </button>
+        {!isCollapsed && <div className="grid grid-cols-2 gap-1.5">{body}</div>}
+      </div>
+    );
+  };
+
   return (
-    <div className="w-80 shrink-0 border-r border-slate-800/80 bg-slate-950/95 flex flex-col h-full overflow-hidden select-none z-20">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-slate-800/80">
-        <h3 className="font-bold text-sm text-white tracking-tight">Add Elements</h3>
+    <div className="flex h-full w-full min-w-0 shrink-0 flex-col overflow-hidden border-r border-border bg-card z-20 select-none">
+      <div className="flex items-center justify-between p-4 border-b border-border">
+        <h3 className="font-bold text-sm text-foreground tracking-tight">Add Elements</h3>
         <button
           type="button"
           onClick={() => setActiveNavTab(null)}
-          className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+          className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
         >
           <X className="w-4 h-4" />
         </button>
       </div>
 
-      {/* Search Input */}
-      <div className="p-3 border-b border-slate-800/80">
+      <div className="p-3 border-b border-border">
         <div className="relative">
-          <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-2.5" />
+          <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-3 top-2.5" />
           <input
             type="text"
             placeholder="Search elements..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full h-8 pl-8 pr-3 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+            className="w-full h-8 pl-8 pr-3 rounded-lg bg-muted/50 border border-border text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-ring"
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className="absolute right-2.5 top-2 text-slate-500 hover:text-white"
+              className="absolute right-2.5 top-2 text-muted-foreground hover:text-foreground"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -193,73 +224,79 @@ export function AddElementsPanel() {
         </div>
       </div>
 
-      {/* Categorized Element Cards */}
       <div className="flex-1 overflow-y-auto p-3 space-y-4">
         {DISPLAY_CATEGORIES.map((category) => {
-          const itemsInCat =
-            category === 'Sections'
-              ? []
-              : filteredItems.filter((item) => displayCategory(item.type, item.category) === category);
-          const presets = category === 'Sections' ? filteredPresets : [];
-          if (itemsInCat.length === 0 && presets.length === 0) return null;
-
-          const isCollapsed = collapsedCategories[category];
-
-          return (
-            <div key={category} className="space-y-1.5">
-              <button
-                type="button"
-                onClick={() => toggleCategory(category)}
-                className="w-full flex items-center justify-between px-1 py-1 text-xs font-bold text-slate-400 hover:text-white"
+          const itemsInCat = filteredItems.filter(
+            (item) => displayCategory(item.type, item.category) === category,
+          );
+          return renderCategory(
+            category,
+            itemsInCat.map((item) => (
+              <div
+                key={item.type}
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.effectAllowed = 'copy';
+                  e.dataTransfer.setData('kdba/node-type', item.type);
+                  setDragState(true, item.type);
+                }}
+                onDragEnd={() => setDragState(false)}
+                onClick={() => handleAddElement(item.type)}
+                className="group flex flex-col p-2.5 rounded-xl bg-muted/40 hover:bg-muted border border-border hover:border-primary/50 cursor-pointer transition-all duration-150 active:scale-95"
               >
-                <span>{category}</span>
-                {isCollapsed ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
-              </button>
-
-              {!isCollapsed && (
-                <div className="grid grid-cols-2 gap-1.5">
-                  {presets.map((preset) => (
-                    <button
-                      key={preset.id}
-                      type="button"
-                      onClick={() => insertSectionPreset(preset.build())}
-                      className="group flex flex-col p-2.5 rounded-xl bg-slate-900/60 hover:bg-slate-900 border border-slate-800/80 hover:border-indigo-500/50 text-left"
-                    >
-                      <span className="font-semibold text-xs text-slate-200">{preset.name}</span>
-                      <p className="text-[10px] text-slate-500 line-clamp-2">{preset.description}</p>
-                    </button>
-                  ))}
-                  {itemsInCat.map((item) => (
-                    <div
-                      key={item.type}
-                      draggable
-                      onDragStart={(e) => {
-                        e.dataTransfer.effectAllowed = 'copy';
-                        e.dataTransfer.setData('kdba/node-type', item.type);
-                        setDragState(true, item.type);
-                      }}
-                      onDragEnd={() => setDragState(false)}
-                      onClick={() => handleAddElement(item.type)}
-                      className="group flex flex-col p-2.5 rounded-xl bg-slate-900/60 hover:bg-slate-900 border border-slate-800/80 hover:border-indigo-500/50 cursor-pointer transition-all duration-150 active:scale-95"
-                    >
-                      <div className="flex items-center gap-2 mb-1">
-                        <div className="p-1.5 rounded-lg bg-slate-800 group-hover:bg-indigo-600/20 text-slate-400 group-hover:text-indigo-400 transition-colors">
-                          {ICON_MAP[item.icon] || <Box className="w-4 h-4" />}
-                        </div>
-                        <span className="font-semibold text-xs text-slate-200 group-hover:text-white">
-                          {item.name}
-                        </span>
-                      </div>
-                      <p className="text-[10px] text-slate-500 line-clamp-2 leading-relaxed">
-                        {item.description}
-                      </p>
-                    </div>
-                  ))}
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="p-1.5 rounded-lg bg-muted group-hover:bg-primary/10 text-muted-foreground group-hover:text-primary transition-colors">
+                    {ICON_MAP[item.icon] || <Box className="w-4 h-4" />}
+                  </div>
+                  <span className="font-semibold text-xs text-foreground group-hover:text-foreground">
+                    {item.name}
+                  </span>
                 </div>
-              )}
-            </div>
+                <p className="text-[10px] text-muted-foreground line-clamp-2 leading-relaxed">
+                  {item.description}
+                </p>
+              </div>
+            )),
+            itemsInCat.length === 0,
           );
         })}
+
+        {BLOCK_LIBRARY_CATEGORIES.map((category) => {
+          const presets = filteredPresets.filter((preset) => getPresetCategory(preset) === category);
+          return renderCategory(
+            category,
+            presets.map((preset) => (
+              <button
+                key={preset.id}
+                type="button"
+                onClick={() => insertSectionPreset(preset.build())}
+                className="group flex flex-col p-2.5 rounded-xl bg-muted/40 hover:bg-muted border border-border hover:border-primary/50 text-left"
+              >
+                <span className="font-semibold text-xs text-foreground">{preset.name}</span>
+                <p className="text-[10px] text-muted-foreground line-clamp-2">
+                  {preset.variantLabel ? `${preset.variantLabel} · ${preset.description}` : preset.description}
+                </p>
+              </button>
+            )),
+            presets.length === 0,
+          );
+        })}
+
+        {renderCategory(
+          'Sections',
+          leftoverPresets.map((preset) => (
+            <button
+              key={preset.id}
+              type="button"
+              onClick={() => insertSectionPreset(preset.build())}
+              className="group flex flex-col p-2.5 rounded-xl bg-muted/40 hover:bg-muted border border-border hover:border-primary/50 text-left"
+            >
+              <span className="font-semibold text-xs text-foreground">{preset.name}</span>
+              <p className="text-[10px] text-muted-foreground line-clamp-2">{preset.description}</p>
+            </button>
+          )),
+          leftoverPresets.length === 0,
+        )}
       </div>
     </div>
   );

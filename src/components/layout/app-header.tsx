@@ -27,18 +27,28 @@ import {
 import { Button } from '@/components/ui/button';
 import { CommandMenu } from '@/components/kdba/command-menu';
 import { ThemeToggle } from '@/components/kdba/theme-toggle';
+import { HelpMenu } from '@/components/kdba/help-menu';
+import { NotificationsMenu } from '@/components/kdba/notifications-menu';
 
 const LABELS: Record<string, string> = {
   dashboard: 'Overview',
   websites: 'Websites',
   templates: 'Templates',
   media: 'Media',
-  leads: 'Forms & leads',
+  leads: 'Forms',
   analytics: 'Analytics',
   products: 'Products',
   pricing: 'Pricing',
-  settings: 'Settings',
+  settings: 'Business profile',
   business: 'Business profile',
+  content: 'Content',
+  collections: 'Collections',
+  'blog-posts': 'Blog',
+  services: 'Services',
+  team: 'Team',
+  testimonials: 'Testimonials',
+  faq: 'FAQ',
+  projects: 'Projects',
   new: 'Add',
   edit: 'Edit',
 };
@@ -97,7 +107,9 @@ export function AppHeader() {
       </Breadcrumb>
       <div className="ml-auto flex items-center gap-1.5">
         <CommandMenu />
-        <ThemeToggle className="md:hidden" />
+        <NotificationsMenu />
+        <HelpMenu />
+        <ThemeToggle />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon-sm" className="rounded-full" aria-label="Account menu">

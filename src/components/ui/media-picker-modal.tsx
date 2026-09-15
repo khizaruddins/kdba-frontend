@@ -10,7 +10,9 @@ import { Image as ImageIcon, Upload, Check, Loader2, Plus } from 'lucide-react';
 export interface MediaPickerModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelect: (url: string) => void;
+  onSelect: (url: string, media?: MediaItem) => void;
+  /** When true, callers that need CMS media ids still receive the id via the second arg. */
+  preferId?: boolean;
 }
 
 export function MediaPickerModal({
@@ -58,7 +60,7 @@ export function MediaPickerModal({
         const fullUrl = res.url.startsWith('http')
           ? res.url
           : `http://localhost:4000${res.url}`;
-        onSelect(fullUrl);
+        onSelect(fullUrl, res as MediaItem);
         onClose();
       }
     } catch (err) {
@@ -72,7 +74,7 @@ export function MediaPickerModal({
     const fullUrl = media.url.startsWith('http')
       ? media.url
       : `http://localhost:4000${media.url}`;
-    onSelect(fullUrl);
+    onSelect(fullUrl, media);
     onClose();
   };
 

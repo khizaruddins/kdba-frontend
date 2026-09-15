@@ -6,6 +6,7 @@ import { TEMPLATES_DEFINITIONS } from '@/lib/templates/definitions';
 import { TemplateDefinition } from '@/types';
 import { websitesApi } from '@/lib/api/websites';
 import { businessApi } from '@/lib/api/business';
+import { apiClient } from '@/lib/api/client';
 import {
   Sparkles,
   Eye,
@@ -21,8 +22,47 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Dialog } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { PageHeader } from '@/components/kdba/page-header';
 import { WebsiteRenderer } from '@/components/renderer/WebsiteRenderer';
+
+const BACKEND_TEMPLATE_BY_INDUSTRY: Record<string, string> = {
+  RESTAURANT: 'restaurant-modern',
+  CAFE: 'cafe-artisan',
+  DENTAL: 'dental-clinic',
+  HEALTHCARE: 'healthcare-private',
+  SALON: 'salon-premium',
+  SPA: 'wellness-spa',
+  FITNESS: 'fitness-studio',
+  REAL_ESTATE: 'real-estate-consultant',
+  ARCHITECTURE: 'architecture-studio',
+  INTERIOR_DESIGN: 'interior-design-luxury',
+  PHOTOGRAPHER: 'photographer-pro',
+  CREATIVE_AGENCY: 'agency-digital-creative',
+  SOFTWARE_SAAS: 'saas-software',
+  CONSULTING: 'business-consultant',
+  LAW_FIRM: 'law-firm',
+  EDUCATION: 'coaching-institute',
+  SCHOOL: 'school-modern',
+  HOTEL: 'hotel-boutique',
+  TRAVEL: 'travel-agency',
+  AUTOMOTIVE: 'automotive-detailing',
+};
+
+function resolveBackendTemplateId(
+  template: TemplateDefinition,
+  catalog: Array<{ id: string; slug: string }>,
+) {
+  const preferred = BACKEND_TEMPLATE_BY_INDUSTRY[template.industry];
+  const match =
+    catalog.find((item) => item.slug === template.slug || item.id === template.id) ||
+    catalog.find((item) => item.slug === preferred || item.id === preferred) ||
+    catalog[0];
+  return match?.slug || match?.id || preferred || template.slug;
+}
 
 export default function TemplatesPage() {
   const router = useRouter();
@@ -34,36 +74,31 @@ export default function TemplatesPage() {
   const [isCreating, setIsCreating] = React.useState(false);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
 
-  const categories = [
-    { id: 'ALL', label: 'All Industries' },
-    { id: 'RESTAURANT', label: 'Restaurants & Dining' },
-    { id: 'CAFE', label: 'Cafes & Roasteries' },
-    { id: 'DENTAL', label: 'Dental & Medical' },
-    { id: 'HEALTHCARE', label: 'Healthcare' },
-    { id: 'SALON', label: 'Salons & Spas' },
-    { id: 'FITNESS', label: 'Fitness & Gyms' },
-    { id: 'REAL_ESTATE', label: 'Real Estate' },
-    { id: 'ARCHITECTURE', label: 'Architecture' },
-    { id: 'CREATIVE_AGENCY', label: 'Creative Agencies' },
-    { id: 'SOFTWARE_SAAS', label: 'SaaS & Tech' },
-    { id: 'CONSULTING', label: 'Consulting & Legal' },
-    { id: 'HOTEL', label: 'Hotels & Travel' },
-    { id: 'AUTOMOTIVE', label: 'Automotive' },
+  const CATEGORY_GROUPS: { id: string; label: string; industries: string[] | null; featured?: boolean }[] = [
+    { id: 'ALL', label: 'All', industries: null },
+    { id: 'BUSINESS', label: 'Business', industries: ['CONSULTING', 'LAW_FIRM', 'REAL_ESTATE'] },
+    { id: 'PORTFOLIO', label: 'Portfolio', industries: ['PHOTOGRAPHER', 'ARCHITECTURE', 'INTERIOR_DESIGN'] },
+    { id: 'AGENCY', label: 'Agency', industries: ['CREATIVE_AGENCY'] },
+    { id: 'RESTAURANT', label: 'Restaurant', industries: ['RESTAURANT', 'CAFE', 'HOTEL'] },
+    { id: 'SAAS', label: 'SaaS', industries: ['SOFTWARE_SAAS'] },
+    { id: 'PROFESSIONAL', label: 'Professional', industries: ['CONSULTING', 'LAW_FIRM', 'EDUCATION', 'HEALTHCARE', 'DENTAL'] },
+    { id: 'SERVICES', label: 'Services', industries: ['SALON', 'SPA', 'FITNESS', 'AUTOMOTIVE', 'TRAVEL'] },
+    { id: 'LANDING', label: 'Landing page', industries: null, featured: true },
+    { id: 'BLOG', label: 'Blog', industries: ['EDUCATION', 'SCHOOL'] },
+    { id: 'OTHER', label: 'Other', industries: ['HOTEL', 'TRAVEL', 'AUTOMOTIVE'] },
   ];
 
   const filteredTemplates = TEMPLATES_DEFINITIONS.filter((tpl) => {
     const matchesSearch =
       tpl.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       tpl.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      tpl.style.toLowerCase().includes(searchQuery.toLowerCase());
+      tpl.style.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      tpl.industry.toLowerCase().includes(searchQuery.toLowerCase());
 
+    const group = CATEGORY_GROUPS.find((item) => item.id === activeCategory) ?? CATEGORY_GROUPS[0];
     const matchesCategory =
-      activeCategory === 'ALL' ||
-      tpl.industry === activeCategory ||
-      (activeCategory === 'DENTAL' && tpl.industry === 'HEALTHCARE') ||
-      (activeCategory === 'SALON' && tpl.industry === 'SPA') ||
-      (activeCategory === 'HOTEL' && tpl.industry === 'TRAVEL') ||
-      (activeCategory === 'CONSULTING' && (tpl.industry === 'LAW_FIRM' || tpl.industry === 'EDUCATION'));
+      group.id === 'ALL' ||
+      (group.featured ? Boolean(tpl.featured) : Boolean(group.industries?.includes(tpl.industry)));
 
     return matchesSearch && matchesCategory;
   });
@@ -73,7 +108,6 @@ export default function TemplatesPage() {
     setErrorMsg(null);
 
     try {
-      // 1. Ensure a business profile exists or create one
       const businesses = await businessApi.getAll();
       let businessId = businesses?.[0]?.id;
 
@@ -87,14 +121,18 @@ export default function TemplatesPage() {
         businessId = created.id;
       }
 
-      // 2. Create the website with canonical document settings
+      const catalog: Array<{ id: string; slug: string; name: string }> = await apiClient
+        .get('/templates')
+        .then((data) => (Array.isArray(data) ? data : []))
+        .catch(() => []);
+      const backendId = resolveBackendTemplateId(template, catalog);
+
       const website = await websitesApi.create({
         businessId,
-        templateId: template.id,
+        templateId: backendId,
         name: `${template.document.business.name || template.name}`,
       });
 
-      // 3. Update the website with the template's canonical document structure
       await websitesApi.saveDraft(website.id, {
         theme: template.document.theme,
         business: template.document.business,
@@ -105,7 +143,6 @@ export default function TemplatesPage() {
 
       router.push(`/editor/${website.id}`);
     } catch (err: any) {
-      console.error('Failed to create website from template:', err);
       setErrorMsg(
         err?.response?.data?.message || err?.message || 'Failed to initialize website.',
       );
@@ -121,49 +158,53 @@ export default function TemplatesPage() {
         actions={
           <div className="relative w-full md:w-72">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              type="text"
+            <Input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search templates"
-              className="h-9 w-full rounded-lg border border-input bg-background pl-9 pr-3 text-sm"
+              className="pl-9"
             />
           </div>
         }
       />
 
-      {errorMsg && (
-        <div className="rounded-md border border-destructive/20 bg-destructive/10 p-4 text-sm font-medium text-destructive flex items-center justify-between">
-          <span>{errorMsg}</span>
-          <button
-            type="button"
-            onClick={() => setErrorMsg(null)}
-            className="hover:opacity-80 ml-4"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-      )}
+      {errorMsg ? (
+        <Alert variant="destructive">
+          <AlertTitle>Could not create website</AlertTitle>
+          <AlertDescription className="flex items-center justify-between gap-3">
+            <span>{errorMsg}</span>
+            <Button size="icon-sm" variant="ghost" aria-label="Dismiss" onClick={() => setErrorMsg(null)}>
+              <X />
+            </Button>
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
-      {/* Category Filter Pills */}
       <div className="flex flex-wrap items-center gap-2 overflow-x-auto pb-2">
-        {categories.map((cat) => (
-          <button
+        {CATEGORY_GROUPS.map((cat) => (
+          <Button
             key={cat.id}
-            type="button"
+            size="sm"
+            variant={activeCategory === cat.id ? 'default' : 'secondary'}
             onClick={() => setActiveCategory(cat.id)}
-            className={`rounded-md px-4 py-2 text-sm font-medium transition-all cursor-pointer whitespace-nowrap ${
-              activeCategory === cat.id
-                ? 'bg-primary text-primary-foreground shadow-sm'
-                : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground'
-            }`}
           >
             {cat.label}
-          </button>
+          </Button>
         ))}
       </div>
 
-      {/* Templates Grid */}
+      {filteredTemplates.length === 0 ? (
+        <EmptyState
+          icon={<LayoutTemplate className="size-6" />}
+          title="No templates match"
+          description="Try a different category or search term. You can still create a site from Websites."
+          actionLabel="Clear filters"
+          onAction={() => {
+            setSearchQuery('');
+            setActiveCategory('ALL');
+          }}
+        />
+      ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredTemplates.map((template) => (
           <Card
@@ -252,6 +293,7 @@ export default function TemplatesPage() {
           </Card>
         ))}
       </div>
+      )}
 
       {/* Inspect Template Fullscreen Preview Modal */}
       {previewTemplate && (
@@ -266,45 +308,28 @@ export default function TemplatesPage() {
               </span>
             </div>
 
-            {/* Viewport switcher */}
-            <div className="flex items-center rounded-lg border bg-background p-1">
-              <button
-                type="button"
-                onClick={() => setPreviewViewMode('desktop')}
-                className={`flex h-8 w-8 items-center justify-center rounded-md transition-all ${
-                  previewViewMode === 'desktop'
-                    ? 'bg-primary text-primary-foreground shadow'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-                title="Desktop"
-              >
+            <ToggleGroup
+              type="single"
+              value={previewViewMode}
+              onValueChange={(value) => {
+                if (value === 'desktop' || value === 'tablet' || value === 'mobile') {
+                  setPreviewViewMode(value);
+                }
+              }}
+              variant="outline"
+              size="sm"
+              spacing={0}
+            >
+              <ToggleGroupItem value="desktop" aria-label="Desktop preview">
                 <Monitor className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setPreviewViewMode('tablet')}
-                className={`flex h-8 w-8 items-center justify-center rounded-md transition-all ${
-                  previewViewMode === 'tablet'
-                    ? 'bg-primary text-primary-foreground shadow'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-                title="Tablet"
-              >
+              </ToggleGroupItem>
+              <ToggleGroupItem value="tablet" aria-label="Tablet preview">
                 <Tablet className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setPreviewViewMode('mobile')}
-                className={`flex h-8 w-8 items-center justify-center rounded-md transition-all ${
-                  previewViewMode === 'mobile'
-                    ? 'bg-primary text-primary-foreground shadow'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-                title="Mobile"
-              >
+              </ToggleGroupItem>
+              <ToggleGroupItem value="mobile" aria-label="Mobile preview">
                 <Smartphone className="h-4 w-4" />
-              </button>
-            </div>
+              </ToggleGroupItem>
+            </ToggleGroup>
 
             <div className="flex items-center gap-3">
               <Button

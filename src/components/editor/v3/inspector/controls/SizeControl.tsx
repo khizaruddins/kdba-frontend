@@ -39,7 +39,7 @@ function SizeField({
   const parsed = parseSize(value);
   return (
     <div className="space-y-1">
-      <label className="text-[10px] text-slate-500">{label}</label>
+      <label className="text-[10px] text-muted-foreground">{label}</label>
       <div className="flex gap-1">
         <input
           type="text"
@@ -48,7 +48,7 @@ function SizeField({
           value={parsed.unit === 'auto' ? '' : parsed.amount}
           onChange={(e) => onChange(formatSize(e.target.value, parsed.unit))}
           placeholder={parsed.unit === 'auto' ? 'auto' : '0'}
-          className="flex-1 h-8 px-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-200 text-xs focus:outline-none disabled:opacity-50"
+          className="flex-1 h-8 px-2 rounded-lg bg-muted/50 border border-border text-foreground text-xs focus:outline-none disabled:opacity-50"
         />
         <select
           aria-label={`${label} unit`}
@@ -57,7 +57,7 @@ function SizeField({
             const unit = e.target.value as CssUnit;
             onChange(formatSize(parsed.amount || '100', unit));
           }}
-          className="w-16 h-8 rounded-lg bg-slate-900 border border-slate-800 text-[11px] text-slate-300"
+          className="w-16 h-8 rounded-lg bg-muted/50 border border-border text-[11px] text-muted-foreground"
         >
           <option value="px">px</option>
           <option value="%">%</option>

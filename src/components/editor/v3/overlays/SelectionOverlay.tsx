@@ -16,7 +16,7 @@ import {
   Unlock,
 } from 'lucide-react';
 import { TEXT_EDITABLE_TYPES } from '@/lib/editor/nesting';
-import { SECTION_PRESETS } from '@/lib/editor/section-presets';
+import { presetsMatchingSection } from '@/lib/editor/section-presets';
 import { useTrackedRect } from './useTrackedRect';
 
 export function SelectionOverlay() {
@@ -62,7 +62,7 @@ export function SelectionOverlay() {
         pointerEvents: 'none',
         zIndex: 40,
       }}
-      className="border border-indigo-500/90 rounded-sm"
+      className="border border-primary/90 rounded-sm"
     >
       <div
         style={{ pointerEvents: 'auto' }}
@@ -78,20 +78,20 @@ export function SelectionOverlay() {
           useV3EditorStore.getState().setDragState(true, selectedNode.type, selectedNodeId);
         }}
         onDragEnd={() => useV3EditorStore.getState().setDragState(false)}
-        className="absolute -top-6 left-0 flex items-center gap-1 px-1.5 h-5 rounded-t bg-indigo-600 text-white font-semibold text-[10px] tracking-wide max-w-[220px] cursor-grab"
+        className="absolute -top-6 left-0 flex items-center gap-1 px-1.5 h-5 rounded-t bg-primary text-primary-foreground font-semibold text-[10px] tracking-wide max-w-[220px] cursor-grab"
       >
         <span className="truncate">{selectedNode.name || selectedNode.type}</span>
       </div>
 
       <div
         style={{ pointerEvents: 'auto' }}
-        className="absolute -top-7 right-0 flex items-center gap-0.5 p-0.5 rounded-md bg-slate-950/95 border border-slate-800 shadow-xl text-slate-300"
+        className="absolute -top-7 right-0 flex items-center gap-0.5 p-0.5 rounded-md bg-card border border-border shadow-xl text-muted-foreground"
       >
         {TEXT_EDITABLE_TYPES.includes(selectedNode.type) && (
           <button
             type="button"
             onClick={() => setInlineEditingNodeId(selectedNode.id)}
-            className="flex items-center gap-1 px-1.5 h-6 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-medium"
+            className="flex items-center gap-1 px-1.5 h-6 rounded bg-primary hover:bg-primary/90 text-primary-foreground text-[10px] font-medium"
             title="Edit text"
           >
             <Edit3 className="w-3 h-3" />
@@ -106,7 +106,7 @@ export function SelectionOverlay() {
               setActiveNavTab(null);
               focusInspectorSection('content');
             }}
-            className="flex items-center gap-1 px-1.5 h-6 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-medium"
+            className="flex items-center gap-1 px-1.5 h-6 rounded bg-primary hover:bg-primary/90 text-primary-foreground text-[10px] font-medium"
             title="Replace image in inspector"
           >
             <ImageIcon className="w-3 h-3" />
@@ -119,15 +119,15 @@ export function SelectionOverlay() {
             <button
               type="button"
               onClick={() => setReplaceOpen((open) => !open)}
-              className="flex items-center gap-1 px-1.5 h-6 rounded hover:bg-slate-800 hover:text-white text-[10px] font-medium"
+              className="flex items-center gap-1 px-1.5 h-6 rounded hover:bg-muted hover:text-foreground text-[10px] font-medium"
               title="Replace section"
             >
               <Settings className="w-3 h-3" />
               <span>Replace</span>
             </button>
             {replaceOpen && (
-              <div className="absolute right-0 top-7 w-40 rounded-lg border border-slate-800 bg-slate-950 p-1 shadow-xl">
-                {SECTION_PRESETS.map((preset) => (
+              <div className="absolute right-0 top-7 max-h-56 w-44 overflow-y-auto rounded-lg border border-border bg-background p-1 shadow-xl">
+                {presetsMatchingSection(selectedNode.name).map((preset) => (
                   <button
                     key={preset.id}
                     type="button"
@@ -135,7 +135,7 @@ export function SelectionOverlay() {
                       replaceSection(selectedNodeId, preset.build());
                       setReplaceOpen(false);
                     }}
-                    className="block w-full rounded px-2 py-1 text-left text-[10px] text-slate-300 hover:bg-slate-800"
+                    className="block w-full rounded px-2 py-1 text-left text-[10px] text-muted-foreground hover:bg-muted"
                   >
                     {preset.name}
                   </button>
@@ -149,7 +149,7 @@ export function SelectionOverlay() {
           type="button"
           onClick={() => setActiveNavTab('add')}
           title="Add element"
-          className="p-1 rounded hover:bg-slate-800 hover:text-white"
+          className="p-1 rounded hover:bg-muted hover:text-foreground"
         >
           <Plus className="w-3.5 h-3.5" />
         </button>
@@ -161,7 +161,7 @@ export function SelectionOverlay() {
             })
           }
           title="Hide on this breakpoint"
-          className="p-1 rounded hover:bg-slate-800 hover:text-white"
+          className="p-1 rounded hover:bg-muted hover:text-foreground"
         >
           <EyeOff className="w-3.5 h-3.5" />
         </button>
@@ -169,7 +169,7 @@ export function SelectionOverlay() {
           type="button"
           onClick={() => setNodeLocked(selectedNodeId, !selectedNode.locked)}
           title={selectedNode.locked ? 'Unlock' : 'Lock'}
-          className="p-1 rounded hover:bg-slate-800 hover:text-white"
+          className="p-1 rounded hover:bg-muted hover:text-foreground"
         >
           {selectedNode.locked ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
         </button>
@@ -177,7 +177,7 @@ export function SelectionOverlay() {
           type="button"
           onClick={() => duplicateNode(selectedNodeId)}
           title="Duplicate"
-          className="p-1 rounded hover:bg-slate-800 hover:text-white"
+          className="p-1 rounded hover:bg-muted hover:text-foreground"
         >
           <Copy className="w-3.5 h-3.5" />
         </button>
@@ -186,7 +186,7 @@ export function SelectionOverlay() {
             type="button"
             onClick={() => moveNode(selectedNodeId, parentInfo.parent.id, parentInfo.index - 1)}
             title="Move up"
-            className="p-1 rounded hover:bg-slate-800 hover:text-white"
+            className="p-1 rounded hover:bg-muted hover:text-foreground"
           >
             <ArrowUp className="w-3.5 h-3.5" />
           </button>
@@ -196,7 +196,7 @@ export function SelectionOverlay() {
             type="button"
             onClick={() => moveNode(selectedNodeId, parentInfo.parent.id, parentInfo.index + 1)}
             title="Move down"
-            className="p-1 rounded hover:bg-slate-800 hover:text-white"
+            className="p-1 rounded hover:bg-muted hover:text-foreground"
           >
             <ArrowDown className="w-3.5 h-3.5" />
           </button>

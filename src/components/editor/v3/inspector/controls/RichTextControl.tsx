@@ -106,7 +106,7 @@ function MarkButton({
       aria-pressed={active}
       onClick={onClick}
       className={`h-7 w-7 rounded-md flex items-center justify-center ${
-        active ? 'bg-indigo-600 text-white' : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
+        active ? 'bg-primary text-primary-foreground' : 'bg-muted/50 text-muted-foreground hover:text-foreground border border-border'
       }`}
     >
       {children}

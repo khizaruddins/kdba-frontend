@@ -29,7 +29,7 @@ export function SiteStructurePanel() {
 
   const header = document.global?.headerNode;
   const footer = document.global?.footerNode;
-  const navItems = document.navigation?.header?.length
+  const navItems = Array.isArray(document.navigation?.header)
     ? document.navigation.header
     : navItemsFromPages(document);
   const cta = document.navigation?.ctaButton || { label: 'Get Started', href: '#contact' };
@@ -40,16 +40,16 @@ export function SiteStructurePanel() {
   };
 
   return (
-    <div className="w-80 shrink-0 border-r border-slate-800/80 bg-slate-950/95 flex flex-col h-full overflow-hidden select-none z-20">
-      <div className="flex items-center justify-between p-4 border-b border-slate-800/80">
+    <div className="flex h-full w-full min-w-0 shrink-0 flex-col overflow-hidden border-r border-border bg-card z-20 select-none">
+      <div className="flex items-center justify-between p-4 border-b border-border">
         <div className="flex items-center gap-2">
-          <Globe className="w-4 h-4 text-indigo-400" />
-          <h3 className="font-bold text-sm text-white tracking-tight">Site</h3>
+          <Globe className="w-4 h-4 text-primary" />
+          <h3 className="font-bold text-sm text-foreground tracking-tight">Site</h3>
         </div>
         <button
           type="button"
           onClick={() => setActiveNavTab(null)}
-          className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
+          className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted"
           aria-label="Close site panel"
         >
           <X className="w-4 h-4" />
@@ -58,24 +58,24 @@ export function SiteStructurePanel() {
 
       <div className="flex-1 overflow-y-auto p-3 space-y-5 text-xs">
         <section className="space-y-2">
-          <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Global chrome</h4>
+          <h4 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Global chrome</h4>
           <button
             type="button"
             onClick={() => header && setSelectedNodeId(header.id)}
-            className="w-full flex items-center gap-2 h-9 px-3 rounded-xl bg-slate-900 border border-slate-800 text-slate-200 hover:border-indigo-500/50"
+            className="w-full flex items-center gap-2 h-9 px-3 rounded-xl bg-muted/50 border border-border text-foreground hover:border-primary/50"
           >
-            <PanelTop className="w-3.5 h-3.5 text-indigo-400" />
+            <PanelTop className="w-3.5 h-3.5 text-primary" />
             Edit header
           </button>
           <button
             type="button"
             onClick={() => footer && setSelectedNodeId(footer.id)}
-            className="w-full flex items-center gap-2 h-9 px-3 rounded-xl bg-slate-900 border border-slate-800 text-slate-200 hover:border-indigo-500/50"
+            className="w-full flex items-center gap-2 h-9 px-3 rounded-xl bg-muted/50 border border-border text-foreground hover:border-primary/50"
           >
-            <PanelBottom className="w-3.5 h-3.5 text-indigo-400" />
+            <PanelBottom className="w-3.5 h-3.5 text-primary" />
             Edit footer
           </button>
-          <label className="flex items-center justify-between text-slate-400">
+          <label className="flex items-center justify-between text-muted-foreground">
             <span>Show header</span>
             <input
               type="checkbox"
@@ -88,10 +88,10 @@ export function SiteStructurePanel() {
                     : undefined,
                 })
               }
-              className="accent-indigo-500"
+              className="accent-primary"
             />
           </label>
-          <label className="flex items-center justify-between text-slate-400">
+          <label className="flex items-center justify-between text-muted-foreground">
             <span>Show footer</span>
             <input
               type="checkbox"
@@ -104,16 +104,16 @@ export function SiteStructurePanel() {
                     : undefined,
                 })
               }
-              className="accent-indigo-500"
+              className="accent-primary"
             />
           </label>
           {header && (
             <div className="space-y-1">
-              <label className="text-slate-400">Header variant</label>
+              <label className="text-muted-foreground">Header variant</label>
               <select
                 value={String(header.props?.variant || 'standard')}
                 onChange={(e) => updateProps(header.id, { variant: e.target.value })}
-                className="w-full h-8 px-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-200"
+                className="w-full h-8 px-2 rounded-lg bg-muted/50 border border-border text-foreground"
               >
                 {HEADER_VARIANTS.map((variant) => (
                   <option key={variant} value={variant}>
@@ -125,9 +125,9 @@ export function SiteStructurePanel() {
           )}
         </section>
 
-        <section className="space-y-2 pt-3 border-t border-slate-800/80">
+        <section className="space-y-2 pt-3 border-t border-border">
           <div className="flex items-center justify-between">
-            <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Navigation</h4>
+            <h4 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Navigation</h4>
             <button
               type="button"
               onClick={() =>
@@ -141,7 +141,7 @@ export function SiteStructurePanel() {
                   },
                 ])
               }
-              className="p-1 rounded text-slate-400 hover:text-white"
+              className="p-1 rounded text-muted-foreground hover:text-foreground"
               aria-label="Add navigation item"
             >
               <Plus className="w-3.5 h-3.5" />
@@ -149,7 +149,7 @@ export function SiteStructurePanel() {
           </div>
           <div className="space-y-2">
             {navItems.map((item, index) => (
-              <div key={item.id} className="p-2 rounded-xl bg-slate-900 border border-slate-800 space-y-1.5">
+              <div key={item.id} className="p-2 rounded-xl bg-muted/50 border border-border space-y-1.5">
                 <div className="flex gap-1">
                   <input
                     aria-label="Navigation label"
@@ -159,13 +159,13 @@ export function SiteStructurePanel() {
                       next[index] = { ...item, label: e.target.value };
                       setNavItems(next);
                     }}
-                    className="flex-1 h-7 px-2 rounded-lg bg-slate-950 border border-slate-800 text-slate-200"
+                    className="flex-1 h-7 px-2 rounded-lg bg-background border border-border text-foreground"
                   />
                   <button
                     type="button"
                     aria-label="Remove navigation item"
                     onClick={() => setNavItems(navItems.filter((entry) => entry.id !== item.id))}
-                    className="p-1 text-slate-500 hover:text-rose-400"
+                    className="p-1 text-muted-foreground hover:text-destructive"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -190,7 +190,7 @@ export function SiteStructurePanel() {
                     }
                     setNavItems(next);
                   }}
-                  className="w-full h-7 px-2 rounded-lg bg-slate-950 border border-slate-800 text-slate-300"
+                  className="w-full h-7 px-2 rounded-lg bg-background border border-border text-muted-foreground"
                 >
                   <option value="page">Internal page</option>
                   <option value="external">External URL</option>
@@ -207,7 +207,7 @@ export function SiteStructurePanel() {
                       next[index] = { ...item, pageId: page.id, href: page.slug, label: item.label };
                       setNavItems(next);
                     }}
-                    className="w-full h-7 px-2 rounded-lg bg-slate-950 border border-slate-800 text-slate-300"
+                    className="w-full h-7 px-2 rounded-lg bg-background border border-border text-muted-foreground"
                   >
                     {document.pages.map((page) => (
                       <option key={page.id} value={page.id}>
@@ -224,10 +224,10 @@ export function SiteStructurePanel() {
                       next[index] = { ...item, href: e.target.value };
                       setNavItems(next);
                     }}
-                    className="w-full h-7 px-2 rounded-lg bg-slate-950 border border-slate-800 text-slate-300"
+                    className="w-full h-7 px-2 rounded-lg bg-background border border-border text-muted-foreground"
                   />
                 )}
-                <label className="flex items-center justify-between text-slate-500">
+                <label className="flex items-center justify-between text-muted-foreground">
                   <span>Open in new tab</span>
                   <input
                     type="checkbox"
@@ -237,9 +237,76 @@ export function SiteStructurePanel() {
                       next[index] = { ...item, target: e.target.checked ? '_blank' : '_self' };
                       setNavItems(next);
                     }}
-                    className="accent-indigo-500"
+                    className="accent-primary"
                   />
                 </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = [...navItems];
+                    next[index] = {
+                      ...item,
+                      children: [
+                        ...(item.children || []),
+                        {
+                          id: generateNodeId('nav'),
+                          label: 'Nested link',
+                          href: '/',
+                          target: '_self',
+                        },
+                      ],
+                    };
+                    setNavItems(next);
+                  }}
+                  className="text-[10px] font-medium text-muted-foreground hover:text-foreground"
+                >
+                  Add dropdown item
+                </button>
+                {(item.children || []).map((child, childIndex) => (
+                  <div key={child.id} className="ml-3 space-y-1 rounded-lg border border-border bg-background p-1.5">
+                    <div className="flex gap-1">
+                      <input
+                        aria-label="Dropdown label"
+                        value={child.label}
+                        onChange={(e) => {
+                          const next = [...navItems];
+                          const children = [...(item.children || [])];
+                          children[childIndex] = { ...child, label: e.target.value };
+                          next[index] = { ...item, children };
+                          setNavItems(next);
+                        }}
+                        className="h-7 flex-1 rounded-lg border border-border bg-muted/40 px-2 text-foreground"
+                      />
+                      <button
+                        type="button"
+                        aria-label="Remove dropdown item"
+                        onClick={() => {
+                          const next = [...navItems];
+                          next[index] = {
+                            ...item,
+                            children: (item.children || []).filter((entry) => entry.id !== child.id),
+                          };
+                          setNavItems(next);
+                        }}
+                        className="p-1 text-muted-foreground hover:text-destructive"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    <input
+                      aria-label="Dropdown href"
+                      value={child.href}
+                      onChange={(e) => {
+                        const next = [...navItems];
+                        const children = [...(item.children || [])];
+                        children[childIndex] = { ...child, href: e.target.value };
+                        next[index] = { ...item, children };
+                        setNavItems(next);
+                      }}
+                      className="h-7 w-full rounded-lg border border-border bg-muted/40 px-2 text-muted-foreground"
+                    />
+                  </div>
+                ))}
               </div>
             ))}
           </div>
@@ -248,33 +315,33 @@ export function SiteStructurePanel() {
               aria-label="CTA label"
               value={cta.label}
               onChange={(e) => updateNavigation({ ctaButton: { ...cta, label: e.target.value } })}
-              className="h-8 px-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-200"
+              className="h-8 px-2 rounded-lg bg-muted/50 border border-border text-foreground"
               placeholder="CTA label"
             />
             <input
               aria-label="CTA href"
               value={cta.href}
               onChange={(e) => updateNavigation({ ctaButton: { ...cta, href: e.target.value } })}
-              className="h-8 px-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-200"
+              className="h-8 px-2 rounded-lg bg-muted/50 border border-border text-foreground"
               placeholder="CTA href"
             />
           </div>
         </section>
 
-        <section className="space-y-2 pt-3 border-t border-slate-800/80">
-          <div className="flex items-center gap-2 text-slate-400">
+        <section className="space-y-2 pt-3 border-t border-border">
+          <div className="flex items-center gap-2 text-muted-foreground">
             <Library className="w-3.5 h-3.5" />
             <h4 className="text-[11px] font-bold uppercase tracking-wider">Reusable library</h4>
           </div>
           {library.length === 0 ? (
-            <p className="text-slate-500">Select an element and save it as reusable from the inspector.</p>
+            <p className="text-muted-foreground">Select an element and save it as reusable from the inspector.</p>
           ) : (
             library.map(([id, node]) => (
               <button
                 key={id}
                 type="button"
                 onClick={() => insertReusable(id)}
-                className="w-full text-left h-8 px-3 rounded-lg bg-slate-900 border border-slate-800 text-slate-200 hover:border-indigo-500/40"
+                className="w-full text-left h-8 px-3 rounded-lg bg-muted/50 border border-border text-foreground hover:border-primary/40"
               >
                 {node.name || node.type}
               </button>

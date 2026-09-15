@@ -12,6 +12,7 @@ import { useV3RenderContext } from './V3RenderContext';
 import { ContactFormPrimitive } from './ContactFormPrimitive';
 import { buttonVariantStyle, cardVariantStyle } from '@/lib/editor/variants';
 import { normalizeRuns, sanitizeHref, TEXT_RUNS_PROP, textFromRuns } from '@/lib/editor/rich-text';
+import { applyBindingToProps, recordsForList, resolveCmsMediaValue } from '@/lib/cms/bindings';
 
 export interface NodeRendererProps {
   node: WebsiteNode;
@@ -241,7 +242,12 @@ function NodeRendererInner({
     },
   };
   const resolvedStyles = resolveNodeStyles(mergedStyles, node.responsive, viewport);
-  const props = node.props || {};
+  const props = applyBindingToProps(
+    node,
+    renderContext?.document || ({ business: {} } as any),
+    renderContext?.cms,
+    renderContext?.activeRecord,
+  );
 
   const commitText = (key: string, value: string, extra?: Record<string, unknown>) => {
     onCommitProps?.(node.id, { [key]: value, ...extra });
@@ -331,6 +337,73 @@ function NodeRendererInner({
           : heroVariant === 'image-background' || heroVariant === 'media'
             ? 'bg-cover bg-center'
             : '';
+      const listRecords = recordsForList(node, renderContext?.cms);
+      if (props.cmsList) {
+        const layout = String(props.layout || 'cards');
+        const gridClass =
+          layout === 'list'
+            ? 'grid grid-cols-1 gap-4'
+            : layout === 'featured'
+              ? 'grid grid-cols-1 gap-6 md:grid-cols-2'
+              : 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3';
+        return (
+          <section
+            {...commonProps}
+            id={(props.anchorId as string) || undefined}
+            className={`relative w-full ${commonProps.className}`}
+          >
+            <div className="mx-auto max-w-[var(--kdba-container-max)] px-6 py-12">
+              {isEditing && listRecords.length === 0 ? (
+                <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+                  Collection list — publish CMS records to populate this block.
+                </div>
+              ) : (
+                <div className={gridClass}>
+                  {listRecords.map((record) => {
+                    const data = record.data || {};
+                    const collectionSlug = String(props.collectionSlug || '');
+                    const title = String(data.title || data.name || data.question || record.slug || 'Untitled');
+                    const body = String(
+                      data.description || data.excerpt || data.summary || data.quote || data.answer || '',
+                    );
+                    const image = resolveCmsMediaValue(
+                      data.image || data.coverImage || data.photo || data.avatar || data.featuredImage,
+                      renderContext?.cms,
+                      collectionSlug,
+                    ) || '';
+                    const hrefBase = collectionSlug ? `/${collectionSlug}` : '';
+                    const href = record.slug ? `${hrefBase}/${record.slug}`.replace(/\/+/g, '/') : undefined;
+                    return (
+                      <article
+                        key={record.id}
+                        className="rounded-2xl border bg-[var(--kdba-surface)] p-5 shadow-sm"
+                      >
+                        {image ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={image} alt="" className="mb-4 h-40 w-full rounded-xl object-cover" />
+                        ) : null}
+                        <h3 className="text-lg font-semibold text-[var(--kdba-text)]">
+                          {href && !isEditing ? (
+                            <a href={href} className="hover:underline">
+                              {title}
+                            </a>
+                          ) : (
+                            title
+                          )}
+                        </h3>
+                        {body ? (
+                          <p className="mt-2 text-sm text-[var(--kdba-muted)] line-clamp-4">{body}</p>
+                        ) : null}
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            {renderChildren()}
+          </section>
+        );
+      }
       return (
         <section
           {...commonProps}

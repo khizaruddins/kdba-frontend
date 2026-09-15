@@ -89,22 +89,22 @@ export function ContentControl({ node, onChangeProps }: ContentControlProps) {
       <div className="space-y-3 select-none text-xs">
         <div className="space-y-1">
           <div className="flex justify-between items-center">
-            <label className="text-[11px] font-medium text-slate-400">Heading Text</label>
-            <span className="text-[10px] text-slate-500">{currentText.length} chars</span>
+            <label className="text-[11px] font-medium text-muted-foreground">Heading Text</label>
+            <span className="text-[10px] text-muted-foreground">{currentText.length} chars</span>
           </div>
           <textarea
             rows={3}
             value={currentText}
             onChange={(e) => onChangeProps({ text: e.target.value, runs: [{ text: e.target.value }] })}
             placeholder="Enter heading text..."
-            className="w-full px-2.5 py-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-100 text-xs focus:border-indigo-500 focus:outline-none transition-colors resize-none leading-relaxed"
+            className="w-full px-2.5 py-2 rounded-lg bg-muted/50 border border-border text-foreground text-xs focus:border-ring focus:outline-none transition-colors resize-none leading-relaxed"
           />
         </div>
 
         {/* Heading Level Tag (H1 to H6) */}
         <div className="space-y-1">
-          <label className="text-[11px] font-medium text-slate-400">Heading Tag (SEO)</label>
-          <div className="grid grid-cols-6 gap-1 h-8 rounded-lg bg-slate-900 p-0.5 border border-slate-800">
+          <label className="text-[11px] font-medium text-muted-foreground">Heading Tag (SEO)</label>
+          <div className="grid grid-cols-6 gap-1 h-8 rounded-lg bg-muted/50 p-0.5 border border-border">
             {[1, 2, 3, 4, 5, 6].map((lvl) => (
               <button
                 key={lvl}
@@ -112,8 +112,8 @@ export function ContentControl({ node, onChangeProps }: ContentControlProps) {
                 onClick={() => onChangeProps({ level: lvl })}
                 className={`flex items-center justify-center rounded font-semibold text-xs transition-colors ${
                   currentLevel === lvl
-                    ? 'bg-indigo-600 text-white shadow'
-                    : 'text-slate-400 hover:text-white'
+                    ? 'bg-primary text-primary-foreground shadow'
+                    : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 H{lvl}
@@ -133,15 +133,15 @@ export function ContentControl({ node, onChangeProps }: ContentControlProps) {
       <div className="space-y-3 select-none text-xs">
         <div className="space-y-1">
           <div className="flex justify-between items-center">
-            <label className="text-[11px] font-medium text-slate-400">Paragraph Content</label>
-            <span className="text-[10px] text-slate-500">{currentText.length} chars</span>
+            <label className="text-[11px] font-medium text-muted-foreground">Paragraph Content</label>
+            <span className="text-[10px] text-muted-foreground">{currentText.length} chars</span>
           </div>
           <textarea
             rows={4}
             value={currentText}
             onChange={(e) => onChangeProps({ text: e.target.value, html: undefined, runs: [{ text: e.target.value }] })}
             placeholder="Enter paragraph copy text..."
-            className="w-full px-2.5 py-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-100 text-xs focus:border-indigo-500 focus:outline-none transition-colors resize-none leading-relaxed"
+            className="w-full px-2.5 py-2 rounded-lg bg-muted/50 border border-border text-foreground text-xs focus:border-ring focus:outline-none transition-colors resize-none leading-relaxed"
           />
         </div>
       </div>
@@ -158,8 +158,8 @@ export function ContentControl({ node, onChangeProps }: ContentControlProps) {
       <div className="space-y-3.5 select-none text-xs">
         {/* Thumbnail Preview */}
         <div className="space-y-1">
-          <label className="text-[11px] font-medium text-slate-400">Current Image</label>
-          <div className="relative rounded-xl overflow-hidden border border-slate-800 bg-slate-900 aspect-video group">
+          <label className="text-[11px] font-medium text-muted-foreground">Current Image</label>
+          <div className="relative rounded-xl overflow-hidden border border-border bg-muted/50 aspect-video group">
             {currentSrc ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -168,8 +168,8 @@ export function ContentControl({ node, onChangeProps }: ContentControlProps) {
                 className="w-full h-full object-cover"
               />
             ) : (
-              <div className="flex flex-col items-center justify-center h-full text-slate-500">
-                <ImageIcon className="w-6 h-6 mb-1 text-slate-600" />
+              <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                <ImageIcon className="w-6 h-6 mb-1 text-muted-foreground" />
                 <span className="text-[11px]">No image selected</span>
               </div>
             )}
@@ -181,7 +181,7 @@ export function ContentControl({ node, onChangeProps }: ContentControlProps) {
           <button
             type="button"
             onClick={() => setShowImageLibrary(!showImageLibrary)}
-            className="flex items-center justify-center gap-1.5 h-8 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs shadow transition-colors"
+            className="flex items-center justify-center gap-1.5 h-8 px-3 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground font-medium text-xs shadow transition-colors"
           >
             <Sparkles className="w-3.5 h-3.5" />
             <span>Replace Image</span>
@@ -190,9 +190,9 @@ export function ContentControl({ node, onChangeProps }: ContentControlProps) {
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="flex items-center justify-center gap-1.5 h-8 px-3 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-200 font-medium text-xs transition-colors"
+            className="flex items-center justify-center gap-1.5 h-8 px-3 rounded-lg bg-muted/50 hover:bg-muted border border-border text-foreground font-medium text-xs transition-colors"
           >
-            <Upload className="w-3.5 h-3.5 text-slate-400" />
+            <Upload className="w-3.5 h-3.5 text-muted-foreground" />
             <span>Upload File</span>
           </button>
           <input
@@ -206,15 +206,15 @@ export function ContentControl({ node, onChangeProps }: ContentControlProps) {
 
         {/* Curated Stock Photo Library Drawer */}
         {showImageLibrary && (
-          <div className="p-3 rounded-xl bg-slate-900/90 border border-indigo-900/50 space-y-2.5">
+          <div className="p-3 rounded-xl bg-muted/50 border border-primary/30 space-y-2.5">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-400">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
                 Curated High-Res Photos
               </span>
               <button
                 type="button"
                 onClick={() => setShowImageLibrary(false)}
-                className="text-[10px] text-slate-400 hover:text-white"
+                className="text-[10px] text-muted-foreground hover:text-foreground"
               >
                 Close
               </button>
@@ -229,18 +229,18 @@ export function ContentControl({ node, onChangeProps }: ContentControlProps) {
                     setShowImageLibrary(false);
                   }}
                   className={`group relative rounded-lg overflow-hidden aspect-video border text-left transition-all ${
-                    currentSrc === item.url ? 'border-indigo-500 ring-2 ring-indigo-500/40' : 'border-slate-800 hover:border-slate-600'
+                    currentSrc === item.url ? 'border-primary ring-2 ring-primary/40' : 'border-border hover:border-border'
                   }`}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={item.url} alt={item.label} className="w-full h-full object-cover" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex items-end p-1">
-                    <span className="text-[9px] font-medium text-white truncate drop-shadow">
+                    <span className="text-[9px] font-medium text-foreground truncate drop-shadow">
                       {item.label}
                     </span>
                   </div>
                   {currentSrc === item.url && (
-                    <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-indigo-600 flex items-center justify-center text-white">
+                    <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-primary flex items-center justify-center text-foreground">
                       <Check className="w-2.5 h-2.5" />
                     </div>
                   )}
@@ -252,21 +252,21 @@ export function ContentControl({ node, onChangeProps }: ContentControlProps) {
 
         {/* Direct Image URL Input */}
         <div className="space-y-1">
-          <label className="text-[11px] font-medium text-slate-400">Image Source URL</label>
+          <label className="text-[11px] font-medium text-muted-foreground">Image Source URL</label>
           <div className="flex items-center gap-1">
             <input
               type="text"
               value={currentSrc}
               onChange={(e) => onChangeProps({ src: e.target.value, url: e.target.value })}
               placeholder="https://example.com/photo.jpg"
-              className="flex-1 h-8 px-2.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-100 text-xs focus:border-indigo-500 focus:outline-none"
+              className="flex-1 h-8 px-2.5 rounded-lg bg-muted/50 border border-border text-foreground text-xs focus:border-ring focus:outline-none"
             />
             {currentSrc && (
               <button
                 type="button"
                 onClick={() => onChangeProps({ src: '', url: '' })}
                 title="Clear image URL"
-                className="p-2 rounded-lg bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-400 hover:text-rose-400"
+                className="p-2 rounded-lg bg-muted/50 border border-border hover:bg-muted text-muted-foreground hover:text-destructive"
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
@@ -276,27 +276,27 @@ export function ContentControl({ node, onChangeProps }: ContentControlProps) {
 
         {/* Alt Text (SEO & Accessibility) */}
         <div className="space-y-1">
-          <label className="text-[11px] font-medium text-slate-400">Alt Text (Accessibility & SEO)</label>
+          <label className="text-[11px] font-medium text-muted-foreground">Alt Text (Accessibility & SEO)</label>
           <input
             type="text"
             value={currentAlt}
             onChange={(e) => onChangeProps({ alt: e.target.value })}
             placeholder="Describe image for search engines..."
-            className="w-full h-8 px-2.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-100 text-xs focus:border-indigo-500 focus:outline-none"
+            className="w-full h-8 px-2.5 rounded-lg bg-muted/50 border border-border text-foreground text-xs focus:border-ring focus:outline-none"
           />
         </div>
 
         {/* Object Fit */}
         <div className="space-y-1">
-          <label className="text-[11px] font-medium text-slate-400">Image Fit</label>
-          <div className="grid grid-cols-3 gap-1 h-8 rounded-lg bg-slate-900 p-0.5 border border-slate-800">
+          <label className="text-[11px] font-medium text-muted-foreground">Image Fit</label>
+          <div className="grid grid-cols-3 gap-1 h-8 rounded-lg bg-muted/50 p-0.5 border border-border">
             {['cover', 'contain', 'fill'].map((fit) => (
               <button
                 key={fit}
                 type="button"
                 onClick={() => onChangeProps({ objectFit: fit })}
                 className={`capitalize flex items-center justify-center rounded text-xs transition-colors ${
-                  objectFit === fit ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'
+                  objectFit === fit ? 'bg-primary text-primary-foreground shadow' : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 {fit}
@@ -306,11 +306,11 @@ export function ContentControl({ node, onChangeProps }: ContentControlProps) {
         </div>
 
         <div className="space-y-1">
-          <label className="text-[11px] font-medium text-slate-400">Object Position</label>
+          <label className="text-[11px] font-medium text-muted-foreground">Object Position</label>
           <select
             value={String(props.objectPosition || 'center')}
             onChange={(e) => onChangeProps({ objectPosition: e.target.value })}
-            className="w-full h-8 px-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-200 text-xs"
+            className="w-full h-8 px-2 rounded-lg bg-muted/50 border border-border text-foreground text-xs"
           >
             {['center', 'top', 'bottom', 'left', 'right', 'top left', 'top right', 'bottom left', 'bottom right'].map(
               (pos) => (
@@ -323,13 +323,13 @@ export function ContentControl({ node, onChangeProps }: ContentControlProps) {
         </div>
 
         <div className="space-y-1">
-          <label className="text-[11px] font-medium text-slate-400">Image Link</label>
+          <label className="text-[11px] font-medium text-muted-foreground">Image Link</label>
           <input
             type="text"
             value={String(props.href || '')}
             onChange={(e) => onChangeProps({ href: e.target.value })}
             placeholder="https:// or /page"
-            className="w-full h-8 px-2.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-100 text-xs focus:border-indigo-500 focus:outline-none"
+            className="w-full h-8 px-2.5 rounded-lg bg-muted/50 border border-border text-foreground text-xs focus:border-ring focus:outline-none"
           />
         </div>
       </div>
@@ -345,37 +345,37 @@ export function ContentControl({ node, onChangeProps }: ContentControlProps) {
     return (
       <div className="space-y-3 select-none text-xs">
         <div className="space-y-1">
-          <label className="text-[11px] font-medium text-slate-400">Button Name / Label</label>
+          <label className="text-[11px] font-medium text-muted-foreground">Button Name / Label</label>
           <input
             type="text"
             value={currentLabel}
             onChange={(e) => onChangeProps({ label: e.target.value, text: e.target.value })}
             placeholder="Click here"
-            className="w-full h-8 px-2.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-100 text-xs focus:border-indigo-500 focus:outline-none"
+            className="w-full h-8 px-2.5 rounded-lg bg-muted/50 border border-border text-foreground text-xs focus:border-ring focus:outline-none"
           />
         </div>
 
         <div className="space-y-1">
-          <label className="text-[11px] font-medium text-slate-400">Link Destination</label>
+          <label className="text-[11px] font-medium text-muted-foreground">Link Destination</label>
           <div className="flex items-center gap-1.5">
-            <Link className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+            <Link className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
             <input
               type="text"
               value={currentHref}
               onChange={(e) => onChangeProps({ href: e.target.value })}
               placeholder="https://... or #section"
-              className="flex-1 h-8 px-2.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-100 text-xs focus:border-indigo-500 focus:outline-none"
+              className="flex-1 h-8 px-2.5 rounded-lg bg-muted/50 border border-border text-foreground text-xs focus:border-ring focus:outline-none"
             />
           </div>
         </div>
 
         <div className="flex items-center justify-between pt-1">
-          <span className="text-[11px] text-slate-400">Open in New Tab</span>
+          <span className="text-[11px] text-muted-foreground">Open in New Tab</span>
           <button
             type="button"
             onClick={() => onChangeProps({ target: isNewTab ? '_self' : '_blank' })}
             className={`w-9 h-5 flex items-center rounded-full p-0.5 transition-colors ${
-              isNewTab ? 'bg-indigo-600 justify-end' : 'bg-slate-800 justify-start'
+              isNewTab ? 'bg-primary justify-end' : 'bg-muted justify-start'
             }`}
           >
             <div className="w-4 h-4 rounded-full bg-white shadow-md" />
@@ -394,36 +394,36 @@ export function ContentControl({ node, onChangeProps }: ContentControlProps) {
     return (
       <div className="space-y-3 select-none text-xs">
         <div className="space-y-1">
-          <label className="text-[11px] font-medium text-slate-400">Quote Text</label>
+          <label className="text-[11px] font-medium text-muted-foreground">Quote Text</label>
           <textarea
             rows={3}
             value={currentQuote}
             onChange={(e) => onChangeProps({ quote: e.target.value, text: e.target.value })}
             placeholder="Customer testimonial or quote..."
-            className="w-full px-2.5 py-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-100 text-xs focus:border-indigo-500 focus:outline-none resize-none leading-relaxed"
+            className="w-full px-2.5 py-2 rounded-lg bg-muted/50 border border-border text-foreground text-xs focus:border-ring focus:outline-none resize-none leading-relaxed"
           />
         </div>
 
         <div className="grid grid-cols-2 gap-2">
           <div className="space-y-1">
-            <label className="text-[11px] font-medium text-slate-400">Author</label>
+            <label className="text-[11px] font-medium text-muted-foreground">Author</label>
             <input
               type="text"
               value={currentAuthor}
               onChange={(e) => onChangeProps({ author: e.target.value })}
               placeholder="Full Name"
-              className="w-full h-8 px-2.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-100 text-xs focus:border-indigo-500 focus:outline-none"
+              className="w-full h-8 px-2.5 rounded-lg bg-muted/50 border border-border text-foreground text-xs focus:border-ring focus:outline-none"
             />
           </div>
 
           <div className="space-y-1">
-            <label className="text-[11px] font-medium text-slate-400">Role / Company</label>
+            <label className="text-[11px] font-medium text-muted-foreground">Role / Company</label>
             <input
               type="text"
               value={currentRole}
               onChange={(e) => onChangeProps({ role: e.target.value })}
               placeholder="CEO, Nomad & Silk"
-              className="w-full h-8 px-2.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-100 text-xs focus:border-indigo-500 focus:outline-none"
+              className="w-full h-8 px-2.5 rounded-lg bg-muted/50 border border-border text-foreground text-xs focus:border-ring focus:outline-none"
             />
           </div>
         </div>
@@ -437,34 +437,34 @@ export function ContentControl({ node, onChangeProps }: ContentControlProps) {
       <div className="space-y-3 select-none text-xs">
         <div className="grid grid-cols-2 gap-2">
           <div className="space-y-1">
-            <label className="text-[11px] font-medium text-slate-400">Plan Name</label>
+            <label className="text-[11px] font-medium text-muted-foreground">Plan Name</label>
             <input
               type="text"
             value={String(props.planName || props.plan || '')}
             onChange={(e) => onChangeProps({ planName: e.target.value, plan: e.target.value })}
               placeholder="Pro Studio"
-              className="w-full h-8 px-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-100 text-xs focus:border-indigo-500 focus:outline-none"
+              className="w-full h-8 px-2 rounded-lg bg-muted/50 border border-border text-foreground text-xs focus:border-ring focus:outline-none"
             />
           </div>
           <div className="space-y-1">
-            <label className="text-[11px] font-medium text-slate-400">Price</label>
+            <label className="text-[11px] font-medium text-muted-foreground">Price</label>
             <input
               type="text"
               value={String(props.price || '')}
               onChange={(e) => onChangeProps({ price: e.target.value })}
               placeholder="$99 / mo"
-              className="w-full h-8 px-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-100 text-xs focus:border-indigo-500 focus:outline-none"
+              className="w-full h-8 px-2 rounded-lg bg-muted/50 border border-border text-foreground text-xs focus:border-ring focus:outline-none"
             />
           </div>
         </div>
         <div className="space-y-1">
-          <label className="text-[11px] font-medium text-slate-400">Highlighted Feature</label>
+          <label className="text-[11px] font-medium text-muted-foreground">Highlighted Feature</label>
           <input
             type="text"
             value={String(props.feature || '')}
             onChange={(e) => onChangeProps({ feature: e.target.value })}
             placeholder="Unlimited access"
-            className="w-full h-8 px-2.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-100 text-xs focus:border-indigo-500 focus:outline-none"
+            className="w-full h-8 px-2.5 rounded-lg bg-muted/50 border border-border text-foreground text-xs focus:border-ring focus:outline-none"
           />
         </div>
       </div>
@@ -476,13 +476,13 @@ export function ContentControl({ node, onChangeProps }: ContentControlProps) {
     return (
       <div className="space-y-3 select-none text-xs">
         <div className="space-y-1">
-          <label className="text-[11px] font-medium text-slate-400">Subheading / Badge Text</label>
+          <label className="text-[11px] font-medium text-muted-foreground">Subheading / Badge Text</label>
           <textarea
             rows={2}
             value={String(props.text || '')}
             onChange={(e) => onChangeProps({ text: e.target.value })}
             placeholder="e.g. Global Offices, Practice Areas, Our Leadership"
-            className="w-full px-2.5 py-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-100 text-xs focus:border-indigo-500 focus:outline-none resize-none leading-relaxed"
+            className="w-full px-2.5 py-2 rounded-lg bg-muted/50 border border-border text-foreground text-xs focus:border-ring focus:outline-none resize-none leading-relaxed"
           />
         </div>
       </div>
@@ -514,11 +514,11 @@ export function ContentControl({ node, onChangeProps }: ContentControlProps) {
     return (
       <div className="space-y-3 select-none text-xs">
         <div className="flex items-center justify-between">
-          <label className="text-[11px] font-medium text-slate-400">List Items</label>
+          <label className="text-[11px] font-medium text-muted-foreground">List Items</label>
           <button
             type="button"
             onClick={handleAddItem}
-            className="flex items-center gap-1 text-[11px] text-indigo-400 hover:text-indigo-300 font-medium"
+            className="flex items-center gap-1 text-[11px] text-primary hover:text-primary font-medium"
           >
             <Plus className="w-3 h-3" />
             <span>Add Item</span>
@@ -528,19 +528,19 @@ export function ContentControl({ node, onChangeProps }: ContentControlProps) {
         <div className="space-y-2">
           {currentItems.map((item, idx) => (
             <div key={idx} className="flex items-center gap-1.5">
-              <span className="w-4 text-center text-[10px] text-slate-500 font-mono">{idx + 1}</span>
+              <span className="w-4 text-center text-[10px] text-muted-foreground font-mono">{idx + 1}</span>
               <input
                 type="text"
                 value={item}
                 onChange={(e) => handleUpdateItem(idx, e.target.value)}
                 placeholder="Enter list item..."
-                className="flex-1 h-8 px-2.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-100 text-xs focus:border-indigo-500 focus:outline-none"
+                className="flex-1 h-8 px-2.5 rounded-lg bg-muted/50 border border-border text-foreground text-xs focus:border-ring focus:outline-none"
               />
               <button
                 type="button"
                 onClick={() => handleRemoveItem(idx)}
                 title="Remove item"
-                className="p-1.5 rounded-lg bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-500 hover:text-rose-400"
+                className="p-1.5 rounded-lg bg-muted/50 border border-border hover:bg-muted text-muted-foreground hover:text-destructive"
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
@@ -548,9 +548,9 @@ export function ContentControl({ node, onChangeProps }: ContentControlProps) {
           ))}
         </div>
 
-        <div className="space-y-1 pt-1 border-t border-slate-800/60">
-          <label className="text-[11px] font-medium text-slate-400">List Marker Style</label>
-          <div className="grid grid-cols-3 gap-1 h-8 rounded-lg bg-slate-900 p-0.5 border border-slate-800">
+        <div className="space-y-1 pt-1 border-t border-border">
+          <label className="text-[11px] font-medium text-muted-foreground">List Marker Style</label>
+          <div className="grid grid-cols-3 gap-1 h-8 rounded-lg bg-muted/50 p-0.5 border border-border">
             {[
               { id: 'bullet', label: 'Bulleted' },
               { id: 'check', label: 'Checkmarks' },
@@ -561,7 +561,7 @@ export function ContentControl({ node, onChangeProps }: ContentControlProps) {
                 type="button"
                 onClick={() => onChangeProps({ listStyle: st.id })}
                 className={`flex items-center justify-center rounded text-xs transition-colors ${
-                  listStyle === st.id ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'
+                  listStyle === st.id ? 'bg-primary text-primary-foreground shadow' : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 {st.label}
@@ -605,68 +605,68 @@ export function ContentControl({ node, onChangeProps }: ContentControlProps) {
     return (
       <div className="space-y-3.5 select-none text-xs">
         <div className="space-y-1">
-          <label className="text-[11px] font-medium text-slate-400">Brand Name</label>
+          <label className="text-[11px] font-medium text-muted-foreground">Brand Name</label>
           <input
             type="text"
             value={currentBrand}
             onChange={(e) => onChangeProps({ brandName: e.target.value })}
             placeholder="Brand Name"
-            className="w-full h-8 px-2.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-100 text-xs focus:border-indigo-500 focus:outline-none"
+            className="w-full h-8 px-2.5 rounded-lg bg-muted/50 border border-border text-foreground text-xs focus:border-ring focus:outline-none"
           />
         </div>
 
-        <label className="flex items-center justify-between text-[11px] text-slate-400">
+        <label className="flex items-center justify-between text-[11px] text-muted-foreground">
           <span>Sticky header</span>
           <input
             type="checkbox"
             checked={props.sticky !== false}
             onChange={(e) => onChangeProps({ sticky: e.target.checked })}
-            className="accent-indigo-500"
+            className="accent-primary"
           />
         </label>
 
-        <label className="flex items-center justify-between text-[11px] text-slate-400">
+        <label className="flex items-center justify-between text-[11px] text-muted-foreground">
           <span>Use site navigation</span>
           <input
             type="checkbox"
             checked={props.useSiteNavigation !== false}
             onChange={(e) => onChangeProps({ useSiteNavigation: e.target.checked })}
-            className="accent-indigo-500"
+            className="accent-primary"
           />
         </label>
 
         {/* CTA Button */}
-        <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-800/60">
+        <div className="grid grid-cols-2 gap-2 pt-1 border-t border-border">
           <div className="space-y-1">
-            <label className="text-[11px] font-medium text-slate-400">CTA Button Name</label>
+            <label className="text-[11px] font-medium text-muted-foreground">CTA Button Name</label>
             <input
               type="text"
               value={currentCta}
               onChange={(e) => onChangeProps({ ctaText: e.target.value })}
               placeholder="Client Portal"
-              className="w-full h-8 px-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-100 text-xs focus:border-indigo-500 focus:outline-none"
+              className="w-full h-8 px-2 rounded-lg bg-muted/50 border border-border text-foreground text-xs focus:border-ring focus:outline-none"
             />
           </div>
           <div className="space-y-1">
-            <label className="text-[11px] font-medium text-slate-400">CTA Destination URL</label>
+            <label className="text-[11px] font-medium text-muted-foreground">CTA Destination URL</label>
             <input
               type="text"
               value={currentCtaHref}
               onChange={(e) => onChangeProps({ ctaHref: e.target.value })}
               placeholder="#contact"
-              className="w-full h-8 px-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-100 text-xs focus:border-indigo-500 focus:outline-none"
+              className="w-full h-8 px-2 rounded-lg bg-muted/50 border border-border text-foreground text-xs focus:border-ring focus:outline-none"
             />
           </div>
         </div>
 
         {/* Menu Navigation Links */}
-        <div className="space-y-2 pt-1 border-t border-slate-800/60">
+        <div className="space-y-2 pt-1 border-t border-border">
           <div className="flex items-center justify-between">
-            <label className="text-[11px] font-medium text-slate-400">Navbar Menu Links</label>
+            <label className="text-[11px] font-medium text-muted-foreground">Navbar Menu Links</label>
             <button
               type="button"
               onClick={handleAddLink}
-              className="flex items-center gap-1 text-[11px] text-indigo-400 hover:text-indigo-300 font-medium"
+              className="flex items-center gap-1 text-[11px] text-primary hover:text-primary font-medium"
             >
               <Plus className="w-3 h-3" />
               <span>Add Link</span>
@@ -675,20 +675,20 @@ export function ContentControl({ node, onChangeProps }: ContentControlProps) {
 
           <div className="space-y-2">
             {currentLinks.map((link, idx) => (
-              <div key={idx} className="p-2 rounded-xl bg-slate-900/80 border border-slate-800 space-y-1.5">
+              <div key={idx} className="p-2 rounded-xl bg-muted/50 border border-border space-y-1.5">
                 <div className="flex items-center gap-1.5">
                   <input
                     type="text"
                     value={link.label || ''}
                     onChange={(e) => handleUpdateLink(idx, { label: e.target.value })}
                     placeholder="Link Name"
-                    className="flex-1 h-7 px-2 rounded-lg bg-slate-950 border border-slate-800 text-slate-200 text-xs focus:border-indigo-500 focus:outline-none"
+                    className="flex-1 h-7 px-2 rounded-lg bg-background border border-border text-foreground text-xs focus:border-ring focus:outline-none"
                   />
                   <button
                     type="button"
                     onClick={() => handleRemoveLink(idx)}
                     title="Delete link"
-                    className="p-1 rounded bg-slate-950 border border-slate-800 hover:bg-rose-950/40 text-slate-500 hover:text-rose-400"
+                    className="p-1 rounded bg-background border border-border hover:bg-rose-950/40 text-muted-foreground hover:text-destructive"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -698,7 +698,7 @@ export function ContentControl({ node, onChangeProps }: ContentControlProps) {
                   value={link.href || ''}
                   onChange={(e) => handleUpdateLink(idx, { href: e.target.value })}
                   placeholder="URL (e.g. #about)"
-                  className="w-full h-7 px-2 rounded-lg bg-slate-950 border border-slate-800 text-slate-400 text-xs focus:border-indigo-500 focus:outline-none"
+                  className="w-full h-7 px-2 rounded-lg bg-background border border-border text-muted-foreground text-xs focus:border-ring focus:outline-none"
                 />
               </div>
             ))}
@@ -738,24 +738,24 @@ export function ContentControl({ node, onChangeProps }: ContentControlProps) {
     return (
       <div className="space-y-3.5 select-none text-xs">
         <div className="space-y-1">
-          <label className="text-[11px] font-medium text-slate-400">Copyright Text</label>
+          <label className="text-[11px] font-medium text-muted-foreground">Copyright Text</label>
           <input
             type="text"
             value={currentCopyright}
             onChange={(e) => onChangeProps({ copyright: e.target.value })}
             placeholder="© 2026 Company Name. All rights reserved."
-            className="w-full h-8 px-2.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-100 text-xs focus:border-indigo-500 focus:outline-none"
+            className="w-full h-8 px-2.5 rounded-lg bg-muted/50 border border-border text-foreground text-xs focus:border-ring focus:outline-none"
           />
         </div>
 
         {/* Footer Navigation Links */}
-        <div className="space-y-2 pt-1 border-t border-slate-800/60">
+        <div className="space-y-2 pt-1 border-t border-border">
           <div className="flex items-center justify-between">
-            <label className="text-[11px] font-medium text-slate-400">Footer Links</label>
+            <label className="text-[11px] font-medium text-muted-foreground">Footer Links</label>
             <button
               type="button"
               onClick={handleAddLink}
-              className="flex items-center gap-1 text-[11px] text-indigo-400 hover:text-indigo-300 font-medium"
+              className="flex items-center gap-1 text-[11px] text-primary hover:text-primary font-medium"
             >
               <Plus className="w-3 h-3" />
               <span>Add Link</span>
@@ -764,20 +764,20 @@ export function ContentControl({ node, onChangeProps }: ContentControlProps) {
 
           <div className="space-y-2">
             {currentLinks.map((link, idx) => (
-              <div key={idx} className="p-2 rounded-xl bg-slate-900/80 border border-slate-800 space-y-1.5">
+              <div key={idx} className="p-2 rounded-xl bg-muted/50 border border-border space-y-1.5">
                 <div className="flex items-center gap-1.5">
                   <input
                     type="text"
                     value={link.label || ''}
                     onChange={(e) => handleUpdateLink(idx, { label: e.target.value })}
                     placeholder="Link name (e.g. Privacy)"
-                    className="flex-1 h-7 px-2 rounded-lg bg-slate-950 border border-slate-800 text-slate-200 text-xs focus:border-indigo-500 focus:outline-none"
+                    className="flex-1 h-7 px-2 rounded-lg bg-background border border-border text-foreground text-xs focus:border-ring focus:outline-none"
                   />
                   <button
                     type="button"
                     onClick={() => handleRemoveLink(idx)}
                     title="Delete link"
-                    className="p-1 rounded bg-slate-950 border border-slate-800 hover:bg-rose-950/40 text-slate-500 hover:text-rose-400"
+                    className="p-1 rounded bg-background border border-border hover:bg-rose-950/40 text-muted-foreground hover:text-destructive"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -787,7 +787,7 @@ export function ContentControl({ node, onChangeProps }: ContentControlProps) {
                   value={link.href || ''}
                   onChange={(e) => handleUpdateLink(idx, { href: e.target.value })}
                   placeholder="URL or anchor (e.g. #privacy)"
-                  className="w-full h-7 px-2 rounded-lg bg-slate-950 border border-slate-800 text-slate-400 text-xs focus:border-indigo-500 focus:outline-none"
+                  className="w-full h-7 px-2 rounded-lg bg-background border border-border text-muted-foreground text-xs focus:border-ring focus:outline-none"
                 />
               </div>
             ))}
@@ -823,14 +823,14 @@ export function ContentControl({ node, onChangeProps }: ContentControlProps) {
             onChange={(e) => onChangeProps({ variant: e.target.value })}
             className="h-8 w-full rounded-lg border border-input bg-background px-2.5 text-xs"
           >
-            <option value="stacked">Stacked</option>
-            <option value="compact">Compact</option>
-            <option value="inline">Inline</option>
-            <option value="two-column">Two column</option>
-            <option value="card">Card</option>
+            <option value="stacked">Simple</option>
+            <option value="compact">Contact information</option>
+            <option value="inline">Full width</option>
+            <option value="two-column">Split</option>
+            <option value="card">Image</option>
             <option value="minimal">Minimal</option>
-            <option value="bordered">Bordered</option>
-            <option value="pill">Rounded</option>
+            <option value="bordered">Business</option>
+            <option value="pill">Centered</option>
           </select>
         </div>
         <div className="space-y-1">
@@ -875,13 +875,13 @@ export function ContentControl({ node, onChangeProps }: ContentControlProps) {
     return (
       <div className="space-y-3 select-none text-xs">
         <div className="space-y-1">
-          <label className="text-[11px] font-medium text-slate-400">Video URL</label>
+          <label className="text-[11px] font-medium text-muted-foreground">Video URL</label>
           <input
             type="text"
             value={String(props.url || props.src || '')}
             onChange={(e) => onChangeProps({ url: e.target.value, src: e.target.value })}
             placeholder="https://www.youtube.com/watch?v=..."
-            className="w-full h-8 px-2.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-100 text-xs focus:border-indigo-500 focus:outline-none"
+            className="w-full h-8 px-2.5 rounded-lg bg-muted/50 border border-border text-foreground text-xs focus:border-ring focus:outline-none"
           />
         </div>
       </div>
@@ -892,23 +892,23 @@ export function ContentControl({ node, onChangeProps }: ContentControlProps) {
   if (node.type === 'section') {
     return (
       <div className="space-y-3 text-xs">
-        <label className="flex items-center justify-between text-[11px] text-slate-400">
+        <label className="flex items-center justify-between text-[11px] text-muted-foreground">
           <span>Full-width section</span>
           <input
             type="checkbox"
             checked={props.fullWidth !== false}
             onChange={(e) => onChangeProps({ fullWidth: e.target.checked })}
-            className="accent-indigo-500"
+            className="accent-primary"
           />
         </label>
         <div className="space-y-1">
-          <label className="text-[11px] font-medium text-slate-400">Anchor ID</label>
+          <label className="text-[11px] font-medium text-muted-foreground">Anchor ID</label>
           <input
             type="text"
             value={String(props.anchorId || '')}
             onChange={(e) => onChangeProps({ anchorId: e.target.value })}
             placeholder="features"
-            className="w-full h-8 px-2.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-100 text-xs"
+            className="w-full h-8 px-2.5 rounded-lg bg-muted/50 border border-border text-foreground text-xs"
           />
         </div>
       </div>
@@ -916,7 +916,7 @@ export function ContentControl({ node, onChangeProps }: ContentControlProps) {
   }
 
   return (
-    <div className="p-3 text-center text-slate-500 text-xs">
+    <div className="p-3 text-center text-muted-foreground text-xs">
       <p>Configure appearance in Layout and Spacing below.</p>
     </div>
   );

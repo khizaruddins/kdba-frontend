@@ -2,6 +2,8 @@
 
 import * as React from 'react';
 import { useV3EditorStore } from '@/stores/v3-editor-store';
+import { generateNodeId } from '@/lib/document/v3-operations';
+import { navItemsFromPages } from '@/lib/editor/global-chrome';
 import {
   Plus,
   X,
@@ -29,16 +31,57 @@ export function PagesPanel() {
   const setHomePage = useV3EditorStore((s) => s.setHomePage);
   const reorderPages = useV3EditorStore((s) => s.reorderPages);
   const setPreviewMode = useV3EditorStore((s) => s.setPreviewMode);
+  const updateNavigation = useV3EditorStore((s) => s.updateNavigation);
 
   const [newPageTitle, setNewPageTitle] = React.useState('');
   const [newPageSlug, setNewPageSlug] = React.useState('');
   const [isAdding, setIsAdding] = React.useState(false);
   const [renamingId, setRenamingId] = React.useState<string | null>(null);
+  const [configuringId, setConfiguringId] = React.useState<string | null>(null);
+  const [cmsCollections, setCmsCollections] = React.useState<Array<{ slug: string; name: string }>>(
+    [],
+  );
+
+  React.useEffect(() => {
+    if (!websiteId) return;
+    void import('@/lib/api/cms').then(({ cmsApi }) =>
+      cmsApi
+        .bootstrap(websiteId)
+        .then(() => cmsApi.listCollections(websiteId))
+        .then((list) => setCmsCollections(list.map((item) => ({ slug: item.slug, name: item.name }))))
+        .catch(() => setCmsCollections([])),
+    );
+  }, [websiteId]);
 
   if (!document) return null;
 
   const pages = [...document.pages].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
   const liveSlug = document.settings?.subdomain || document.site?.id || websiteId;
+  const explicitNav = Array.isArray(document.navigation?.header);
+  const navItems = explicitNav ? document.navigation!.header : navItemsFromPages(document);
+
+  const isHiddenFromNav = (pageId: string) => !navItems.some((item) => item.pageId === pageId);
+
+  const toggleHideFromNav = (pageId: string, title: string, slug: string) => {
+    const current = explicitNav ? [...document.navigation!.header] : navItemsFromPages(document);
+    const hidden = !current.some((item) => item.pageId === pageId);
+    if (hidden) {
+      updateNavigation({
+        header: [
+          ...current,
+          {
+            id: generateNodeId('nav'),
+            label: title,
+            href: slug || '/',
+            pageId,
+            target: '_self',
+          },
+        ],
+      });
+      return;
+    }
+    updateNavigation({ header: current.filter((item) => item.pageId !== pageId) });
+  };
 
   const handleCreatePage = (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,17 +103,17 @@ export function PagesPanel() {
   };
 
   return (
-    <div className="w-80 shrink-0 border-r border-slate-800/80 bg-slate-950/95 flex flex-col h-full overflow-hidden select-none z-20">
-      <div className="flex items-center justify-between p-4 border-b border-slate-800/80">
+    <div className="flex h-full w-full min-w-0 shrink-0 flex-col overflow-hidden border-r border-border bg-card z-20 select-none">
+      <div className="flex items-center justify-between p-4 border-b border-border">
         <div className="flex items-center gap-2">
-          <FileText className="w-4 h-4 text-indigo-400" />
-          <h3 className="font-bold text-sm text-white tracking-tight">Pages</h3>
+          <FileText className="w-4 h-4 text-primary" />
+          <h3 className="font-bold text-sm text-foreground tracking-tight">Pages</h3>
         </div>
         <div className="flex items-center gap-1">
           <button
             type="button"
             onClick={() => setIsAdding(!isAdding)}
-            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
+            className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted"
             title="Add Page"
             aria-label="Add page"
           >
@@ -79,7 +122,7 @@ export function PagesPanel() {
           <button
             type="button"
             onClick={() => setActiveNavTab(null)}
-            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
+            className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted"
             aria-label="Close pages panel"
           >
             <X className="w-4 h-4" />
@@ -88,13 +131,13 @@ export function PagesPanel() {
       </div>
 
       {isAdding && (
-        <form onSubmit={handleCreatePage} className="p-3 bg-slate-900 border-b border-slate-800 space-y-2">
+        <form onSubmit={handleCreatePage} className="p-3 bg-muted/50 border-b border-border space-y-2">
           <input
             type="text"
             placeholder="Page Title (e.g. Services)"
             value={newPageTitle}
             onChange={(e) => setNewPageTitle(e.target.value)}
-            className="w-full h-8 px-2.5 rounded-lg bg-slate-950 border border-slate-800 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+            className="w-full h-8 px-2.5 rounded-lg bg-background border border-border text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-ring"
             autoFocus
           />
           <input
@@ -102,13 +145,13 @@ export function PagesPanel() {
             placeholder="Slug (e.g. /services)"
             value={newPageSlug}
             onChange={(e) => setNewPageSlug(e.target.value)}
-            className="w-full h-8 px-2.5 rounded-lg bg-slate-950 border border-slate-800 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+            className="w-full h-8 px-2.5 rounded-lg bg-background border border-border text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-ring"
           />
           <div className="flex gap-2 justify-end pt-1">
-            <button type="button" onClick={() => setIsAdding(false)} className="px-2.5 py-1 text-xs text-slate-400 hover:text-white">
+            <button type="button" onClick={() => setIsAdding(false)} className="px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground">
               Cancel
             </button>
-            <button type="submit" className="px-3 py-1 text-xs font-semibold rounded-md bg-indigo-600 hover:bg-indigo-500 text-white">
+            <button type="submit" className="px-3 py-1 text-xs font-semibold rounded-md bg-primary hover:bg-primary/90 text-primary-foreground">
               Create Page
             </button>
           </div>
@@ -123,7 +166,7 @@ export function PagesPanel() {
             <div
               key={page.id}
               className={`group rounded-xl border px-2 py-1.5 ${
-                isActive ? 'bg-indigo-600/20 border-indigo-500/40' : 'border-transparent hover:bg-slate-900'
+                isActive ? 'bg-primary/10 border-primary/40' : 'border-transparent hover:bg-muted'
               }`}
             >
               <div className="flex items-center gap-1">
@@ -145,41 +188,49 @@ export function PagesPanel() {
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
                       }}
-                      className="w-full h-6 px-1 rounded bg-slate-950 border border-slate-700 text-xs text-white"
+                      className="w-full h-6 px-1 rounded bg-background border border-border text-xs text-foreground"
                     />
                   ) : (
-                    <div className="flex items-center gap-1.5 truncate text-xs text-slate-200">
-                      {isHome && <Home className="w-3 h-3 text-amber-300 shrink-0" />}
+                    <div className="flex items-center gap-1.5 truncate text-xs text-foreground">
+                      {isHome && <Home className="w-3 h-3 text-warning shrink-0" />}
                       <span className="truncate font-medium">{page.title}</span>
-                      <span className="text-[10px] font-mono text-slate-500">{page.slug}</span>
+                      <span className="text-[10px] font-mono text-muted-foreground">{page.slug}</span>
                     </div>
                   )}
                 </button>
-                {page.enabled === false && <EyeOff className="w-3 h-3 text-slate-500" />}
+                {isHiddenFromNav(page.id) && <EyeOff className="w-3 h-3 text-muted-foreground" />}
               </div>
               <div className="flex items-center gap-0.5 mt-1 opacity-0 group-hover:opacity-100">
-                <button type="button" title="Rename" onClick={() => setRenamingId(page.id)} className="p-1 text-slate-400 hover:text-white text-[10px]">
+                <button type="button" title="Rename" onClick={() => setRenamingId(page.id)} className="p-1 text-muted-foreground hover:text-foreground text-[10px]">
                   Rename
                 </button>
-                <button type="button" title="Duplicate page" aria-label="Duplicate page" onClick={() => duplicatePage(page.id)} className="p-1 text-slate-400 hover:text-white">
+                <button
+                  type="button"
+                  title="Content settings"
+                  onClick={() => setConfiguringId(configuringId === page.id ? null : page.id)}
+                  className="p-1 text-muted-foreground hover:text-foreground text-[10px]"
+                >
+                  Content
+                </button>
+                <button type="button" title="Duplicate page" aria-label="Duplicate page" onClick={() => duplicatePage(page.id)} className="p-1 text-muted-foreground hover:text-foreground">
                   <Copy className="w-3 h-3" />
                 </button>
-                <button type="button" title="Set homepage" aria-label="Set homepage" onClick={() => setHomePage(page.id)} className="p-1 text-slate-400 hover:text-amber-300">
+                <button type="button" title="Set homepage" aria-label="Set homepage" onClick={() => setHomePage(page.id)} className="p-1 text-muted-foreground hover:text-warning">
                   <Home className="w-3 h-3" />
                 </button>
                 <button
                   type="button"
-                  title={page.enabled === false ? 'Show page' : 'Hide page'}
-                  aria-label={page.enabled === false ? 'Show page' : 'Hide page'}
-                  onClick={() => updatePage(page.id, { enabled: page.enabled === false })}
-                  className="p-1 text-slate-400 hover:text-white"
+                  title={isHiddenFromNav(page.id) ? 'Show in navigation' : 'Hide from navigation'}
+                  aria-label={isHiddenFromNav(page.id) ? 'Show in navigation' : 'Hide from navigation'}
+                  onClick={() => toggleHideFromNav(page.id, page.title, page.slug)}
+                  className="p-1 text-muted-foreground hover:text-foreground"
                 >
-                  {page.enabled === false ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+                  {isHiddenFromNav(page.id) ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
                 </button>
-                <button type="button" title="Move up" aria-label="Move page up" onClick={() => movePage(index, -1)} className="p-1 text-slate-400 hover:text-white">
+                <button type="button" title="Move up" aria-label="Move page up" onClick={() => movePage(index, -1)} className="p-1 text-muted-foreground hover:text-foreground">
                   <ChevronUp className="w-3 h-3" />
                 </button>
-                <button type="button" title="Move down" aria-label="Move page down" onClick={() => movePage(index, 1)} className="p-1 text-slate-400 hover:text-white">
+                <button type="button" title="Move down" aria-label="Move page down" onClick={() => movePage(index, 1)} className="p-1 text-muted-foreground hover:text-foreground">
                   <ChevronDown className="w-3 h-3" />
                 </button>
                 <button
@@ -190,7 +241,7 @@ export function PagesPanel() {
                     setActivePageId(page.id);
                     setPreviewMode(true);
                   }}
-                  className="p-1 text-slate-400 hover:text-white"
+                  className="p-1 text-muted-foreground hover:text-foreground"
                 >
                   <Eye className="w-3 h-3" />
                 </button>
@@ -199,7 +250,7 @@ export function PagesPanel() {
                   target="_blank"
                   rel="noreferrer"
                   title="Open published page"
-                  className="p-1 text-slate-400 hover:text-white"
+                  className="p-1 text-muted-foreground hover:text-foreground"
                 >
                   <ExternalLink className="w-3 h-3" />
                 </a>
@@ -209,12 +260,76 @@ export function PagesPanel() {
                     title="Delete page"
                     aria-label="Delete page"
                     onClick={() => removePage(page.id)}
-                    className="p-1 text-slate-400 hover:text-rose-400"
+                    className="p-1 text-muted-foreground hover:text-destructive"
                   >
                     <Trash2 className="w-3 h-3" />
                   </button>
                 )}
               </div>
+              {configuringId === page.id ? (
+                <div className="mt-2 space-y-2 rounded-lg border border-border bg-background p-2">
+                  <label className="block space-y-1">
+                    <span className="text-[10px] font-medium text-muted-foreground">Page type</span>
+                    <select
+                      className="h-7 w-full rounded-md border border-border bg-background px-2 text-xs"
+                      value={page.kind || 'static'}
+                      onChange={(e) => {
+                        const kind = e.target.value as 'static' | 'collection-index' | 'collection-item';
+                        if (kind === 'static') {
+                          updatePage(page.id, { kind: 'static', collection: undefined });
+                          return;
+                        }
+                        const collectionSlug = page.collection?.slug || cmsCollections[0]?.slug || 'services';
+                        updatePage(page.id, {
+                          kind,
+                          collection: { slug: collectionSlug, itemParam: 'slug' },
+                          slug:
+                            kind === 'collection-item'
+                              ? page.slug.includes(':slug')
+                                ? page.slug
+                                : `${page.slug === '/' ? '/item' : page.slug.replace(/\/$/, '')}/:slug`
+                              : page.slug.replace(/\/:slug$/, '') || page.slug,
+                        });
+                      }}
+                    >
+                      <option value="static">Static page</option>
+                      <option value="collection-index">Collection list page</option>
+                      <option value="collection-item">Collection detail page</option>
+                    </select>
+                  </label>
+                  {(page.kind === 'collection-index' || page.kind === 'collection-item') && (
+                    <label className="block space-y-1">
+                      <span className="text-[10px] font-medium text-muted-foreground">
+                        Linked collection
+                      </span>
+                      <select
+                        className="h-7 w-full rounded-md border border-border bg-background px-2 text-xs"
+                        value={page.collection?.slug || ''}
+                        onChange={(e) =>
+                          updatePage(page.id, {
+                            collection: { slug: e.target.value, itemParam: 'slug' },
+                          })
+                        }
+                      >
+                        <option value="" disabled>
+                          Choose collection
+                        </option>
+                        {cmsCollections.map((collection) => (
+                          <option key={collection.slug} value={collection.slug}>
+                            {collection.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
+                  {page.kind === 'collection-item' ? (
+                    <p className="text-[10px] text-muted-foreground">
+                      Detail pages use a path like <code>/services/:slug</code> and bind fields to the
+                      current record.
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           );
         })}

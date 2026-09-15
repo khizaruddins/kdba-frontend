@@ -107,12 +107,10 @@ export default function WebsiteEditorPage() {
 
   if (authLoading || isLoading) {
     return (
-      <div className="flex h-screen w-screen items-center justify-center bg-[#0B0D13] text-slate-400 select-none">
+      <div className="flex h-svh w-full items-center justify-center bg-background text-muted-foreground">
         <div className="flex flex-col items-center gap-3">
-          <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
-          <p className="text-xs font-semibold tracking-wide text-slate-300">
-            Loading Visual Website Builder...
-          </p>
+          <Loader2 className="size-6 animate-spin text-primary" />
+          <p className="text-sm">Loading visual builder…</p>
         </div>
       </div>
     );
@@ -120,26 +118,21 @@ export default function WebsiteEditorPage() {
 
   if (error || !document) {
     return (
-      <div className="flex h-screen w-screen items-center justify-center bg-[#0B0D13] p-6 text-slate-100 select-none">
-        <div className="max-w-md w-full rounded-2xl border border-slate-800 bg-slate-900/80 p-8 text-center shadow-2xl backdrop-blur-xl">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-500/10 text-rose-400 border border-rose-500/20">
-            <Rocket className="h-7 w-7 rotate-180" />
+      <div className="flex h-svh w-full items-center justify-center bg-background p-6">
+        <div className="w-full max-w-md rounded-xl border bg-card p-8 text-center shadow-sm">
+          <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-lg bg-destructive/10 text-destructive">
+            <Rocket className="size-6 rotate-180" />
           </div>
-          <h2 className="text-xl font-bold text-white">Website Not Found</h2>
-          <p className="mt-2 text-xs text-slate-400 leading-relaxed">
+          <h2 className="text-lg font-semibold">Website not found</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
             {error || 'Unable to find or load the requested website in your workspace.'}
           </p>
-          <div className="mt-6 flex flex-col gap-2.5">
-            <Button onClick={() => loadWebsiteData()} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white" size="sm">
-              Retry Loading
+          <div className="mt-6 flex flex-col gap-2">
+            <Button onClick={() => loadWebsiteData()} className="w-full" size="sm">
+              Retry loading
             </Button>
-            <Button
-              variant="outline"
-              onClick={() => router.push('/websites')}
-              className="w-full border-slate-800 text-slate-300"
-              size="sm"
-            >
-              Back to My Websites
+            <Button variant="outline" onClick={() => router.push('/websites')} className="w-full" size="sm">
+              Back to websites
             </Button>
           </div>
         </div>

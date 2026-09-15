@@ -309,6 +309,16 @@ export interface PublicWebsiteResponse {
   pricingPlans: PricingPlan[];
   publishedDocument?: import('./v3-document').WebsiteDocumentV3;
   document?: import('./v3-document').WebsiteDocumentV3;
+  cms?: {
+    collections: Array<{
+      id: string;
+      slug: string;
+      name: string;
+      records: import('./cms').CmsRecord[];
+      fields?: Array<{ id: string; name: string; type: string }>;
+      media?: Record<string, { url: string; altText?: string | null; mimeType?: string | null }>;
+    }>;
+  };
   isBlocked?: boolean;
   tenantStatus?: string;
   blockedReason?: string;

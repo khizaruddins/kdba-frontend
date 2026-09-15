@@ -6,6 +6,8 @@ import { PageRenderer } from './PageRenderer';
 import { V3WebsiteRenderer } from './v3/V3WebsiteRenderer';
 import { WebsiteDocument, Product, PricingPlan } from '@/types';
 import { WebsiteDocumentV3 } from '@/types/v3-document';
+import { CmsRenderPayload } from '@/lib/cms/bindings';
+import { CmsRecord } from '@/types/cms';
 
 export interface WebsiteRendererProps {
   document: WebsiteDocument | WebsiteDocumentV3 | Record<string, any>;
@@ -20,6 +22,8 @@ export interface WebsiteRendererProps {
   className?: string;
   style?: React.CSSProperties;
   tenantSlug?: string | null;
+  cms?: CmsRenderPayload | null;
+  activeRecord?: CmsRecord | null;
 }
 
 export function WebsiteRenderer({
@@ -35,6 +39,8 @@ export function WebsiteRenderer({
   className = '',
   style = {},
   tenantSlug,
+  cms = null,
+  activeRecord = null,
 }: WebsiteRendererProps) {
   const [internalPageSlug, setInternalPageSlug] = React.useState<string>('/');
 
@@ -59,6 +65,8 @@ export function WebsiteRenderer({
         className={className}
         style={style}
         tenantSlug={tenantSlug || docAny?.settings?.subdomain || docAny?.slug || null}
+        cms={cms}
+        activeRecord={activeRecord}
       />
     );
   }
