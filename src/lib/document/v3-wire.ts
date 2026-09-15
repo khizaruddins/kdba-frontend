@@ -10,6 +10,7 @@ import {
 } from '@/types/v3-document';
 import { DEFAULT_THEME_LAYOUT_TOKENS } from '@/lib/editor/theme-tokens';
 import { COMPONENT_MANIFEST } from '@/lib/editor/component-manifest';
+import { STATES_PROP } from '@/lib/editor/rich-text';
 
 export const WIRE_NODE_TYPES = [
   'page-root',
@@ -33,6 +34,7 @@ export const WIRE_NODE_TYPES = [
 export type WireNodeType = (typeof WIRE_NODE_TYPES)[number];
 export const EDITOR_TYPE_PROP = 'kdbaEditorType';
 export const GRADIENT_PROP = 'kdbaGradient';
+export const WIRE_WRAP_PROP = 'kdbaWireWrap';
 
 const WIRE_TYPE_SET = new Set<string>(WIRE_NODE_TYPES);
 const EDITOR_TYPE_SET = new Set<string>(ALL_NODE_TYPES);
@@ -112,7 +114,6 @@ const WIRE_CHILDREN: Record<string, readonly string[]> = {
     'container',
     'row',
     'column',
-    'grid',
     'stack',
     'heading',
     'paragraph',
@@ -351,7 +352,13 @@ function toEditorStyles(styles: unknown): StyleDefinition {
       bottom: px(layoutIn.bottom),
       left: px(layoutIn.left),
       zIndex: typeof layoutIn.zIndex === 'number' ? layoutIn.zIndex : undefined,
-      overflow: layoutIn.overflow as NonNullable<StyleDefinition['layout']>['overflow'],
+      overflow:
+        layoutIn.overflow === 'visible' ||
+        layoutIn.overflow === 'hidden' ||
+        layoutIn.overflow === 'scroll' ||
+        layoutIn.overflow === 'auto'
+          ? layoutIn.overflow
+          : undefined,
     },
     flex: {
       direction: ((flexIn.direction || layoutIn.direction) as NonNullable<StyleDefinition['flex']>['direction']) || undefined,
@@ -376,6 +383,13 @@ function toEditorStyles(styles: unknown): StyleDefinition {
       gridTemplateColumns: typeof gridIn.gridTemplateColumns === 'string' ? gridIn.gridTemplateColumns : undefined,
       columnGap: px(gridIn.columnGap ?? layoutIn.columnGap),
       rowGap: px(gridIn.rowGap ?? layoutIn.rowGap),
+      autoFit: layoutIn.autoFit === true || gridIn.autoFit === true || undefined,
+      minColumnWidth:
+        typeof gridIn.minColumnWidth === 'string'
+          ? gridIn.minColumnWidth
+          : typeof layoutIn.minColumnWidth === 'string'
+            ? layoutIn.minColumnWidth
+            : undefined,
       columnSpan: gridIn.columnSpan as NonNullable<StyleDefinition['grid']>['columnSpan'],
     },
     size: {
@@ -405,6 +419,7 @@ function toEditorStyles(styles: unknown): StyleDefinition {
       textAlign: typographyIn.textAlign as NonNullable<StyleDefinition['typography']>['textAlign'],
       textTransform: typographyIn.textTransform as NonNullable<StyleDefinition['typography']>['textTransform'],
       textDecoration: typographyIn.textDecoration as NonNullable<StyleDefinition['typography']>['textDecoration'],
+      fontStyle: typographyIn.fontStyle === 'italic' || typographyIn.fontStyle === 'normal' ? typographyIn.fontStyle : undefined,
       color: typeof colorIn.color === 'string' ? colorIn.color : (typographyIn.color as string | undefined),
     },
     background: {
@@ -488,6 +503,16 @@ function toWireStyles(styles: StyleDefinition | undefined): Record<string, unkno
   if (styles.flex?.justifyContent) layout.justifyContent = styles.flex.justifyContent;
   if (styles.flex?.wrap === 'wrap' || styles.flex?.wrap === 'nowrap') layout.flexWrap = styles.flex.wrap;
   if (typeof styles.grid?.columns === 'number') layout.columns = styles.grid.columns;
+  if (styles.grid?.autoFit) layout.autoFit = true;
+  if (styles.grid?.minColumnWidth) layout.minColumnWidth = styles.grid.minColumnWidth;
+  if (
+    styles.layout?.overflow === 'visible' ||
+    styles.layout?.overflow === 'hidden' ||
+    styles.layout?.overflow === 'scroll' ||
+    styles.layout?.overflow === 'auto'
+  ) {
+    layout.overflow = styles.layout.overflow;
+  }
 
   const size: Record<string, unknown> = {};
   for (const key of ['width', 'height', 'minWidth', 'minHeight', 'maxWidth', 'maxHeight'] as const) {
@@ -514,6 +539,9 @@ function toWireStyles(styles: StyleDefinition | undefined): Record<string, unkno
   const tracking = bounded(styles.typography?.letterSpacing, -5, 20);
   if (tracking !== undefined) typography.letterSpacing = tracking;
   if (styles.typography?.textAlign) typography.textAlign = styles.typography.textAlign;
+  if (styles.typography?.fontStyle === 'italic' || styles.typography?.fontStyle === 'normal') {
+    typography.fontStyle = styles.typography.fontStyle;
+  }
   if (
     styles.typography?.textTransform === 'none' ||
     styles.typography?.textTransform === 'uppercase' ||
@@ -569,17 +597,53 @@ function toWireStyles(styles: StyleDefinition | undefined): Record<string, unkno
 }
 
 function resolveWireType(rawType: string, parentType: string | null): WireNodeType {
-  let mapped: WireNodeType = isWireType(rawType)
-    ? rawType
-    : TYPE_FALLBACK[rawType] || (parentType === 'page-root' ? 'section' : 'stack');
+  if (isWireType(rawType)) return rawType;
+  return TYPE_FALLBACK[rawType] || (parentType === 'page-root' ? 'section' : 'stack');
+}
 
-  if (parentType && !canWireNest(parentType, mapped)) {
-    if (parentType === 'page-root') mapped = 'section';
-    else if (parentType === 'section') mapped = 'stack';
-    else if (parentType === 'row') mapped = 'column';
-    else mapped = (WIRE_CHILDREN[parentType]?.[0] as WireNodeType) || mapped;
+function wrapForParent(parentType: string, wire: Record<string, unknown>): Record<string, unknown> {
+  const type = String(wire.type);
+  if (canWireNest(parentType, type)) return wire;
+
+  const wrappers =
+    parentType === 'page-root'
+      ? (['section'] as WireNodeType[])
+      : parentType === 'row'
+        ? (['column'] as WireNodeType[])
+        : (['container', 'stack', 'column'] as WireNodeType[]);
+
+  for (const wrapper of wrappers) {
+    if (!canWireNest(parentType, wrapper) || !canWireNest(wrapper, type)) continue;
+    const childId = String(wire.id || 'node');
+    return {
+      id: `w_${childId}`.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 100),
+      type: wrapper,
+      props: { [WIRE_WRAP_PROP]: true },
+      styles: {},
+      responsive: {},
+      children: [wire],
+      enabled: true,
+    };
   }
-  return mapped;
+
+  return wire;
+}
+
+function flattenWireWrappers(nodes: WebsiteNode[]): WebsiteNode[] {
+  const flattened: WebsiteNode[] = [];
+  for (const node of nodes) {
+    const wrap = Boolean(node.props?.[WIRE_WRAP_PROP]) || /^w_[a-zA-Z0-9_-]+$/.test(node.id);
+    if (
+      wrap &&
+      (node.type === 'container' || node.type === 'column' || node.type === 'section') &&
+      node.children?.length === 1
+    ) {
+      flattened.push(node.children[0]);
+    } else {
+      flattened.push(node);
+    }
+  }
+  return flattened;
 }
 
 function toEditorNode(node: Record<string, unknown>, _parentType: string | null): WebsiteNode {
@@ -591,16 +655,22 @@ function toEditorNode(node: Record<string, unknown>, _parentType: string | null)
     type = (TYPE_FALLBACK[rawType] || 'stack') as NodeType;
   }
 
-  const children = Array.isArray(node.children)
-    ? node.children
-        .filter((child) => child && typeof child === 'object')
-        .map((child) => toEditorNode(child as Record<string, unknown>, type))
-    : [];
+  const children = flattenWireWrappers(
+    Array.isArray(node.children)
+      ? node.children
+          .filter((child) => child && typeof child === 'object')
+          .map((child) => toEditorNode(child as Record<string, unknown>, type))
+      : [],
+  );
 
   const styles = toEditorStyles(node.styles);
   const storedGradient = toEditorGradient(props[GRADIENT_PROP]);
   if (storedGradient && !styles.background?.gradient) {
     styles.background = { ...styles.background, gradient: storedGradient };
+  }
+  const storedStates = props[STATES_PROP];
+  if (storedStates && typeof storedStates === 'object') {
+    styles.states = storedStates as StyleDefinition['states'];
   }
 
   return {
@@ -626,12 +696,13 @@ function toWireNode(node: WebsiteNode, parentType: string | null): Record<string
   if (typeof node.name === 'string' && props.name === undefined) props.name = node.name;
   if (originalType !== type) props[EDITOR_TYPE_PROP] = originalType;
   if (node.styles?.background?.gradient) props[GRADIENT_PROP] = node.styles.background.gradient;
+  if (node.styles?.states) props[STATES_PROP] = node.styles.states;
 
   const children = WIRE_LEAVES.has(type)
     ? []
     : (node.children || []).map((child) => toWireNode(child, type));
 
-  let wire: Record<string, unknown> = {
+  const wire: Record<string, unknown> = {
     id: node.id,
     type,
     props,
@@ -642,24 +713,36 @@ function toWireNode(node: WebsiteNode, parentType: string | null): Record<string
     },
     children,
     enabled: true,
+    locked: Boolean(node.locked),
   };
 
-  if (parentType && !canWireNest(parentType, type)) {
-    const wrapper = parentType === 'page-root' ? 'section' : parentType === 'row' ? 'column' : 'container';
-    if (canWireNest(parentType, wrapper) && canWireNest(wrapper, type)) {
-      wire = {
-        id: `w_${node.id}`.slice(0, 100),
-        type: wrapper,
-        props: {},
-        styles: {},
-        responsive: {},
-        children: [wire],
-        enabled: true,
-      };
+  return parentType ? wrapForParent(parentType, wire) : wire;
+}
+
+function parseGlobal(raw: unknown): WebsiteDocumentV3['global'] {
+  const source = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+  const reusableIn = (source.reusableNodes && typeof source.reusableNodes === 'object'
+    ? source.reusableNodes
+    : {}) as Record<string, unknown>;
+  const reusableNodes: Record<string, WebsiteNode> = {};
+  for (const [id, node] of Object.entries(reusableIn)) {
+    if (node && typeof node === 'object') {
+      reusableNodes[id] = toEditorNode(node as Record<string, unknown>, null);
     }
   }
-
-  return wire;
+  return {
+    headerNode:
+      source.headerNode && typeof source.headerNode === 'object'
+        ? toEditorNode(source.headerNode as Record<string, unknown>, null)
+        : undefined,
+    footerNode:
+      source.footerNode && typeof source.footerNode === 'object'
+        ? toEditorNode(source.footerNode as Record<string, unknown>, null)
+        : undefined,
+    reusableNodes,
+    headerDisabled: source.headerDisabled === true,
+    footerDisabled: source.footerDisabled === true,
+  };
 }
 
 export function extractWebsiteDocument(payload: unknown): unknown | null {
@@ -718,7 +801,7 @@ export function toEditorDocument(raw: unknown): WebsiteDocumentV3 {
           root,
         };
       }),
-    global: (source.global as WebsiteDocumentV3['global']) || {},
+    global: parseGlobal(source.global),
     seo: (source.seo as WebsiteDocumentV3['seo']) || {
       metaTitle: String((source.site as Record<string, unknown> | undefined)?.name || 'Website'),
       metaDescription: '',
@@ -755,7 +838,10 @@ export function toWireDocument(document: WebsiteDocumentV3): Record<string, unkn
         secondary: theme.colors.secondary,
         accent: theme.colors.accent,
         background: theme.colors.background,
+        surface: theme.colors.surface,
         text: theme.colors.text,
+        muted: theme.colors.muted,
+        border: theme.colors.border,
       },
       typography: {
         headingFont: theme.headingFont || theme.typography.headingFont || theme.typography.h1?.fontFamily || 'Inter',
@@ -782,6 +868,15 @@ export function toWireDocument(document: WebsiteDocumentV3): Record<string, unkn
       businessHours: document.business?.businessHours || {},
     },
     navigation: document.navigation || { header: [], footer: [] },
+    global: {
+      headerDisabled: Boolean(document.global?.headerDisabled),
+      footerDisabled: Boolean(document.global?.footerDisabled),
+      headerNode: document.global?.headerNode ? toWireNode(document.global.headerNode, null) : undefined,
+      footerNode: document.global?.footerNode ? toWireNode(document.global.footerNode, null) : undefined,
+      reusableNodes: Object.fromEntries(
+        Object.entries(document.global?.reusableNodes || {}).map(([id, node]) => [id, toWireNode(node, null)]),
+      ),
+    },
     pages: document.pages.map((page, index) => ({
       id: page.id,
       name: page.title,

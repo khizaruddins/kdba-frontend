@@ -16,28 +16,40 @@ import {
   ThemeSystemV3,
   PageDocumentV3,
   DocumentOperation,
+  GlobalComponentsV3,
+  NavigationConfig,
 } from '@/types/v3-document';
 import { websitesApi } from '@/lib/api/websites';
 import {
   applyDocumentOperation,
   applyStylesForViewport,
   clearResponsiveStyleGroup,
+  clearResponsiveStylePath,
   clearResponsiveViewport,
   cloneNodeWithFreshIds,
   createDefaultNode,
   deepClone,
-  findNode as findNodeInTree,
+  duplicatePageDocument,
+  findNodeLocation,
   findParent as findParentInTree,
   generateNodeId,
   getAncestry,
   getStylesForViewport,
+  sanitizePastedNode,
+  syncReusableInstances,
 } from '@/lib/document/v3-operations';
 import { canAcceptChild, resolveInsertTarget } from '@/lib/editor/nesting';
 import { COMPONENT_MANIFEST } from '@/lib/editor/component-manifest';
 import { toEditorDocument } from '@/lib/document/v3-wire';
+import {
+  ensureGlobalChrome,
+  navItemsFromPages,
+} from '@/lib/editor/global-chrome';
+import { INSTANCE_OF_PROP, REUSABLE_ID_PROP } from '@/lib/editor/rich-text';
 
 export type ViewportMode = 'desktop' | 'tablet' | 'mobile';
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'unsaved' | 'error';
+export type EditorNavTab = 'add' | 'pages' | 'layers' | 'assets' | 'theme' | 'site' | null;
 
 const HISTORY_COALESCE_MS = 700;
 
@@ -55,7 +67,7 @@ export interface V3EditorState {
   activePageId: string;
   selectedNodeId: string | null;
   hoveredNodeId: string | null;
-  activeNavTab: 'add' | 'pages' | 'layers' | 'assets' | 'theme' | null;
+  activeNavTab: EditorNavTab;
   inspectorFocusKey: string | null;
   previewMode: boolean;
 
@@ -79,7 +91,7 @@ export interface V3EditorState {
   setActivePageId: (pageId: string) => void;
   setSelectedNodeId: (nodeId: string | null) => void;
   setHoveredNodeId: (nodeId: string | null) => void;
-  setActiveNavTab: (tab: 'add' | 'pages' | 'layers' | 'assets' | 'theme' | null) => void;
+  setActiveNavTab: (tab: EditorNavTab) => void;
   focusInspectorSection: (key: string | null) => void;
   setViewport: (viewport: ViewportMode) => void;
   setZoom: (zoom: number) => void;
@@ -109,13 +121,24 @@ export interface V3EditorState {
   updateResponsive: (nodeId: string, responsivePatch: Partial<ResponsiveStyleDefinition>) => void;
   resetViewportStyles: (nodeId: string) => void;
   resetViewportStyleGroup: (nodeId: string, groups: Array<keyof StyleDefinition>) => void;
+  resetViewportStylePath: (nodeId: string, path: string[]) => void;
   setVisibility: (nodeId: string, visibilityPatch: Partial<ResponsiveVisibility>) => void;
+  setNodeLocked: (nodeId: string, locked: boolean) => void;
   reorderChildren: (parentId: string, childIds: string[]) => void;
   updateTheme: (themePatch: Partial<ThemeSystemV3>) => void;
   addPage: (title: string, slug: string) => PageDocumentV3;
   updatePage: (pageId: string, patch: Partial<PageDocumentV3>) => void;
   removePage: (pageId: string) => void;
+  duplicatePage: (pageId: string) => PageDocumentV3 | null;
+  setHomePage: (pageId: string) => void;
+  reorderPages: (pageIds: string[]) => void;
   insertSectionPreset: (presetNode: WebsiteNode, afterNodeId?: string | null) => WebsiteNode | null;
+  replaceSection: (sectionId: string, presetNode: WebsiteNode) => WebsiteNode | null;
+  updateNavigation: (navigation: Partial<NavigationConfig>) => void;
+  updateGlobal: (global: Partial<GlobalComponentsV3>) => void;
+  saveReusableFromSelection: (name?: string) => string | null;
+  insertReusable: (libraryId: string) => WebsiteNode | null;
+  syncReusableFromSelection: () => void;
 
   copySelectedNode: () => void;
   pasteClipboard: () => WebsiteNode | null;
@@ -166,15 +189,25 @@ export const useV3EditorStore = create<V3EditorState>((set, get) => ({
   redoStack: [],
 
   setDocumentData: (websiteId, doc, revision = 1, hash = '') => {
-    const normalized = toEditorDocument(doc);
-    const firstPageId = normalized.pages?.[0]?.id || '';
+    let normalized = ensureGlobalChrome(toEditorDocument(doc));
+    if (!normalized.navigation?.header?.length) {
+      normalized = {
+        ...normalized,
+        navigation: {
+          ...(normalized.navigation || { header: [], footer: [] }),
+          header: navItemsFromPages(normalized),
+          footer: normalized.navigation?.footer || [],
+        },
+      };
+    }
+    const home = normalized.pages.find((page) => page.type === 'home' || page.slug === '/') || normalized.pages[0];
     lastCoalesceKey = null;
     set({
       websiteId,
       document: deepClone(normalized),
       revision,
       documentHash: hash,
-      activePageId: firstPageId,
+      activePageId: home?.id || '',
       selectedNodeId: null,
       inlineEditingNodeId: null,
       hoveredNodeId: null,
@@ -228,21 +261,25 @@ export const useV3EditorStore = create<V3EditorState>((set, get) => ({
   },
 
   findNode: (nodeId) => {
-    const page = get().getActivePage();
-    if (!page?.root) return null;
-    return findNodeInTree(page.root, nodeId);
+    const { document } = get();
+    if (!document) return null;
+    return findNodeLocation(document, nodeId)?.node || null;
   },
 
   findParent: (nodeId) => {
-    const page = get().getActivePage();
-    if (!page?.root) return null;
-    return findParentInTree(page.root, nodeId);
+    const { document } = get();
+    if (!document) return null;
+    const loc = findNodeLocation(document, nodeId);
+    if (!loc) return null;
+    return findParentInTree(loc.root, nodeId);
   },
 
   getNodePath: (nodeId) => {
-    const page = get().getActivePage();
-    if (!page?.root) return [];
-    return getAncestry(page.root, nodeId) || [];
+    const { document } = get();
+    if (!document) return [];
+    const loc = findNodeLocation(document, nodeId);
+    if (!loc) return [];
+    return getAncestry(loc.root, nodeId) || [];
   },
 
   getInspectorStyles: (nodeId) => {
@@ -285,14 +322,11 @@ export const useV3EditorStore = create<V3EditorState>((set, get) => ({
   },
 
   addNode: (parentId, nodeInput, index) => {
-    const { document, activePageId } = get();
+    const { document } = get();
     if (!document) return null;
-    const page = get().getActivePage();
-    if (!page) return null;
-
-    const parent = findNodeInTree(page.root, parentId);
-    if (!parent) return null;
-    if (!canAcceptChild(parent.type, nodeInput.type)) return null;
+    const loc = findNodeLocation(document, parentId);
+    if (!loc) return null;
+    if (!canAcceptChild(loc.node.type, nodeInput.type)) return null;
 
     const newNode = createDefaultNode(nodeInput.type, {
       id: nodeInput.id,
@@ -305,25 +339,27 @@ export const useV3EditorStore = create<V3EditorState>((set, get) => ({
     });
 
     get().executeOperation(
-      { type: 'addNode', pageId: activePageId, parentId, node: newNode, index },
+      { type: 'addNode', pageId: loc.pageId, parentId, node: newNode, index },
       { selectId: newNode.id },
     );
     return newNode;
   },
 
   insertNodeType: (type, preferredParentId) => {
-    const page = get().getActivePage();
-    if (!page?.root) return null;
+    const { document } = get();
+    if (!document) return null;
     const manifest = COMPONENT_MANIFEST[type];
     if (!manifest) return null;
 
-    let target = resolveInsertTarget(
-      page.root,
-      preferredParentId || get().selectedNodeId,
-      type,
-    );
+    const preferred = preferredParentId || get().selectedNodeId;
+    const preferredLoc = preferred ? findNodeLocation(document, preferred) : null;
+    const page = get().getActivePage();
+    const root = preferredLoc?.root || page?.root;
+    if (!root) return null;
 
-    if (!target && type !== 'section' && type !== 'navbar' && type !== 'footer') {
+    let target = resolveInsertTarget(root, preferred, type);
+
+    if (!target && type !== 'section' && type !== 'navbar' && type !== 'footer' && page?.root) {
       const sectionManifest = COMPONENT_MANIFEST.section;
       const containerManifest = COMPONENT_MANIFEST.container;
       const section = get().addNode(page.root.id, {
@@ -360,34 +396,32 @@ export const useV3EditorStore = create<V3EditorState>((set, get) => ({
   },
 
   removeNode: (nodeId) => {
-    const { activePageId } = get();
-    const page = get().getActivePage();
-    if (!page || page.root.id === nodeId) return;
-    const parentInfo = findParentInTree(page.root, nodeId);
+    const { document } = get();
+    if (!document) return;
+    const loc = findNodeLocation(document, nodeId);
+    if (!loc || loc.root.id === nodeId || loc.node.locked) return;
+    const parentInfo = findParentInTree(loc.root, nodeId);
     get().executeOperation(
-      { type: 'removeNode', pageId: activePageId, nodeId },
+      { type: 'removeNode', pageId: loc.pageId, nodeId },
       { selectId: parentInfo?.parent.id ?? null },
     );
   },
 
   duplicateNode: (nodeId) => {
-    const { document, activePageId } = get();
+    const { document } = get();
     if (!document) return null;
-    const page = get().getActivePage();
-    if (!page || page.root.id === nodeId) return null;
-
-    const source = findNodeInTree(page.root, nodeId);
-    if (!source) return null;
-    const duplicated = cloneNodeWithFreshIds(source);
-    duplicated.name = `${source.name || source.type} (Copy)`;
-
-    const parentInfo = findParentInTree(page.root, nodeId);
+    const loc = findNodeLocation(document, nodeId);
+    if (!loc || loc.root.id === nodeId) return null;
+    const parentInfo = findParentInTree(loc.root, nodeId);
     if (!parentInfo) return null;
+
+    const duplicated = cloneNodeWithFreshIds(loc.node);
+    duplicated.name = `${loc.node.name || loc.node.type} (Copy)`;
 
     get().executeOperation(
       {
         type: 'addNode',
-        pageId: activePageId,
+        pageId: loc.pageId,
         parentId: parentInfo.parent.id,
         node: duplicated,
         index: parentInfo.index + 1,
@@ -398,52 +432,59 @@ export const useV3EditorStore = create<V3EditorState>((set, get) => ({
   },
 
   moveNode: (nodeId, targetParentId, targetIndex) => {
-    const { activePageId } = get();
-    const page = get().getActivePage();
-    if (!page) return;
-    const node = findNodeInTree(page.root, nodeId);
-    const target = findNodeInTree(page.root, targetParentId);
-    if (!node || !target) return;
-    if (!canAcceptChild(target.type, node.type)) return;
+    const { document } = get();
+    if (!document) return;
+    const source = findNodeLocation(document, nodeId);
+    const target = findNodeLocation(document, targetParentId);
+    if (!source || !target || source.pageId !== target.pageId || source.node.locked) return;
+    if (!canAcceptChild(target.node.type, source.node.type)) return;
 
     get().executeOperation(
       {
         type: 'moveNode',
-        pageId: activePageId,
+        pageId: source.pageId,
         nodeId,
         targetParentId,
-        targetIndex: typeof targetIndex === 'number' ? targetIndex : target.children?.length || 0,
+        targetIndex: typeof targetIndex === 'number' ? targetIndex : target.node.children?.length || 0,
       },
       { selectId: nodeId },
     );
   },
 
   updateNode: (nodeId, patch) => {
-    const { activePageId } = get();
+    const { document } = get();
+    if (!document) return;
+    const loc = findNodeLocation(document, nodeId);
+    if (!loc) return;
     get().executeOperation(
-      { type: 'updateNode', pageId: activePageId, nodeId, patch },
+      { type: 'updateNode', pageId: loc.pageId, nodeId, patch },
       { coalesceKey: `updateNode:${nodeId}` },
     );
   },
 
   updateProps: (nodeId, propsPatch) => {
-    const { activePageId } = get();
+    const { document } = get();
+    if (!document) return;
+    const loc = findNodeLocation(document, nodeId);
+    if (!loc) return;
     get().executeOperation(
-      { type: 'updateProps', pageId: activePageId, nodeId, props: propsPatch },
+      { type: 'updateProps', pageId: loc.pageId, nodeId, props: propsPatch },
       { coalesceKey: `updateProps:${nodeId}` },
     );
   },
 
   updateStyles: (nodeId, stylesPatch) => {
-    const { document, activePageId, viewport } = get();
+    const { document, viewport } = get();
     if (!document) return;
+    const loc = findNodeLocation(document, nodeId);
+    if (!loc) return;
     const { undoStack } = get();
     const now = Date.now();
     const coalesceKey = `updateStyles:${nodeId}:${viewport}`;
     const canCoalesce =
       lastCoalesceKey === coalesceKey && now - lastCoalesceAt < HISTORY_COALESCE_MS && undoStack.length > 0;
 
-    const nextDoc = applyStylesForViewport(document, activePageId, nodeId, viewport, stylesPatch);
+    const nextDoc = applyStylesForViewport(document, loc.pageId, nodeId, viewport, stylesPatch);
     if (nextDoc === document) return;
 
     lastCoalesceKey = coalesceKey;
@@ -459,17 +500,22 @@ export const useV3EditorStore = create<V3EditorState>((set, get) => ({
   },
 
   updateResponsive: (nodeId, responsivePatch) => {
-    const { activePageId } = get();
+    const { document } = get();
+    if (!document) return;
+    const loc = findNodeLocation(document, nodeId);
+    if (!loc) return;
     get().executeOperation(
-      { type: 'updateResponsive', pageId: activePageId, nodeId, responsive: responsivePatch },
+      { type: 'updateResponsive', pageId: loc.pageId, nodeId, responsive: responsivePatch },
       { coalesceKey: `updateResponsive:${nodeId}` },
     );
   },
 
   resetViewportStyles: (nodeId) => {
-    const { document, activePageId, viewport, undoStack } = get();
+    const { document, viewport, undoStack } = get();
     if (!document || viewport === 'desktop') return;
-    const nextDoc = clearResponsiveViewport(document, activePageId, nodeId, viewport);
+    const loc = findNodeLocation(document, nodeId);
+    if (!loc) return;
+    const nextDoc = clearResponsiveViewport(document, loc.pageId, nodeId, viewport);
     set({
       document: nextDoc,
       isDirty: true,
@@ -480,9 +526,26 @@ export const useV3EditorStore = create<V3EditorState>((set, get) => ({
   },
 
   resetViewportStyleGroup: (nodeId, groups) => {
-    const { document, activePageId, viewport, undoStack } = get();
+    const { document, viewport, undoStack } = get();
     if (!document || viewport === 'desktop') return;
-    const nextDoc = clearResponsiveStyleGroup(document, activePageId, nodeId, viewport, groups);
+    const loc = findNodeLocation(document, nodeId);
+    if (!loc) return;
+    const nextDoc = clearResponsiveStyleGroup(document, loc.pageId, nodeId, viewport, groups);
+    set({
+      document: nextDoc,
+      isDirty: true,
+      saveStatus: 'unsaved',
+      undoStack: [document, ...undoStack.slice(0, 49)],
+      redoStack: [],
+    });
+  },
+
+  resetViewportStylePath: (nodeId, path) => {
+    const { document, viewport, undoStack } = get();
+    if (!document || viewport === 'desktop') return;
+    const loc = findNodeLocation(document, nodeId);
+    if (!loc) return;
+    const nextDoc = clearResponsiveStylePath(document, loc.pageId, nodeId, viewport, path);
     set({
       document: nextDoc,
       isDirty: true,
@@ -493,18 +556,28 @@ export const useV3EditorStore = create<V3EditorState>((set, get) => ({
   },
 
   setVisibility: (nodeId, visibilityPatch) => {
-    const { activePageId } = get();
+    const { document } = get();
+    if (!document) return;
+    const loc = findNodeLocation(document, nodeId);
+    if (!loc) return;
     get().executeOperation({
       type: 'setVisibility',
-      pageId: activePageId,
+      pageId: loc.pageId,
       nodeId,
       visibility: visibilityPatch,
     });
   },
 
+  setNodeLocked: (nodeId, locked) => {
+    get().updateNode(nodeId, { locked });
+  },
+
   reorderChildren: (parentId, childIds) => {
-    const { activePageId } = get();
-    get().executeOperation({ type: 'reorderChildren', pageId: activePageId, parentId, childIds });
+    const { document } = get();
+    if (!document) return;
+    const loc = findNodeLocation(document, parentId);
+    if (!loc) return;
+    get().executeOperation({ type: 'reorderChildren', pageId: loc.pageId, parentId, childIds });
   },
 
   updateTheme: (themePatch) => {
@@ -554,6 +627,57 @@ export const useV3EditorStore = create<V3EditorState>((set, get) => ({
     });
   },
 
+  duplicatePage: (pageId) => {
+    const { document, undoStack } = get();
+    if (!document) return null;
+    const result = duplicatePageDocument(document, pageId);
+    if (!result) return null;
+    lastCoalesceKey = null;
+    set({
+      document: result.document,
+      isDirty: true,
+      saveStatus: 'unsaved',
+      undoStack: [document, ...undoStack.slice(0, 49)],
+      redoStack: [],
+      activePageId: result.page.id,
+      selectedNodeId: null,
+    });
+    return result.page;
+  },
+
+  setHomePage: (pageId) => {
+    const { document, undoStack } = get();
+    if (!document) return;
+    let next = document;
+    for (const page of document.pages) {
+      if (page.type === 'home' && page.id !== pageId) {
+        next = applyDocumentOperation(next, {
+          type: 'updatePage',
+          pageId: page.id,
+          patch: { type: 'custom' },
+        });
+      }
+    }
+    next = applyDocumentOperation(next, {
+      type: 'updatePage',
+      pageId,
+      patch: { type: 'home' },
+    });
+    if (next === document) return;
+    lastCoalesceKey = null;
+    set({
+      document: next,
+      isDirty: true,
+      saveStatus: 'unsaved',
+      undoStack: [document, ...undoStack.slice(0, 49)],
+      redoStack: [],
+    });
+  },
+
+  reorderPages: (pageIds) => {
+    get().executeOperation({ type: 'reorderPages', pageIds });
+  },
+
   insertSectionPreset: (presetNode, afterNodeId) => {
     const { activePageId } = get();
     const page = get().getActivePage();
@@ -575,6 +699,105 @@ export const useV3EditorStore = create<V3EditorState>((set, get) => ({
     return presetNode;
   },
 
+  replaceSection: (sectionId, presetNode) => {
+    const { document, undoStack } = get();
+    if (!document) return null;
+    const loc = findNodeLocation(document, sectionId);
+    if (!loc || loc.node.type !== 'section') return null;
+    const parentInfo = findParentInTree(loc.root, sectionId);
+    if (!parentInfo) return null;
+
+    let next = applyDocumentOperation(document, {
+      type: 'removeNode',
+      pageId: loc.pageId,
+      nodeId: sectionId,
+    });
+    next = applyDocumentOperation(next, {
+      type: 'addNode',
+      pageId: loc.pageId,
+      parentId: parentInfo.parent.id,
+      node: presetNode,
+      index: parentInfo.index,
+    });
+    lastCoalesceKey = null;
+    set({
+      document: next,
+      isDirty: true,
+      saveStatus: 'unsaved',
+      undoStack: [document, ...undoStack.slice(0, 49)],
+      redoStack: [],
+      selectedNodeId: presetNode.id,
+    });
+    return presetNode;
+  },
+
+  updateNavigation: (navigation) => {
+    get().executeOperation(
+      { type: 'updateNavigation', navigation },
+      { coalesceKey: 'updateNavigation' },
+    );
+  },
+
+  updateGlobal: (global) => {
+    get().executeOperation({ type: 'updateGlobal', global });
+  },
+
+  saveReusableFromSelection: (name) => {
+    const { document } = get();
+    const node = get().getSelectedNode();
+    if (!document || !node || node.type === 'page-root') return null;
+    const libraryId = generateNodeId('lib');
+    const definition = cloneNodeWithFreshIds(node);
+    definition.name = name || node.name || node.type;
+    definition.props = {
+      ...(definition.props || {}),
+      [REUSABLE_ID_PROP]: libraryId,
+    };
+    get().executeOperation({
+      type: 'updateGlobal',
+      global: { reusableNodes: { [libraryId]: definition } },
+    });
+    get().updateProps(node.id, { [INSTANCE_OF_PROP]: libraryId, [REUSABLE_ID_PROP]: libraryId });
+    return libraryId;
+  },
+
+  insertReusable: (libraryId) => {
+    const { document } = get();
+    if (!document) return null;
+    const definition = document.global?.reusableNodes?.[libraryId];
+    if (!definition) return null;
+    const cloned = cloneNodeWithFreshIds(definition);
+    cloned.props = { ...(cloned.props || {}), [INSTANCE_OF_PROP]: libraryId };
+    const page = get().getActivePage();
+    if (!page?.root) return null;
+    const target = resolveInsertTarget(page.root, get().selectedNodeId, cloned.type);
+    if (!target) return null;
+    return get().addNode(target.parentId, cloned, target.index);
+  },
+
+  syncReusableFromSelection: () => {
+    const { document, undoStack } = get();
+    const node = get().getSelectedNode();
+    if (!document || !node) return;
+    const libraryId = String(node.props?.[INSTANCE_OF_PROP] || node.props?.[REUSABLE_ID_PROP] || '');
+    if (!libraryId) return;
+    const definition = cloneNodeWithFreshIds(node);
+    definition.props = { ...(definition.props || {}), [REUSABLE_ID_PROP]: libraryId };
+    let next = applyDocumentOperation(document, {
+      type: 'updateGlobal',
+      global: { reusableNodes: { [libraryId]: definition } },
+    });
+    next = syncReusableInstances(next, libraryId);
+    lastCoalesceKey = null;
+    set({
+      document: next,
+      isDirty: true,
+      saveStatus: 'unsaved',
+      undoStack: [document, ...undoStack.slice(0, 49)],
+      redoStack: [],
+    });
+  },
+
   copySelectedNode: () => {
     const node = get().getSelectedNode();
     if (!node || node.type === 'page-root') return;
@@ -582,18 +805,25 @@ export const useV3EditorStore = create<V3EditorState>((set, get) => ({
   },
 
   pasteClipboard: () => {
-    const { clipboardNode, selectedNodeId } = get();
-    const page = get().getActivePage();
-    if (!clipboardNode || !page?.root) return null;
+    const { clipboardNode, selectedNodeId, document } = get();
+    if (!clipboardNode || !document) return null;
 
-    const cloned = cloneNodeWithFreshIds(clipboardNode);
-    const target = resolveInsertTarget(page.root, selectedNodeId, cloned.type);
+    const cloned = sanitizePastedNode(cloneNodeWithFreshIds(clipboardNode));
+    if (!cloned) return null;
+
+    const selectedLoc = selectedNodeId ? findNodeLocation(document, selectedNodeId) : null;
+    const page = get().getActivePage();
+    const root = selectedLoc?.root || page?.root;
+    const pageId = selectedLoc?.pageId || get().activePageId;
+    if (!root) return null;
+
+    const target = resolveInsertTarget(root, selectedNodeId, cloned.type);
     if (!target) return null;
 
     get().executeOperation(
       {
         type: 'addNode',
-        pageId: get().activePageId,
+        pageId,
         parentId: target.parentId,
         node: cloned,
         index: target.index,

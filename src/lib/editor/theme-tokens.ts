@@ -48,6 +48,31 @@ export const DEFAULT_THEME_LAYOUT_TOKENS = {
   buttonRadius: '12px',
   buttonBackground: 'primary',
   buttonColor: '#FFFFFF',
+  radius: 'md',
+  shadow: 'subtle',
+  spaceScale: '8px',
+  headingScale: '1',
+  bodyScale: '1',
+  headingLineHeight: '1.15',
+  bodyLineHeight: '1.6',
+  letterSpacing: '0',
+};
+
+export const RADIUS_SCALE: Record<string, string> = {
+  none: '0px',
+  sm: '6px',
+  md: '12px',
+  lg: '20px',
+  full: '999px',
+  pill: '999px',
+};
+
+export const SHADOW_SCALE: Record<string, string> = {
+  none: 'none',
+  subtle: '0 10px 30px rgba(0,0,0,0.22)',
+  medium: '0 18px 44px rgba(0,0,0,0.32)',
+  strong: '0 28px 64px rgba(0,0,0,0.45)',
+  dramatic: '0 28px 64px rgba(0,0,0,0.45)',
 };
 
 export interface ThemeLayoutTokens {
@@ -55,9 +80,19 @@ export interface ThemeLayoutTokens {
   buttonRadius: string;
   buttonBackground: string;
   buttonColor: string;
+  radius: string;
+  shadow: string;
+  spaceScale: string;
+  headingScale: string;
+  bodyScale: string;
+  headingLineHeight: string;
+  bodyLineHeight: string;
+  letterSpacing: string;
 }
 
 export function getThemeLayoutTokens(tokens?: Record<string, unknown> | null): ThemeLayoutTokens {
+  const radiusKey = typeof tokens?.radius === 'string' ? tokens.radius : DEFAULT_THEME_LAYOUT_TOKENS.radius;
+  const shadowKey = typeof tokens?.shadow === 'string' ? tokens.shadow : DEFAULT_THEME_LAYOUT_TOKENS.shadow;
   return {
     containerMaxWidth:
       typeof tokens?.containerMaxWidth === 'string' && tokens.containerMaxWidth
@@ -66,7 +101,7 @@ export function getThemeLayoutTokens(tokens?: Record<string, unknown> | null): T
     buttonRadius:
       typeof tokens?.buttonRadius === 'string' && tokens.buttonRadius
         ? tokens.buttonRadius
-        : DEFAULT_THEME_LAYOUT_TOKENS.buttonRadius,
+        : RADIUS_SCALE[radiusKey] || DEFAULT_THEME_LAYOUT_TOKENS.buttonRadius,
     buttonBackground:
       typeof tokens?.buttonBackground === 'string' && tokens.buttonBackground
         ? tokens.buttonBackground
@@ -75,6 +110,32 @@ export function getThemeLayoutTokens(tokens?: Record<string, unknown> | null): T
       typeof tokens?.buttonColor === 'string' && tokens.buttonColor
         ? tokens.buttonColor
         : DEFAULT_THEME_LAYOUT_TOKENS.buttonColor,
+    radius: RADIUS_SCALE[radiusKey] || RADIUS_SCALE.md,
+    shadow: SHADOW_SCALE[shadowKey] || SHADOW_SCALE.subtle,
+    spaceScale:
+      typeof tokens?.spaceScale === 'string' && tokens.spaceScale
+        ? tokens.spaceScale
+        : DEFAULT_THEME_LAYOUT_TOKENS.spaceScale,
+    headingScale:
+      typeof tokens?.headingScale === 'string' && tokens.headingScale
+        ? tokens.headingScale
+        : DEFAULT_THEME_LAYOUT_TOKENS.headingScale,
+    bodyScale:
+      typeof tokens?.bodyScale === 'string' && tokens.bodyScale
+        ? tokens.bodyScale
+        : DEFAULT_THEME_LAYOUT_TOKENS.bodyScale,
+    headingLineHeight:
+      typeof tokens?.headingLineHeight === 'string' && tokens.headingLineHeight
+        ? tokens.headingLineHeight
+        : DEFAULT_THEME_LAYOUT_TOKENS.headingLineHeight,
+    bodyLineHeight:
+      typeof tokens?.bodyLineHeight === 'string' && tokens.bodyLineHeight
+        ? tokens.bodyLineHeight
+        : DEFAULT_THEME_LAYOUT_TOKENS.bodyLineHeight,
+    letterSpacing:
+      typeof tokens?.letterSpacing === 'string' && tokens.letterSpacing
+        ? tokens.letterSpacing
+        : DEFAULT_THEME_LAYOUT_TOKENS.letterSpacing,
   };
 }
 

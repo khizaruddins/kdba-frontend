@@ -12,12 +12,19 @@ import { EffectsControl } from './controls/EffectsControl';
 import { ColorControl } from './controls/ColorControl';
 import { SizeControl } from './controls/SizeControl';
 import { VisibilityControl } from './controls/VisibilityControl';
-import { isStyleGroupOverridden, StyleGroupKey, hasViewportOverride } from '@/lib/document/v3-operations';
+import { VariantControl } from './controls/VariantControl';
+import { StatesControl } from './controls/StatesControl';
+import { RichTextControl } from './controls/RichTextControl';
+import { isStyleGroupOverridden, StyleGroupKey, hasViewportOverride, isStylePathOverridden } from '@/lib/document/v3-operations';
+import { INSTANCE_OF_PROP } from '@/lib/editor/rich-text';
 import {
   AlignLeft,
   AlignCenter,
   AlignRight,
   AlignHorizontalDistributeCenter,
+  AlignStartVertical,
+  AlignCenterVertical,
+  AlignEndVertical,
   ChevronRight,
   ChevronDown,
   ChevronUp,
@@ -126,11 +133,14 @@ export function V3Inspector() {
     updateProps,
     resetViewportStyles,
     resetViewportStyleGroup,
+    resetViewportStylePath,
     setVisibility,
     viewport,
     document,
     getInspectorStyles,
     inspectorFocusKey,
+    saveReusableFromSelection,
+    syncReusableFromSelection,
   } = useV3EditorStore();
 
   const selectedNode = getSelectedNode();
@@ -140,6 +150,8 @@ export function V3Inspector() {
 
   const [openSections, setOpenSections] = React.useState<Record<string, boolean>>({
     content: true,
+    variant: true,
+    states: false,
     layout: true,
     size: true,
     spacing: true,
@@ -222,36 +234,25 @@ export function V3Inspector() {
       <div className="flex items-center justify-between px-3 py-2 border-b border-slate-800/80 bg-slate-900/30 text-slate-400">
         <span className="text-[10px] uppercase tracking-wider font-bold text-slate-500">Align</span>
         <div className="flex items-center gap-0.5 bg-slate-900 rounded-lg p-0.5 border border-slate-800">
-          <button
-            type="button"
-            title="Align Left"
-            onClick={() => updateStyles(selectedNode.id, { typography: { textAlign: 'left' } })}
-            className="p-1 rounded hover:bg-slate-800 hover:text-white"
-          >
+          <button type="button" title="Align left" aria-label="Align left" onClick={() => updateStyles(selectedNode.id, { typography: { textAlign: 'left' }, flex: { justifyContent: 'flex-start' } })} className="p-1 rounded hover:bg-slate-800 hover:text-white">
             <AlignLeft className="w-3.5 h-3.5" />
           </button>
-          <button
-            type="button"
-            title="Align Center"
-            onClick={() => updateStyles(selectedNode.id, { typography: { textAlign: 'center' } })}
-            className="p-1 rounded hover:bg-slate-800 hover:text-white"
-          >
+          <button type="button" title="Align center" aria-label="Align center" onClick={() => updateStyles(selectedNode.id, { typography: { textAlign: 'center' }, flex: { justifyContent: 'center' } })} className="p-1 rounded hover:bg-slate-800 hover:text-white">
             <AlignCenter className="w-3.5 h-3.5" />
           </button>
-          <button
-            type="button"
-            title="Align Right"
-            onClick={() => updateStyles(selectedNode.id, { typography: { textAlign: 'right' } })}
-            className="p-1 rounded hover:bg-slate-800 hover:text-white"
-          >
+          <button type="button" title="Align right" aria-label="Align right" onClick={() => updateStyles(selectedNode.id, { typography: { textAlign: 'right' }, flex: { justifyContent: 'flex-end' } })} className="p-1 rounded hover:bg-slate-800 hover:text-white">
             <AlignRight className="w-3.5 h-3.5" />
           </button>
-          <button
-            type="button"
-            title="Distribute Center"
-            onClick={() => updateStyles(selectedNode.id, { flex: { justifyContent: 'center' } })}
-            className="p-1 rounded hover:bg-slate-800 hover:text-white"
-          >
+          <button type="button" title="Align top" aria-label="Align top" onClick={() => updateStyles(selectedNode.id, { flex: { alignItems: 'flex-start' } })} className="p-1 rounded hover:bg-slate-800 hover:text-white">
+            <AlignStartVertical className="w-3.5 h-3.5" />
+          </button>
+          <button type="button" title="Align middle" aria-label="Align middle" onClick={() => updateStyles(selectedNode.id, { flex: { alignItems: 'center' } })} className="p-1 rounded hover:bg-slate-800 hover:text-white">
+            <AlignCenterVertical className="w-3.5 h-3.5" />
+          </button>
+          <button type="button" title="Align bottom" aria-label="Align bottom" onClick={() => updateStyles(selectedNode.id, { flex: { alignItems: 'flex-end' } })} className="p-1 rounded hover:bg-slate-800 hover:text-white">
+            <AlignEndVertical className="w-3.5 h-3.5" />
+          </button>
+          <button type="button" title="Equal spacing" aria-label="Equal spacing" onClick={() => updateStyles(selectedNode.id, { flex: { justifyContent: 'space-between' } })} className="p-1 rounded hover:bg-slate-800 hover:text-white">
             <AlignHorizontalDistributeCenter className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -290,12 +291,66 @@ export function V3Inspector() {
             {openSections.content ? <ChevronUp className="w-3.5 h-3.5 text-slate-400" /> : <ChevronDown className="w-3.5 h-3.5 text-slate-400" />}
           </button>
           {openSections.content && (
-            <ContentControl
-              node={selectedNode}
-              onChangeProps={(propsPatch) => updateProps(selectedNode.id, propsPatch)}
-            />
+            <div className="space-y-3">
+              <RichTextControl
+                node={selectedNode}
+                onChangeProps={(propsPatch) => updateProps(selectedNode.id, propsPatch)}
+                onChangeAlign={(textAlign) => updateStyles(selectedNode.id, { typography: { textAlign } })}
+              />
+              <ContentControl
+                node={selectedNode}
+                onChangeProps={(propsPatch) => updateProps(selectedNode.id, propsPatch)}
+              />
+              {selectedNode.props?.[INSTANCE_OF_PROP] ? (
+                <button
+                  type="button"
+                  onClick={() => syncReusableFromSelection()}
+                  className="w-full h-8 rounded-lg bg-indigo-600/20 border border-indigo-500/40 text-[11px] font-semibold text-indigo-200"
+                >
+                  Update all instances
+                </button>
+              ) : selectedNode.type !== 'page-root' ? (
+                <button
+                  type="button"
+                  onClick={() => saveReusableFromSelection()}
+                  className="w-full h-8 rounded-lg bg-slate-900 border border-slate-800 text-[11px] font-semibold text-slate-300 hover:text-white"
+                >
+                  Save as reusable
+                </button>
+              ) : null}
+            </div>
           )}
         </div>
+
+        <InspectorSection
+          id="variant"
+          title="Variant"
+          open={openSections.variant}
+          onToggle={() => toggleSection('variant')}
+          overridden={false}
+          viewport={viewport}
+        >
+          <VariantControl
+            node={selectedNode}
+            onChangeProps={(propsPatch) => updateProps(selectedNode.id, propsPatch)}
+          />
+        </InspectorSection>
+
+        <InspectorSection
+          id="states"
+          title="States"
+          open={openSections.states}
+          onToggle={() => toggleSection('states')}
+          overridden={false}
+          viewport={viewport}
+        >
+          <StatesControl
+            node={selectedNode}
+            themeColors={themeColors}
+            onChangeStyles={(patch) => updateStyles(selectedNode.id, patch)}
+            onChangeProps={(propsPatch) => updateProps(selectedNode.id, propsPatch)}
+          />
+        </InspectorSection>
 
         <InspectorSection
           id="layout"
@@ -314,6 +369,15 @@ export function V3Inspector() {
             onChangeFlex={(flex) => updateStyles(selectedNode.id, { flex })}
             onChangeGrid={(grid) => updateStyles(selectedNode.id, { grid })}
           />
+          {viewport !== 'desktop' && isStylePathOverridden(selectedNode, viewport, ['layout', 'overflow']) && (
+            <button
+              type="button"
+              onClick={() => resetViewportStylePath(selectedNode.id, ['layout', 'overflow'])}
+              className="mt-2 text-[10px] text-amber-400 hover:underline"
+            >
+              Reset overflow to inherited
+            </button>
+          )}
         </InspectorSection>
 
         <InspectorSection

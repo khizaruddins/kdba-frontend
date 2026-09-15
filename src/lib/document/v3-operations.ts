@@ -16,6 +16,8 @@ import {
   PageDocumentV3,
   ThemeSystemV3,
 } from '@/types/v3-document';
+import { GLOBAL_FOOTER_PAGE_ID, GLOBAL_HEADER_PAGE_ID, mergeGlobalPatch } from '@/lib/editor/global-chrome';
+import { INSTANCE_OF_PROP } from '@/lib/editor/rich-text';
 
 export function generateNodeId(prefix: string): string {
   return `${prefix}_${Math.random().toString(36).substring(2, 9)}`;
@@ -107,6 +109,31 @@ export function mergeStyleDefinition(
     },
     effects: { ...(base.effects || {}), ...(patch.effects || {}) },
     transform: { ...(base.transform || {}), ...(patch.transform || {}) },
+    states:
+      base.states || patch.states
+        ? {
+            hover: mergeStateSlice(base.states?.hover, patch.states?.hover),
+            active: mergeStateSlice(base.states?.active, patch.states?.active),
+            focus: mergeStateSlice(base.states?.focus, patch.states?.focus),
+            disabled: mergeStateSlice(base.states?.disabled, patch.states?.disabled),
+          }
+        : undefined,
+  };
+}
+
+function mergeStateSlice(
+  base?: StyleDefinition,
+  patch?: StyleDefinition,
+): StyleDefinition | undefined {
+  if (!base && !patch) return undefined;
+  if (!patch) return base;
+  if (!base) return patch;
+  return {
+    layout: { ...(base.layout || {}), ...(patch.layout || {}) },
+    typography: { ...(base.typography || {}), ...(patch.typography || {}) },
+    background: { ...(base.background || {}), ...(patch.background || {}) },
+    border: { ...(base.border || {}), ...(patch.border || {}) },
+    effects: { ...(base.effects || {}), ...(patch.effects || {}) },
   };
 }
 
@@ -156,10 +183,106 @@ function updatePageRoot(
   pageId: string,
   updater: (root: WebsiteNode) => WebsiteNode,
 ): WebsiteDocumentV3 {
+  if (pageId === GLOBAL_HEADER_PAGE_ID) {
+    const current = doc.global?.headerNode;
+    if (!current) return doc;
+    const nextRoot = updater(current);
+    if (nextRoot === current) return doc;
+    return { ...doc, global: { ...(doc.global || {}), headerNode: nextRoot } };
+  }
+  if (pageId === GLOBAL_FOOTER_PAGE_ID) {
+    const current = doc.global?.footerNode;
+    if (!current) return doc;
+    const nextRoot = updater(current);
+    if (nextRoot === current) return doc;
+    return { ...doc, global: { ...(doc.global || {}), footerNode: nextRoot } };
+  }
   return updateActivePage(doc, pageId, (page) => {
     const nextRoot = updater(page.root);
     return nextRoot === page.root ? page : { ...page, root: nextRoot };
   });
+}
+
+export function documentRoots(
+  doc: WebsiteDocumentV3,
+): Array<{ pageId: string; root: WebsiteNode }> {
+  const roots: Array<{ pageId: string; root: WebsiteNode }> = [];
+  if (doc.global?.headerNode) roots.push({ pageId: GLOBAL_HEADER_PAGE_ID, root: doc.global.headerNode });
+  if (doc.global?.footerNode) roots.push({ pageId: GLOBAL_FOOTER_PAGE_ID, root: doc.global.footerNode });
+  for (const page of doc.pages) {
+    if (page?.root) roots.push({ pageId: page.id, root: page.root });
+  }
+  return roots;
+}
+
+export function findNodeLocation(
+  doc: WebsiteDocumentV3,
+  nodeId: string,
+): { pageId: string; root: WebsiteNode; node: WebsiteNode } | null {
+  for (const item of documentRoots(doc)) {
+    const node = findNode(item.root, nodeId);
+    if (node) return { pageId: item.pageId, root: item.root, node };
+  }
+  return null;
+}
+
+export function findParentLocation(
+  doc: WebsiteDocumentV3,
+  nodeId: string,
+): { pageId: string; root: WebsiteNode; parent: WebsiteNode; index: number } | null {
+  for (const item of documentRoots(doc)) {
+    const found = findParent(item.root, nodeId);
+    if (found) return { pageId: item.pageId, root: item.root, ...found };
+  }
+  return null;
+}
+
+export function sanitizePastedNode(node: WebsiteNode): WebsiteNode | null {
+  const allowed = new Set<string>([
+    'page-root',
+    'section',
+    'container',
+    'row',
+    'column',
+    'grid',
+    'stack',
+    'heading',
+    'paragraph',
+    'rich-text',
+    'text',
+    'button',
+    'link',
+    'icon',
+    'logo',
+    'badge',
+    'divider',
+    'spacer',
+    'list',
+    'quote',
+    'image',
+    'video',
+    'gallery',
+    'carousel',
+    'background-media',
+    'form',
+    'contact-form',
+    'map',
+    'opening-hours',
+    'pricing',
+    'product',
+    'testimonial',
+    'team',
+    'service',
+    'navbar',
+    'navigation',
+    'footer',
+    'legacy-section',
+  ]);
+  if (!allowed.has(node.type) || node.type === 'page-root') return null;
+  const children = (node.children || [])
+    .map((child) => sanitizePastedNode(child))
+    .filter(Boolean) as WebsiteNode[];
+  return { ...node, children };
 }
 
 export function addNodeToTree(
@@ -361,7 +484,10 @@ export function applyDocumentOperation(
       const map = new Map(doc.pages.map((p) => [p.id, p]));
       const next = op.pageIds.map((id) => map.get(id)).filter(Boolean) as PageDocumentV3[];
       const leftover = doc.pages.filter((p) => !op.pageIds.includes(p.id));
-      return { ...doc, pages: [...next, ...leftover] };
+      return {
+        ...doc,
+        pages: [...next, ...leftover].map((page, index) => ({ ...page, sortOrder: index })),
+      };
     }
     case 'updateTheme': {
       const theme: ThemeSystemV3 = {
@@ -382,6 +508,8 @@ export function applyDocumentOperation(
       return { ...doc, seo: { ...doc.seo, ...op.seo } };
     case 'updateSettings':
       return { ...doc, settings: { ...doc.settings, ...op.settings } };
+    case 'updateGlobal':
+      return { ...doc, global: mergeGlobalPatch(doc.global, op.global) };
     default:
       return doc;
   }
@@ -463,6 +591,109 @@ export function hasViewportOverride(node: WebsiteNode, viewport: ViewportMode): 
     'effects',
     'transform',
   ]);
+}
+
+export function isStylePathOverridden(
+  node: WebsiteNode,
+  viewport: ViewportMode,
+  path: string[],
+): boolean {
+  if (viewport === 'desktop' || path.length === 0) return false;
+  let current: unknown = node.responsive?.[viewport];
+  for (const key of path) {
+    if (!current || typeof current !== 'object') return false;
+    current = (current as Record<string, unknown>)[key];
+  }
+  return styleValuePresent(current);
+}
+
+export function clearResponsiveStylePath(
+  doc: WebsiteDocumentV3,
+  pageId: string,
+  nodeId: string,
+  viewport: 'tablet' | 'mobile',
+  path: string[],
+): WebsiteDocumentV3 {
+  return updatePageRoot(doc, pageId, (root) =>
+    mapNode(root, nodeId, (node) => {
+      const clone = deepClone(node.responsive?.[viewport] || {}) as Record<string, unknown>;
+      let cursor: Record<string, unknown> = clone;
+      for (let i = 0; i < path.length - 1; i += 1) {
+        const key = path[i];
+        const next = cursor[key];
+        if (!next || typeof next !== 'object') return node;
+        cursor[key] = { ...(next as Record<string, unknown>) };
+        cursor = cursor[key] as Record<string, unknown>;
+      }
+      delete cursor[path[path.length - 1]];
+      return {
+        ...node,
+        responsive: {
+          ...node.responsive,
+          [viewport]: Object.keys(clone).length ? (clone as StyleDefinition) : undefined,
+        },
+      };
+    }),
+  );
+}
+
+export function duplicatePageDocument(
+  doc: WebsiteDocumentV3,
+  pageId: string,
+): { document: WebsiteDocumentV3; page: PageDocumentV3 } | null {
+  const source = doc.pages.find((page) => page.id === pageId);
+  if (!source) return null;
+  const page: PageDocumentV3 = {
+    ...deepClone(source),
+    id: generateNodeId('page'),
+    title: `${source.title} copy`,
+    slug: `${source.slug.replace(/\/$/, '')}-copy`,
+    type: source.type === 'home' ? 'custom' : source.type,
+    sortOrder: doc.pages.length,
+    enabled: source.enabled,
+    root: cloneNodeWithFreshIds(source.root),
+  };
+  return {
+    document: applyDocumentOperation(doc, { type: 'addPage', page }),
+    page,
+  };
+}
+
+export function syncReusableInstances(
+  doc: WebsiteDocumentV3,
+  libraryId: string,
+): WebsiteDocumentV3 {
+  const definition = doc.global?.reusableNodes?.[libraryId];
+  if (!definition) return doc;
+  let next = doc;
+  for (const item of documentRoots(doc)) {
+    next = updatePageRoot(next, item.pageId, (root) =>
+      replaceInstances(root, libraryId, definition),
+    );
+  }
+  return next;
+}
+
+function replaceInstances(root: WebsiteNode, libraryId: string, definition: WebsiteNode): WebsiteNode {
+  if (root.props?.[INSTANCE_OF_PROP] === libraryId) {
+    const cloned = cloneNodeWithFreshIds(definition);
+    return {
+      ...cloned,
+      id: root.id,
+      props: {
+        ...(cloned.props || {}),
+        [INSTANCE_OF_PROP]: libraryId,
+      },
+    };
+  }
+  if (!root.children) return root;
+  let changed = false;
+  const children = root.children.map((child) => {
+    const next = replaceInstances(child, libraryId, definition);
+    if (next !== child) changed = true;
+    return next;
+  });
+  return changed ? { ...root, children } : root;
 }
 
 export function clearResponsiveStyleGroup(

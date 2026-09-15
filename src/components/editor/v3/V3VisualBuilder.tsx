@@ -9,6 +9,7 @@ import { LayersPanel } from './panels/LayersPanel';
 import { PagesPanel } from './panels/PagesPanel';
 import { ThemePanel } from './panels/ThemePanel';
 import { AssetsPanel } from './panels/AssetsPanel';
+import { SiteStructurePanel } from './panels/SiteStructurePanel';
 import { V3EditorCanvas } from './V3EditorCanvas';
 import { V3Inspector } from './inspector/V3Inspector';
 import { Dialog } from '@/components/ui/dialog';
@@ -133,6 +134,7 @@ export function V3VisualBuilder() {
         {!previewMode && activeNavTab === 'add' && <AddElementsPanel />}
         {!previewMode && activeNavTab === 'layers' && <LayersPanel />}
         {!previewMode && activeNavTab === 'pages' && <PagesPanel />}
+        {!previewMode && activeNavTab === 'site' && <SiteStructurePanel />}
         {!previewMode && activeNavTab === 'theme' && <ThemePanel />}
         {!previewMode && activeNavTab === 'assets' && <AssetsPanel />}
         <V3EditorCanvas />

@@ -89,6 +89,11 @@ export function SizeControl({ size = {}, onChangeSize }: SizeControlProps) {
           value={size.minHeight}
           onChange={(minHeight) => onChangeSize({ ...size, minHeight })}
         />
+        <SizeField
+          label="Max Height"
+          value={size.maxHeight}
+          onChange={(maxHeight) => onChangeSize({ ...size, maxHeight })}
+        />
       </div>
     </div>
   );

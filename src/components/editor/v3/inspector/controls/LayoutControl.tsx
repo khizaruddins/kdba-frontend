@@ -198,10 +198,37 @@ export function LayoutControl({
               min="1"
               max="6"
               value={grid.columns || 3}
-              onChange={(e) => onChangeGrid({ ...grid, columns: Number(e.target.value) })}
+              onChange={(e) => onChangeGrid({ ...grid, columns: Number(e.target.value), autoFit: false })}
               className="w-full accent-indigo-500 cursor-pointer"
             />
           </div>
+
+          <label className="flex items-center justify-between text-[11px] text-slate-400">
+            <span>Auto-fit columns</span>
+            <input
+              type="checkbox"
+              checked={Boolean(grid.autoFit)}
+              onChange={(e) =>
+                onChangeGrid({
+                  ...grid,
+                  autoFit: e.target.checked,
+                  minColumnWidth: grid.minColumnWidth || '240px',
+                })
+              }
+              className="accent-indigo-500"
+            />
+          </label>
+          {grid.autoFit && (
+            <div className="space-y-1">
+              <label className="text-[11px] font-medium text-slate-400">Min column width</label>
+              <input
+                type="text"
+                value={grid.minColumnWidth || '240px'}
+                onChange={(e) => onChangeGrid({ ...grid, minColumnWidth: e.target.value, autoFit: true })}
+                className="w-full h-8 px-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-200 text-xs"
+              />
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
@@ -227,6 +254,25 @@ export function LayoutControl({
           </div>
         </div>
       )}
+
+      <div className="space-y-1 pt-1 border-t border-slate-800/60">
+        <label className="text-[11px] font-medium text-slate-400">Overflow</label>
+        <select
+          value={layout.overflow || 'visible'}
+          onChange={(e) =>
+            onChangeLayout({
+              ...layout,
+              overflow: e.target.value as 'visible' | 'hidden' | 'scroll' | 'auto',
+            })
+          }
+          className="w-full h-8 px-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-200 text-xs"
+        >
+          <option value="visible">Visible</option>
+          <option value="hidden">Hidden</option>
+          <option value="auto">Auto</option>
+          <option value="scroll">Scroll</option>
+        </select>
+      </div>
     </div>
   );
 }

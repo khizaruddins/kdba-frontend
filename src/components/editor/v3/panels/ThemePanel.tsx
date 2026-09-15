@@ -72,7 +72,7 @@ export function ThemePanel() {
 
   const layoutTokens = getThemeLayoutTokens(document.theme?.tokens);
 
-  const handleTokenChange = (key: 'containerMaxWidth' | 'buttonRadius' | 'buttonBackground' | 'buttonColor', val: string) => {
+  const handleTokenChange = (key: string, val: string) => {
     updateTheme({
       tokens: {
         ...(document.theme?.tokens || {}),
@@ -214,6 +214,100 @@ export function ThemePanel() {
               />
               <span className="text-[11px] font-mono text-slate-300 uppercase truncate">{layoutTokens.buttonColor}</span>
             </div>
+          </div>
+        </div>
+
+        <div className="space-y-3 pt-3 border-t border-slate-800/80">
+          <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Type scale</h4>
+          <label className="block space-y-1">
+            <span className="text-[11px] text-slate-400">Heading scale</span>
+            <input
+              type="range"
+              min="0.8"
+              max="1.4"
+              step="0.05"
+              value={Number(layoutTokens.headingScale) || 1}
+              onChange={(e) => handleTokenChange('headingScale', e.target.value)}
+              className="w-full accent-indigo-500"
+            />
+          </label>
+          <label className="block space-y-1">
+            <span className="text-[11px] text-slate-400">Body scale</span>
+            <input
+              type="range"
+              min="0.85"
+              max="1.25"
+              step="0.05"
+              value={Number(layoutTokens.bodyScale) || 1}
+              onChange={(e) => handleTokenChange('bodyScale', e.target.value)}
+              className="w-full accent-indigo-500"
+            />
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <span className="text-[11px] text-slate-400">Heading line height</span>
+              <input
+                value={layoutTokens.headingLineHeight}
+                onChange={(e) => handleTokenChange('headingLineHeight', e.target.value)}
+                className="w-full h-8 px-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-200"
+              />
+            </div>
+            <div className="space-y-1">
+              <span className="text-[11px] text-slate-400">Body line height</span>
+              <input
+                value={layoutTokens.bodyLineHeight}
+                onChange={(e) => handleTokenChange('bodyLineHeight', e.target.value)}
+                className="w-full h-8 px-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-200"
+              />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <span className="text-[11px] text-slate-400">Letter spacing</span>
+            <input
+              value={layoutTokens.letterSpacing}
+              onChange={(e) => handleTokenChange('letterSpacing', e.target.value)}
+              className="w-full h-8 px-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-200"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-3 pt-3 border-t border-slate-800/80">
+          <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Radius, shadow, spacing</h4>
+          <div className="space-y-1">
+            <span className="text-[11px] text-slate-400">Corner radius</span>
+            <select
+              value={String(document.theme?.tokens?.radius || 'md')}
+              onChange={(e) => handleTokenChange('radius', e.target.value)}
+              className="w-full h-8 px-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-200"
+            >
+              <option value="none">None</option>
+              <option value="sm">Small</option>
+              <option value="md">Medium</option>
+              <option value="lg">Large</option>
+              <option value="pill">Pill</option>
+            </select>
+          </div>
+          <div className="space-y-1">
+            <span className="text-[11px] text-slate-400">Shadow</span>
+            <select
+              value={String(document.theme?.tokens?.shadow || 'subtle')}
+              onChange={(e) => handleTokenChange('shadow', e.target.value)}
+              className="w-full h-8 px-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-200"
+            >
+              <option value="none">None</option>
+              <option value="subtle">Subtle</option>
+              <option value="medium">Medium</option>
+              <option value="strong">Strong</option>
+            </select>
+          </div>
+          <div className="space-y-1">
+            <span className="text-[11px] text-slate-400">Spacing scale</span>
+            <input
+              value={layoutTokens.spaceScale}
+              onChange={(e) => handleTokenChange('spaceScale', e.target.value)}
+              className="w-full h-8 px-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-200"
+              placeholder="8px"
+            />
           </div>
         </div>
       </div>

@@ -138,21 +138,19 @@ export const SECTION_PRESETS: SectionPreset[] = [
     build: () =>
       section('Features', [
         container([
-          stack([
-            heading('Why teams choose KDBA', 2, '40px'),
-            createDefaultNode('grid', {
-              name: 'Grid',
-              props: COMPONENT_MANIFEST.grid.defaultProps,
-              styles: COMPONENT_MANIFEST.grid.defaultStyles,
-              children: ['Visual editing', 'Responsive by default', 'Publish in minutes'].map(
-                (title) =>
-                  stack([
-                    heading(title, 3, '22px'),
-                    paragraph('Edit the real website on a canvas — not a form of locked template fields.'),
-                  ]),
-              ),
-            }),
-          ]),
+          stack([heading('Why teams choose KDBA', 2, '40px')]),
+          createDefaultNode('grid', {
+            name: 'Grid',
+            props: COMPONENT_MANIFEST.grid.defaultProps,
+            styles: COMPONENT_MANIFEST.grid.defaultStyles,
+            children: ['Visual editing', 'Responsive by default', 'Publish in minutes'].map(
+              (title) =>
+                stack([
+                  heading(title, 3, '22px'),
+                  paragraph('Edit the real website on a canvas — not a form of locked template fields.'),
+                ]),
+            ),
+          }),
         ]),
       ]),
   },
@@ -182,26 +180,24 @@ export const SECTION_PRESETS: SectionPreset[] = [
     build: () =>
       section('Testimonials', [
         container([
-          stack([
-            heading('What clients say', 2, '40px'),
-            createDefaultNode('grid', {
-              name: 'Grid',
-              props: { columns: 2 },
-              styles: { ...COMPONENT_MANIFEST.grid.defaultStyles, grid: { columns: 2, columnGap: '24px', rowGap: '24px' } },
-              children: [
-                stack([
-                  paragraph(
-                    'KDBA transformed how we design and launch our client projects in record time.',
-                  ),
-                  heading('Sarah Jenkins', 4, '16px'),
-                ]),
-                stack([
-                  paragraph('We finally stopped waiting on developers for copy and layout tweaks.'),
-                  heading('Maya Chen', 4, '16px'),
-                ]),
-              ],
-            }),
-          ]),
+          stack([heading('What clients say', 2, '40px')]),
+          createDefaultNode('grid', {
+            name: 'Grid',
+            props: { columns: 2 },
+            styles: { ...COMPONENT_MANIFEST.grid.defaultStyles, grid: { columns: 2, columnGap: '24px', rowGap: '24px' } },
+            children: [
+              stack([
+                paragraph(
+                  'KDBA transformed how we design and launch our client projects in record time.',
+                ),
+                heading('Sarah Jenkins', 4, '16px'),
+              ]),
+              stack([
+                paragraph('We finally stopped waiting on developers for copy and layout tweaks.'),
+                heading('Maya Chen', 4, '16px'),
+              ]),
+            ],
+          }),
         ]),
       ]),
   },
@@ -272,25 +268,25 @@ export const SECTION_PRESETS: SectionPreset[] = [
           stack([
             heading('Simple pricing', 2, '40px'),
             paragraph('Start with the plan that matches your studio. Upgrade when you grow.'),
-            grid(3, [
-              stack([
-                heading('Starter', 3, '22px'),
-                heading('$29', 4, '32px'),
-                paragraph('One published site and visual editing for a small team.'),
-                button('Choose Starter', '#contact'),
-              ]),
-              stack([
-                heading('Studio', 3, '22px'),
-                heading('$79', 4, '32px'),
-                paragraph('Multiple sites, custom domains, and client-ready templates.'),
-                button('Choose Studio', '#contact'),
-              ]),
-              stack([
-                heading('Agency', 3, '22px'),
-                heading('$149', 4, '32px'),
-                paragraph('White-label publishing and a workspace for every client.'),
-                button('Choose Agency', '#contact'),
-              ]),
+          ]),
+          grid(3, [
+            stack([
+              heading('Starter', 3, '22px'),
+              heading('$29', 4, '32px'),
+              paragraph('One published site and visual editing for a small team.'),
+              button('Choose Starter', '#contact'),
+            ]),
+            stack([
+              heading('Studio', 3, '22px'),
+              heading('$79', 4, '32px'),
+              paragraph('Multiple sites, custom domains, and client-ready templates.'),
+              button('Choose Studio', '#contact'),
+            ]),
+            stack([
+              heading('Agency', 3, '22px'),
+              heading('$149', 4, '32px'),
+              paragraph('White-label publishing and a workspace for every client.'),
+              button('Choose Agency', '#contact'),
             ]),
           ]),
         ]),
@@ -308,20 +304,20 @@ export const SECTION_PRESETS: SectionPreset[] = [
             stack([
               heading('Selected work', 2, '40px'),
               paragraph('Replace these images with your own photography or product shots.'),
-              grid(3, [
-                image(
-                  'https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?auto=format&fit=crop&w=800&q=80',
-                  'Studio workspace',
-                ),
-                image(
-                  'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=800&q=80',
-                  'Analytics dashboard',
-                ),
-                image(
-                  'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=800&q=80',
-                  'Team collaboration',
-                ),
-              ]),
+            ]),
+            grid(3, [
+              image(
+                'https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?auto=format&fit=crop&w=800&q=80',
+                'Studio workspace',
+              ),
+              image(
+                'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=800&q=80',
+                'Analytics dashboard',
+              ),
+              image(
+                'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=800&q=80',
+                'Team collaboration',
+              ),
             ]),
           ]),
         ],

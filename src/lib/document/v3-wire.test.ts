@@ -66,4 +66,39 @@ describe('v3 wire adapter', () => {
     expect(restoredSection?.styles?.background?.gradient?.angle).toBe(120);
     expect(restoredSection?.styles?.background?.gradient?.stops[1].color).toBe('primary');
   });
+
+  it('wraps a grid inside a stack so backend nesting validation can accept it', () => {
+    const section = createDefaultNode('section', {
+      id: 'features',
+      children: [
+        createDefaultNode('container', {
+          id: 'box',
+          children: [
+            createDefaultNode('stack', {
+              id: 'stack',
+              children: [
+                createDefaultNode('heading', { id: 'title', props: { text: 'Features' } }),
+                createDefaultNode('grid', {
+                  id: 'grid',
+                  children: [createDefaultNode('stack', { id: 'card' })],
+                }),
+              ],
+            }),
+          ],
+        }),
+      ],
+    });
+    const wire = toWireDocument(documentWith([section]));
+    const root = (wire.pages as Array<Record<string, unknown>>)[0].root as Record<string, unknown>;
+    const wireSection = (root.children as Array<Record<string, unknown>>)[0];
+    const wireContainer = (wireSection.children as Array<Record<string, unknown>>)[0];
+    const wireStack = (wireContainer.children as Array<Record<string, unknown>>)[0];
+    const stackChildren = wireStack.children as Array<Record<string, unknown>>;
+    expect(stackChildren.map((child) => child.type)).toEqual(['heading', 'container']);
+    expect((stackChildren[1].children as Array<Record<string, unknown>>)[0].type).toBe('grid');
+
+    const restored = toEditorDocument(wire);
+    const restoredStack = restored.pages[0].root.children?.[0].children?.[0].children?.[0];
+    expect(restoredStack?.children?.map((child) => child.type)).toEqual(['heading', 'grid']);
+  });
 });

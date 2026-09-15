@@ -4,10 +4,17 @@ import {
   applyStylesForViewport,
   cloneNodeWithFreshIds,
   createDefaultNode,
+  duplicatePageDocument,
   findNode,
+  findNodeLocation,
+  isStylePathOverridden,
+  sanitizePastedNode,
+  syncReusableInstances,
 } from './v3-operations';
-import { toEditorDocument } from './v3-wire';
+import { toEditorDocument, toWireDocument } from './v3-wire';
 import { WebsiteDocumentV3, WebsiteNode } from '@/types/v3-document';
+import { ensureGlobalChrome } from '@/lib/editor/global-chrome';
+import { INSTANCE_OF_PROP, sanitizeHref } from '@/lib/editor/rich-text';
 
 function sampleDocument(): WebsiteDocumentV3 {
   const heading = createDefaultNode('heading', {
@@ -120,5 +127,91 @@ describe('v3 document operations', () => {
     expect(cloned.id).not.toBe(original.id);
     expect(cloned.children?.[0].id).not.toBe(original.children?.[0].id);
     expect(cloned.children?.[1].props?.text).toBe('B');
+  });
+
+  it('updates global header nodes through the header page id', () => {
+    const doc = ensureGlobalChrome(sampleDocument());
+    const headerId = doc.global.headerNode?.id as string;
+    const updated = applyDocumentOperation(doc, {
+      type: 'updateProps',
+      pageId: '__kdba_header__',
+      nodeId: headerId,
+      props: { brandName: 'Northwind' },
+    });
+    expect(updated.global.headerNode?.props?.brandName).toBe('Northwind');
+    expect(findNodeLocation(updated, headerId)?.pageId).toBe('__kdba_header__');
+  });
+
+  it('duplicates a page with fresh node ids and a non-home type', () => {
+    const doc = sampleDocument();
+    const result = duplicatePageDocument(doc, doc.pages[0].id);
+    expect(result).not.toBeNull();
+    expect(result?.document.pages).toHaveLength(2);
+    expect(result?.page.root.id).not.toBe(doc.pages[0].root.id);
+    expect(result?.page.type).toBe('custom');
+  });
+
+  it('tracks mobile style path overrides without duplicating the document', () => {
+    const doc = sampleDocument();
+    const mobile = applyStylesForViewport(doc, doc.pages[0].id, 'heading', 'mobile', {
+      layout: { overflow: 'hidden' },
+    });
+    const heading = findNode(mobile.pages[0].root, 'heading');
+    expect(heading).toBeTruthy();
+    expect(isStylePathOverridden(heading as WebsiteNode, 'mobile', ['layout', 'overflow'])).toBe(true);
+    expect(isStylePathOverridden(heading as WebsiteNode, 'mobile', ['flex', 'gap'])).toBe(false);
+    expect(heading?.styles?.layout?.overflow).toBeUndefined();
+  });
+
+  it('syncs reusable instances while preserving instance ids', () => {
+    const card = createDefaultNode('stack', {
+      id: 'card_def',
+      props: { variant: 'elevated' },
+      children: [createDefaultNode('heading', { id: 'card_h', props: { text: 'Original' } })],
+    });
+    let doc = ensureGlobalChrome(sampleDocument());
+    doc = applyDocumentOperation(doc, {
+      type: 'updateGlobal',
+      global: { reusableNodes: { lib_card: card } },
+    });
+    const instance = {
+      ...card,
+      id: 'instance_1',
+      props: { ...card.props, [INSTANCE_OF_PROP]: 'lib_card' },
+    };
+    doc = applyDocumentOperation(doc, {
+      type: 'addNode',
+      pageId: doc.pages[0].id,
+      parentId: 'container',
+      node: instance,
+    });
+    const nextDef = {
+      ...card,
+      children: [createDefaultNode('heading', { props: { text: 'Updated' } })],
+    };
+    doc = applyDocumentOperation(doc, {
+      type: 'updateGlobal',
+      global: { reusableNodes: { lib_card: nextDef } },
+    });
+    const synced = syncReusableInstances(doc, 'lib_card');
+    const found = findNode(synced.pages[0].root, 'instance_1');
+    expect(found?.id).toBe('instance_1');
+    expect(found?.children?.[0].props?.text).toBe('Updated');
+    expect(found?.props?.[INSTANCE_OF_PROP]).toBe('lib_card');
+  });
+
+  it('rejects pasted page-root nodes and javascript hrefs', () => {
+    expect(sanitizePastedNode(createDefaultNode('page-root'))).toBeNull();
+    const safe = sanitizePastedNode(createDefaultNode('heading', { props: { text: 'Hi' } }));
+    expect(safe?.type).toBe('heading');
+    expect(sanitizeHref('javascript:alert(1)')).toBeUndefined();
+    expect(sanitizeHref('/about')).toBe('/about');
+  });
+
+  it('round-trips global header through the wire adapter', () => {
+    const doc = ensureGlobalChrome(sampleDocument());
+    const wire = toWireDocument(doc);
+    const restored = toEditorDocument(wire);
+    expect(restored.global.headerNode?.type).toBe('navbar');
   });
 });

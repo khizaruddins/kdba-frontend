@@ -8,6 +8,9 @@ import {
 } from '@/types/v3-document';
 import { resolveThemeColor } from '@/lib/editor/theme-tokens';
 import { GRADIENT_PROP } from '@/lib/document/v3-wire';
+import { useV3RenderContext } from './V3RenderContext';
+import { buttonVariantStyle, cardVariantStyle } from '@/lib/editor/variants';
+import { normalizeRuns, sanitizeHref, TEXT_RUNS_PROP, textFromRuns } from '@/lib/editor/rich-text';
 
 export interface NodeRendererProps {
   node: WebsiteNode;
@@ -24,6 +27,29 @@ function asCss(value: unknown): string | number | undefined {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
   if (typeof value === 'string' && value.trim()) return value;
   return undefined;
+}
+
+function RichTextRuns({ runs, fallback }: { runs?: unknown; fallback: string }) {
+  const normalized = normalizeRuns(runs);
+  if (!normalized.length) return <>{fallback}</>;
+  return (
+    <>
+      {normalized.map((run, index) => {
+        let content: React.ReactNode = run.text;
+        if (run.italic) content = <em>{content}</em>;
+        if (run.bold) content = <strong>{content}</strong>;
+        if (run.underline) content = <u>{content}</u>;
+        if (run.href) {
+          return (
+            <a key={index} href={run.href} className="underline underline-offset-2">
+              {content}
+            </a>
+          );
+        }
+        return <React.Fragment key={index}>{content}</React.Fragment>;
+      })}
+    </>
+  );
 }
 
 /**
@@ -87,8 +113,12 @@ export function resolveNodeStyles(
   if (flex.basis) css.flexBasis = flex.basis;
 
   // CSS Grid
-  if (grid.columns) {
-    css.gridTemplateColumns = grid.gridTemplateColumns || `repeat(${grid.columns}, minmax(0, 1fr))`;
+  if (grid.autoFit) {
+    css.gridTemplateColumns = `repeat(auto-fit, minmax(${grid.minColumnWidth || '240px'}, 1fr))`;
+  } else if (grid.gridTemplateColumns) {
+    css.gridTemplateColumns = grid.gridTemplateColumns;
+  } else if (grid.columns) {
+    css.gridTemplateColumns = `repeat(${grid.columns}, minmax(0, 1fr))`;
   }
   if (grid.columnGap) css.columnGap = grid.columnGap;
   if (grid.rowGap) css.rowGap = grid.rowGap;
@@ -123,6 +153,7 @@ export function resolveNodeStyles(
   if (typography.textAlign) css.textAlign = typography.textAlign;
   if (typography.textTransform) css.textTransform = typography.textTransform;
   if (typography.textDecoration) css.textDecoration = typography.textDecoration;
+  if (typography.fontStyle) css.fontStyle = typography.fontStyle;
   if (typography.color) css.color = resolveThemeColor(typography.color);
 
   // Background
@@ -190,6 +221,7 @@ function NodeRendererInner({
   onStartInlineEdit,
   className = '',
 }: NodeRendererProps) {
+  const renderContext = useV3RenderContext();
   const isInlineEditing = isEditing && inlineEditingNodeId === node.id;
 
   const isHiddenOnDevice = node.visibility && node.visibility[viewport] === false;
@@ -221,8 +253,16 @@ function NodeRendererInner({
     onStartInlineEdit?.(node.id);
   };
 
-  const renderChildren = () => {
-    if (!node.children || node.children.length === 0) {
+  const renderChildren = (filterChrome = false) => {
+    const hasGlobalHeader = Boolean(renderContext?.document.global?.headerNode);
+    const hasGlobalFooter = Boolean(renderContext?.document.global?.footerNode);
+    const children = (node.children || []).filter((child) => {
+      if (!filterChrome) return true;
+      if (hasGlobalHeader && child.type === 'navbar') return false;
+      if (hasGlobalFooter && child.type === 'footer') return false;
+      return true;
+    });
+    if (children.length === 0) {
       if (isEditing && (node.type === 'container' || node.type === 'section' || node.type === 'column' || node.type === 'stack' || node.type === 'row' || node.type === 'grid')) {
         return (
           <div className="flex items-center justify-center p-6 border border-dashed border-slate-700/60 rounded-xl bg-slate-900/20 text-slate-500 text-xs select-none pointer-events-none">
@@ -233,7 +273,7 @@ function NodeRendererInner({
       return null;
     }
 
-    return node.children.map((child) => (
+    return children.map((child) => (
       <NodeRenderer
         key={child.id}
         node={child}
@@ -247,6 +287,16 @@ function NodeRendererInner({
     ));
   };
 
+  const hover = node.styles?.states?.hover;
+  const disabled = Boolean(props.disabled);
+  const hoverCss: React.CSSProperties = hover
+    ? {
+        ['--kdba-hover-bg' as string]: resolveThemeColor(hover.background?.color),
+        ['--kdba-hover-color' as string]: resolveThemeColor(hover.typography?.color),
+        ['--kdba-hover-opacity' as string]: hover.effects?.opacity,
+      }
+    : {};
+
   const editorClasses = isEditing
     ? `relative ${isHiddenOnDevice ? 'opacity-30 grayscale' : ''}`
     : '';
@@ -255,8 +305,11 @@ function NodeRendererInner({
     'data-node-id': node.id,
     'data-node-type': node.type,
     'data-node-name': node.name || node.type,
-    style: resolvedStyles,
-    className: `${editorClasses} ${className}`.trim(),
+    'data-has-hover': hover ? 'true' : undefined,
+    'data-disabled': disabled ? 'true' : undefined,
+    'data-locked': node.locked ? 'true' : undefined,
+    style: { ...resolvedStyles, ...hoverCss },
+    className: `kdba-node ${editorClasses} ${className}`.trim(),
   };
 
   // ─── COMPONENT TYPE DISPATCH ────────────────────────────────────────────────
@@ -265,20 +318,28 @@ function NodeRendererInner({
     case 'page-root':
       return (
         <div {...commonProps} className={`w-full min-h-screen flex flex-col ${commonProps.className}`}>
-          {renderChildren()}
+          {renderChildren(true)}
         </div>
       );
 
-    case 'section':
+    case 'section': {
+      const heroVariant = String(props.variant || '');
+      const heroClass =
+        heroVariant === 'split'
+          ? '[&>*]:md:flex [&>*]:md:flex-row [&>*]:md:items-center'
+          : heroVariant === 'image-background' || heroVariant === 'media'
+            ? 'bg-cover bg-center'
+            : '';
       return (
         <section
           {...commonProps}
           id={(props.anchorId as string) || undefined}
-          className={`w-full relative ${commonProps.className}`}
+          className={`relative ${props.fullWidth === false ? 'mx-auto max-w-[var(--kdba-container-max)]' : 'w-full'} ${heroClass} ${commonProps.className}`}
         >
           {renderChildren()}
         </section>
       );
+    }
 
     case 'container':
       return (
@@ -315,24 +376,44 @@ function NodeRendererInner({
         </div>
       );
 
-    case 'stack':
+    case 'stack': {
+      const isCard = props.role === 'card' || ['default', 'elevated', 'minimal', 'bordered'].includes(String(props.variant || ''));
       return (
-        <div {...commonProps} className={`flex flex-col ${commonProps.className}`}>
+        <div
+          {...commonProps}
+          style={isCard ? { ...cardVariantStyle(String(props.variant || 'default')), ...commonProps.style } : commonProps.style}
+          className={`flex flex-col ${commonProps.className}`}
+        >
           {renderChildren()}
         </div>
       );
+    }
 
     case 'heading': {
       const level = Number(props.level) || 2;
       const HeadingTag = level === 1 ? 'h1' : level === 3 ? 'h3' : level === 4 ? 'h4' : level === 5 ? 'h5' : level === 6 ? 'h6' : 'h2';
+      const headingStyle: React.CSSProperties = {
+        ...commonProps.style,
+        fontFamily: commonProps.style.fontFamily || 'var(--kdba-font-heading)',
+        fontSize: commonProps.style.fontSize || (level === 1 ? 'var(--kdba-h1)' : level === 3 ? 'var(--kdba-h3)' : 'var(--kdba-h2)'),
+        lineHeight: commonProps.style.lineHeight || 'var(--kdba-heading-line)',
+        letterSpacing: commonProps.style.letterSpacing || 'var(--kdba-tracking)',
+      };
+      const headingText = textFromRuns(props[TEXT_RUNS_PROP]) || String(props.text || 'Heading Text');
       if (isInlineEditing) {
         return (
           <HeadingTag
             {...commonProps}
+            style={headingStyle}
             contentEditable
             suppressContentEditableWarning
+            onPaste={(e) => {
+              e.preventDefault();
+              const text = e.clipboardData.getData('text/plain');
+              document.execCommand('insertText', false, text);
+            }}
             onBlur={(e) => {
-              commitText('text', e.currentTarget.textContent || '');
+              commitText('text', e.currentTarget.textContent || '', { [TEXT_RUNS_PROP]: undefined });
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
@@ -344,30 +425,44 @@ function NodeRendererInner({
             }}
             className={`font-bold tracking-tight outline-none ring-2 ring-indigo-500 rounded px-1 bg-indigo-950/40 cursor-text ${commonProps.className}`}
           >
-            {String(props.text || 'Heading Text')}
+            {headingText}
           </HeadingTag>
         );
       }
       return (
         <HeadingTag
           {...commonProps}
+          style={headingStyle}
           onDoubleClick={handleDoubleClick}
           className={`font-bold tracking-tight ${commonProps.className}`}
         >
-          {String(props.text || 'Heading Text')}
+          <RichTextRuns runs={props[TEXT_RUNS_PROP]} fallback={headingText} />
         </HeadingTag>
       );
     }
 
     case 'paragraph': {
+      const paragraphText = textFromRuns(props[TEXT_RUNS_PROP]) || String(props.text || 'Paragraph body copy text.');
+      const paragraphStyle: React.CSSProperties = {
+        ...commonProps.style,
+        fontFamily: commonProps.style.fontFamily || 'var(--kdba-font-body)',
+        fontSize: commonProps.style.fontSize || 'var(--kdba-body-size)',
+        lineHeight: commonProps.style.lineHeight || 'var(--kdba-body-line)',
+      };
       if (isInlineEditing) {
         return (
           <p
             {...commonProps}
+            style={paragraphStyle}
             contentEditable
             suppressContentEditableWarning
+            onPaste={(e) => {
+              e.preventDefault();
+              const text = e.clipboardData.getData('text/plain');
+              document.execCommand('insertText', false, text);
+            }}
             onBlur={(e) => {
-              commitText('text', e.currentTarget.textContent || '');
+              commitText('text', e.currentTarget.textContent || '', { [TEXT_RUNS_PROP]: undefined });
             }}
             onKeyDown={(e) => {
               if (e.key === 'Escape') {
@@ -376,17 +471,33 @@ function NodeRendererInner({
             }}
             className={`leading-relaxed outline-none ring-2 ring-indigo-500 rounded px-1 bg-indigo-950/40 cursor-text ${commonProps.className}`}
           >
-            {String(props.text || 'Paragraph body copy text.')}
+            {paragraphText}
           </p>
+        );
+      }
+      const ListTag = props.list === 'ol' ? 'ol' : 'ul';
+      if (props.list === 'ul' || props.list === 'ol') {
+        return (
+          <ListTag
+            {...commonProps}
+            style={paragraphStyle}
+            onDoubleClick={handleDoubleClick}
+            className={`list-inside pl-4 leading-relaxed ${commonProps.className}`}
+          >
+            <li>
+              <RichTextRuns runs={props[TEXT_RUNS_PROP]} fallback={paragraphText} />
+            </li>
+          </ListTag>
         );
       }
       return (
         <p
           {...commonProps}
+          style={paragraphStyle}
           onDoubleClick={handleDoubleClick}
           className={`leading-relaxed ${commonProps.className}`}
         >
-          {String(props.text || 'Paragraph body copy text.')}
+          <RichTextRuns runs={props[TEXT_RUNS_PROP]} fallback={paragraphText} />
         </p>
       );
     }
@@ -396,9 +507,13 @@ function NodeRendererInner({
         <div
           {...commonProps}
           onDoubleClick={handleDoubleClick}
-          dangerouslySetInnerHTML={{ __html: String(props.html || props.text || '') }}
-          className={`prose prose-invert max-w-none ${commonProps.className}`}
-        />
+          className={`max-w-none ${commonProps.className}`}
+        >
+          <RichTextRuns
+            runs={props[TEXT_RUNS_PROP]}
+            fallback={textFromRuns(props[TEXT_RUNS_PROP]) || String(props.text || '')}
+          />
+        </div>
       );
 
     case 'text': {
@@ -425,10 +540,12 @@ function NodeRendererInner({
     }
 
     case 'button': {
+      const variantStyle = buttonVariantStyle(String(props.variant || 'primary'));
       const buttonStyle: React.CSSProperties = {
+        ...variantStyle,
         ...commonProps.style,
-        backgroundColor: commonProps.style.backgroundColor || 'var(--kdba-button-bg)',
-        color: commonProps.style.color || 'var(--kdba-button-fg)',
+        backgroundColor: commonProps.style.backgroundColor || variantStyle.backgroundColor,
+        color: commonProps.style.color || variantStyle.color,
         borderRadius: commonProps.style.borderRadius || 'var(--kdba-button-radius)',
       };
       if (isInlineEditing) {
@@ -478,8 +595,8 @@ function NodeRendererInner({
         </a>
       );
 
-    case 'image':
-      return (
+    case 'image': {
+      const image = (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           {...commonProps}
@@ -490,10 +607,21 @@ function NodeRendererInner({
           style={{
             ...commonProps.style,
             objectFit: (props.objectFit as React.CSSProperties['objectFit']) || 'cover',
+            objectPosition: String(props.objectPosition || 'center'),
           }}
           className={`block max-w-full h-auto ${commonProps.className}`}
         />
       );
+      const href = !isEditing ? sanitizeHref(String(props.href || '')) : undefined;
+      if (href) {
+        return (
+          <a href={href} target={props.target === '_blank' ? '_blank' : undefined} rel={props.target === '_blank' ? 'noreferrer' : undefined}>
+            {image}
+          </a>
+        );
+      }
+      return image;
+    }
 
     case 'video':
       return (
@@ -711,58 +839,122 @@ function NodeRendererInner({
         </form>
       );
 
-    case 'navbar':
+    case 'navbar': {
+      const siteNav = renderContext?.document.navigation?.header || [];
+      const useSiteNav = props.useSiteNavigation !== false && siteNav.length > 0;
+      const links = useSiteNav
+        ? siteNav.map((item) => ({
+            href: item.href,
+            label: item.label,
+            target: item.target,
+          }))
+        : Array.isArray(props.links)
+          ? (props.links as Array<{ href?: string; label?: string; target?: string }>)
+          : [];
+      const variant = String(props.variant || 'standard');
+      const sticky = props.sticky !== false;
+      const ctaHref = isEditing
+        ? undefined
+        : sanitizeHref(String(props.ctaHref || renderContext?.document.navigation?.ctaButton?.href || '')) || undefined;
+      const ctaLabel = String(
+        props.ctaText || renderContext?.document.navigation?.ctaButton?.label || 'Get Started',
+      );
+      const brand = String(props.brandName || renderContext?.document.site?.name || 'Studio');
+
+      const navLinks = (
+        <>
+          {links.length > 0 ? (
+            links.map((link, i) => (
+              <a
+                key={`${link.href || 'link'}-${i}`}
+                href={isEditing ? undefined : sanitizeHref(String(link.href || '')) || '#'}
+                target={!isEditing && link.target === '_blank' ? '_blank' : undefined}
+                rel={!isEditing && link.target === '_blank' ? 'noreferrer' : undefined}
+                className="hover:text-white transition-colors"
+              >
+                {link.label || 'Link'}
+              </a>
+            ))
+          ) : (
+            <>
+              <a href={isEditing ? undefined : '#features'} className="hover:text-white transition-colors">Features</a>
+              <a href={isEditing ? undefined : '#pricing'} className="hover:text-white transition-colors">Pricing</a>
+              <a href={isEditing ? undefined : '#contact'} className="hover:text-white transition-colors">Contact</a>
+            </>
+          )}
+        </>
+      );
+
+      const brandBlock = (
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-lg bg-[var(--kdba-primary)] flex items-center justify-center font-bold text-white text-sm">
+            {brand.charAt(0)}
+          </div>
+          <span className="font-bold text-white text-base tracking-tight">{brand}</span>
+        </div>
+      );
+
+      const cta = (
+        <a
+          href={ctaHref || (isEditing ? undefined : '#contact')}
+          className="px-4 py-2 rounded-[var(--kdba-button-radius)] bg-[var(--kdba-button-bg)] hover:opacity-90 text-[var(--kdba-button-fg)] text-xs font-semibold transition-colors"
+        >
+          {ctaLabel}
+        </a>
+      );
+
       return (
         <header
           {...commonProps}
-          className={`w-full flex items-center justify-between px-6 py-4 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md ${commonProps.className}`}
+          className={`w-full border-b border-[var(--kdba-border)] bg-[var(--kdba-background)]/80 backdrop-blur-md ${
+            sticky ? 'sticky top-0 z-30' : ''
+          } ${commonProps.className}`}
         >
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center font-bold text-white text-sm">
-              {String(props.brandName || 'K').charAt(0)}
+          {variant === 'centered' ? (
+            <div className="mx-auto flex max-w-[var(--kdba-container-max)] flex-col items-center gap-3 px-6 py-4">
+              {brandBlock}
+              <nav className="hidden md:flex items-center gap-6 text-sm text-[var(--kdba-muted)]">{navLinks}</nav>
+              {cta}
             </div>
-            <span className="font-bold text-white text-base tracking-tight">
-              {String(props.brandName || 'Studio')}
-            </span>
-          </div>
-          <nav className="hidden md:flex items-center gap-6 text-sm text-slate-300">
-            {Array.isArray(props.links) && props.links.length > 0 ? (
-              props.links.map((link: { href?: string; label?: string }, i: number) => (
-                <a key={i} href={isEditing ? undefined : (link.href || '#')} className="hover:text-white transition-colors">
-                  {link.label || 'Link'}
-                </a>
-              ))
-            ) : (
-              <>
-                <a href={isEditing ? undefined : '#features'} className="hover:text-white transition-colors">Features</a>
-                <a href={isEditing ? undefined : '#pricing'} className="hover:text-white transition-colors">Pricing</a>
-                <a href={isEditing ? undefined : '#contact'} className="hover:text-white transition-colors">Contact</a>
-              </>
-            )}
-          </nav>
-          <a
-            href={isEditing ? undefined : (props.ctaHref as string) || '#contact'}
-            className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-colors"
-          >
-            {String(props.ctaText || 'Get Started')}
-          </a>
+          ) : variant === 'minimal' ? (
+            <div className="mx-auto flex max-w-[var(--kdba-container-max)] items-center justify-between px-6 py-4">
+              {brandBlock}
+              {cta}
+            </div>
+          ) : (
+            <div className="mx-auto flex max-w-[var(--kdba-container-max)] items-center justify-between px-6 py-4">
+              {brandBlock}
+              <nav className="hidden md:flex items-center gap-6 text-sm text-[var(--kdba-muted)]">{navLinks}</nav>
+              <div className="flex items-center gap-3">
+                {cta}
+              </div>
+            </div>
+          )}
+          <details className="md:hidden border-t border-[var(--kdba-border)] px-6 py-2">
+            <summary className="cursor-pointer text-xs font-semibold text-[var(--kdba-muted)]">Menu</summary>
+            <nav className="mt-2 flex flex-col gap-2 pb-3 text-sm text-[var(--kdba-muted)]">{navLinks}</nav>
+          </details>
         </header>
       );
+    }
 
-    case 'footer':
+    case 'footer': {
+      const footerLinks = Array.isArray(props.links)
+        ? (props.links as Array<{ href?: string; label?: string }>)
+        : (renderContext?.document.navigation?.footer || []).flatMap((column) => column.links || []);
       return (
         <footer
           {...commonProps}
-          className={`w-full py-8 px-6 border-t border-slate-800/80 bg-slate-950 text-slate-400 text-sm ${commonProps.className}`}
+          className={`w-full py-8 px-6 border-t border-[var(--kdba-border)] bg-[var(--kdba-background)] text-[var(--kdba-muted)] text-sm ${commonProps.className}`}
         >
-          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div>{String(props.copyright || '© 2026 KDBA Inc. All rights reserved.')}</div>
-            <div className="flex flex-wrap gap-6 text-xs text-slate-500">
-              {Array.isArray(props.links) && props.links.length > 0 ? (
-                props.links.map((link: { href?: string; label?: string }, i: number) => (
+          <div className="max-w-[var(--kdba-container-max)] mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div>{String(props.copyright || `© ${new Date().getFullYear()} ${renderContext?.document.site?.name || 'KDBA'}. All rights reserved.`)}</div>
+            <div className="flex flex-wrap gap-6 text-xs">
+              {footerLinks.length > 0 ? (
+                footerLinks.map((link, i) => (
                   <a
                     key={i}
-                    href={isEditing ? undefined : (link.href || '#')}
+                    href={isEditing ? undefined : sanitizeHref(String(link.href || '')) || '#'}
                     className="hover:text-slate-300 transition-colors"
                   >
                     {link.label || 'Link'}
@@ -779,6 +971,7 @@ function NodeRendererInner({
           </div>
         </footer>
       );
+    }
 
     default:
       return (

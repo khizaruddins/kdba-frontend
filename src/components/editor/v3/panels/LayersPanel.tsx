@@ -224,7 +224,7 @@ function TreeItem({ node, depth = 0, searchFilter }: TreeItemProps) {
 }
 
 export function LayersPanel() {
-  const { setActiveNavTab, getActivePage } = useV3EditorStore();
+  const { setActiveNavTab, getActivePage, document } = useV3EditorStore();
   const [searchQuery, setSearchQuery] = React.useState('');
 
   const activePage = getActivePage();
@@ -261,11 +261,26 @@ export function LayersPanel() {
       </div>
 
       {/* Tree View */}
-      <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
+      <div className="flex-1 overflow-y-auto p-2 space-y-2">
+        {document?.global?.headerNode && (
+          <div>
+            <p className="px-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">Header</p>
+            <TreeItem node={document.global.headerNode} depth={0} searchFilter={searchQuery} />
+          </div>
+        )}
         {activePage?.root ? (
-          <TreeItem node={activePage.root} depth={0} searchFilter={searchQuery} />
+          <div>
+            <p className="px-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">Page</p>
+            <TreeItem node={activePage.root} depth={0} searchFilter={searchQuery} />
+          </div>
         ) : (
           <p className="text-center text-xs text-slate-500 py-8">No elements on page.</p>
+        )}
+        {document?.global?.footerNode && (
+          <div>
+            <p className="px-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">Footer</p>
+            <TreeItem node={document.global.footerNode} depth={0} searchFilter={searchQuery} />
+          </div>
         )}
       </div>
     </div>

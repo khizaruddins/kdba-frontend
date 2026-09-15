@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { WebsiteNode } from '@/types/v3-document';
+import { textFromRuns } from '@/lib/editor/rich-text';
 import {
   Image as ImageIcon,
   Upload,
@@ -81,7 +82,7 @@ export function ContentControl({ node, onChangeProps }: ContentControlProps) {
 
   // 1. Heading Content Controls
   if (node.type === 'heading') {
-    const currentText = String(props.text || '');
+    const currentText = textFromRuns(props.runs) || String(props.text || '');
     const currentLevel = Number(props.level) || 2;
 
     return (
@@ -94,7 +95,7 @@ export function ContentControl({ node, onChangeProps }: ContentControlProps) {
           <textarea
             rows={3}
             value={currentText}
-            onChange={(e) => onChangeProps({ text: e.target.value })}
+            onChange={(e) => onChangeProps({ text: e.target.value, runs: [{ text: e.target.value }] })}
             placeholder="Enter heading text..."
             className="w-full px-2.5 py-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-100 text-xs focus:border-indigo-500 focus:outline-none transition-colors resize-none leading-relaxed"
           />
@@ -126,7 +127,7 @@ export function ContentControl({ node, onChangeProps }: ContentControlProps) {
 
   // 2. Paragraph & Text Content Controls
   if (node.type === 'paragraph' || node.type === 'text' || node.type === 'rich-text') {
-    const currentText = String(props.text || props.html || '');
+    const currentText = textFromRuns(props.runs) || String(props.text || props.html || '');
 
     return (
       <div className="space-y-3 select-none text-xs">
@@ -138,7 +139,7 @@ export function ContentControl({ node, onChangeProps }: ContentControlProps) {
           <textarea
             rows={4}
             value={currentText}
-            onChange={(e) => onChangeProps({ text: e.target.value, html: e.target.value })}
+            onChange={(e) => onChangeProps({ text: e.target.value, html: undefined, runs: [{ text: e.target.value }] })}
             placeholder="Enter paragraph copy text..."
             className="w-full px-2.5 py-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-100 text-xs focus:border-indigo-500 focus:outline-none transition-colors resize-none leading-relaxed"
           />
@@ -302,6 +303,34 @@ export function ContentControl({ node, onChangeProps }: ContentControlProps) {
               </button>
             ))}
           </div>
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-[11px] font-medium text-slate-400">Object Position</label>
+          <select
+            value={String(props.objectPosition || 'center')}
+            onChange={(e) => onChangeProps({ objectPosition: e.target.value })}
+            className="w-full h-8 px-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-200 text-xs"
+          >
+            {['center', 'top', 'bottom', 'left', 'right', 'top left', 'top right', 'bottom left', 'bottom right'].map(
+              (pos) => (
+                <option key={pos} value={pos}>
+                  {pos}
+                </option>
+              ),
+            )}
+          </select>
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-[11px] font-medium text-slate-400">Image Link</label>
+          <input
+            type="text"
+            value={String(props.href || '')}
+            onChange={(e) => onChangeProps({ href: e.target.value })}
+            placeholder="https:// or /page"
+            className="w-full h-8 px-2.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-100 text-xs focus:border-indigo-500 focus:outline-none"
+          />
         </div>
       </div>
     );
@@ -586,6 +615,26 @@ export function ContentControl({ node, onChangeProps }: ContentControlProps) {
           />
         </div>
 
+        <label className="flex items-center justify-between text-[11px] text-slate-400">
+          <span>Sticky header</span>
+          <input
+            type="checkbox"
+            checked={props.sticky !== false}
+            onChange={(e) => onChangeProps({ sticky: e.target.checked })}
+            className="accent-indigo-500"
+          />
+        </label>
+
+        <label className="flex items-center justify-between text-[11px] text-slate-400">
+          <span>Use site navigation</span>
+          <input
+            type="checkbox"
+            checked={props.useSiteNavigation !== false}
+            onChange={(e) => onChangeProps({ useSiteNavigation: e.target.checked })}
+            className="accent-indigo-500"
+          />
+        </label>
+
         {/* CTA Button */}
         <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-800/60">
           <div className="space-y-1">
@@ -799,6 +848,32 @@ export function ContentControl({ node, onChangeProps }: ContentControlProps) {
   }
 
   // Generic fallback if no specific props editor
+  if (node.type === 'section') {
+    return (
+      <div className="space-y-3 text-xs">
+        <label className="flex items-center justify-between text-[11px] text-slate-400">
+          <span>Full-width section</span>
+          <input
+            type="checkbox"
+            checked={props.fullWidth !== false}
+            onChange={(e) => onChangeProps({ fullWidth: e.target.checked })}
+            className="accent-indigo-500"
+          />
+        </label>
+        <div className="space-y-1">
+          <label className="text-[11px] font-medium text-slate-400">Anchor ID</label>
+          <input
+            type="text"
+            value={String(props.anchorId || '')}
+            onChange={(e) => onChangeProps({ anchorId: e.target.value })}
+            placeholder="features"
+            className="w-full h-8 px-2.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-100 text-xs"
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-3 text-center text-slate-500 text-xs">
       <p>Configure appearance in Layout and Spacing below.</p>

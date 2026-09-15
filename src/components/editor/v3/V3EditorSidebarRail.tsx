@@ -11,6 +11,7 @@ import {
   Settings,
   HelpCircle,
   Sparkles,
+  Globe,
 } from 'lucide-react';
 
 export function V3EditorSidebarRail() {
@@ -20,6 +21,7 @@ export function V3EditorSidebarRail() {
     { id: 'add' as const, label: 'Add Elements', icon: <Plus className="w-5 h-5" /> },
     { id: 'layers' as const, label: 'Layers Tree', icon: <Layers className="w-5 h-5" /> },
     { id: 'pages' as const, label: 'Pages', icon: <FileText className="w-5 h-5" /> },
+    { id: 'site' as const, label: 'Site structure', icon: <Globe className="w-5 h-5" /> },
     { id: 'theme' as const, label: 'Site Design', icon: <Palette className="w-5 h-5" /> },
     { id: 'assets' as const, label: 'Media Assets', icon: <FolderOpen className="w-5 h-5" /> },
   ];

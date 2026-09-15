@@ -174,6 +174,8 @@ export interface StyleDefinition {
     columnGap?: string;
     rowGap?: string;
     autoFlow?: 'row' | 'column' | 'dense';
+    autoFit?: boolean;
+    minColumnWidth?: string;
     columnSpan?: number | string;
     rowSpan?: number | string;
   };
@@ -200,6 +202,7 @@ export interface StyleDefinition {
     textTransform?: 'none' | 'capitalize' | 'uppercase' | 'lowercase';
     textDecoration?: 'none' | 'underline' | 'line-through';
     color?: string;
+    fontStyle?: 'normal' | 'italic';
   };
   background?: {
     color?: string;
@@ -237,6 +240,12 @@ export interface StyleDefinition {
     rotate?: string;
     skewX?: string;
     skewY?: string;
+  };
+  states?: {
+    hover?: StyleDefinition;
+    active?: StyleDefinition;
+    focus?: StyleDefinition;
+    disabled?: StyleDefinition;
   };
 }
 
@@ -388,6 +397,8 @@ export interface GlobalComponentsV3 {
   headerNode?: WebsiteNode;
   footerNode?: WebsiteNode;
   reusableNodes?: Record<string, WebsiteNode>;
+  headerDisabled?: boolean;
+  footerDisabled?: boolean;
 }
 
 export interface SiteSettingsV3 {
@@ -516,7 +527,8 @@ export type DocumentOperationType =
   | 'updateBusiness'
   | 'updateNavigation'
   | 'updateSeo'
-  | 'updateSettings';
+  | 'updateSettings'
+  | 'updateGlobal';
 
 export type DocumentOperation =
   | {
@@ -624,6 +636,10 @@ export type DocumentOperation =
   | {
       type: 'updateSettings';
       settings: Partial<SiteSettingsV3>;
+    }
+  | {
+      type: 'updateGlobal';
+      global: Partial<GlobalComponentsV3>;
     };
 
 export interface DocumentOperationsPayload {

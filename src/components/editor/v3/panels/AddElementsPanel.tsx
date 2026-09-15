@@ -2,9 +2,9 @@
 
 import * as React from 'react';
 import { useV3EditorStore } from '@/stores/v3-editor-store';
-import { COMPONENT_CATEGORIES } from '@/lib/editor/component-manifest';
 import { persistableManifestItems } from '@/lib/document/v3-wire';
 import { NodeType } from '@/types/v3-document';
+import { SECTION_PRESETS } from '@/lib/editor/section-presets';
 import {
   Search,
   X,
@@ -86,10 +86,40 @@ const ICON_MAP: Record<string, React.ReactNode> = {
   PanelBottom: <PanelBottom className="w-4 h-4" />,
 };
 
+const DISPLAY_CATEGORIES = [
+  'Layout',
+  'Typography',
+  'Basic',
+  'Buttons',
+  'Forms',
+  'Media',
+  'Navigation',
+  'Sections',
+  'Business',
+] as const;
+
+const BUSINESS_TYPES = new Set([
+  'map',
+  'opening-hours',
+  'pricing',
+  'product',
+  'testimonial',
+  'team',
+  'service',
+]);
+
+function displayCategory(type: string, category: string): string {
+  if (BUSINESS_TYPES.has(type)) return 'Business';
+  if (category === 'Text') return 'Typography';
+  if (category === 'Components') return 'Basic';
+  return category;
+}
+
 export function AddElementsPanel() {
   const {
     setActiveNavTab,
     insertNodeType,
+    insertSectionPreset,
     selectedNodeId,
     setDragState,
   } = useV3EditorStore();
@@ -102,15 +132,23 @@ export function AddElementsPanel() {
   };
 
   const allItems = persistableManifestItems();
+  const query = searchQuery.trim().toLowerCase();
 
-  const filteredItems = searchQuery.trim()
+  const filteredItems = query
     ? allItems.filter(
         (i) =>
-          i.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          i.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          i.category.toLowerCase().includes(searchQuery.toLowerCase()),
+          i.name.toLowerCase().includes(query) ||
+          i.description.toLowerCase().includes(query) ||
+          displayCategory(i.type, i.category).toLowerCase().includes(query),
       )
     : allItems;
+
+  const filteredPresets = query
+    ? SECTION_PRESETS.filter(
+        (preset) =>
+          preset.name.toLowerCase().includes(query) || preset.description.toLowerCase().includes(query),
+      )
+    : SECTION_PRESETS;
 
   const handleAddElement = (type: NodeType) => {
     const created = insertNodeType(type, selectedNodeId);
@@ -157,9 +195,13 @@ export function AddElementsPanel() {
 
       {/* Categorized Element Cards */}
       <div className="flex-1 overflow-y-auto p-3 space-y-4">
-        {COMPONENT_CATEGORIES.map((category) => {
-          const itemsInCat = filteredItems.filter((item) => item.category === category);
-          if (itemsInCat.length === 0) return null;
+        {DISPLAY_CATEGORIES.map((category) => {
+          const itemsInCat =
+            category === 'Sections'
+              ? []
+              : filteredItems.filter((item) => displayCategory(item.type, item.category) === category);
+          const presets = category === 'Sections' ? filteredPresets : [];
+          if (itemsInCat.length === 0 && presets.length === 0) return null;
 
           const isCollapsed = collapsedCategories[category];
 
@@ -176,6 +218,17 @@ export function AddElementsPanel() {
 
               {!isCollapsed && (
                 <div className="grid grid-cols-2 gap-1.5">
+                  {presets.map((preset) => (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => insertSectionPreset(preset.build())}
+                      className="group flex flex-col p-2.5 rounded-xl bg-slate-900/60 hover:bg-slate-900 border border-slate-800/80 hover:border-indigo-500/50 text-left"
+                    >
+                      <span className="font-semibold text-xs text-slate-200">{preset.name}</span>
+                      <p className="text-[10px] text-slate-500 line-clamp-2">{preset.description}</p>
+                    </button>
+                  ))}
                   {itemsInCat.map((item) => (
                     <div
                       key={item.type}

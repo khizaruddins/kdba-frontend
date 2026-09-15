@@ -11,8 +11,12 @@ import {
   Edit3,
   Image as ImageIcon,
   Settings,
+  EyeOff,
+  Lock,
+  Unlock,
 } from 'lucide-react';
 import { TEXT_EDITABLE_TYPES } from '@/lib/editor/nesting';
+import { SECTION_PRESETS } from '@/lib/editor/section-presets';
 import { useTrackedRect } from './useTrackedRect';
 
 export function SelectionOverlay() {
@@ -28,6 +32,11 @@ export function SelectionOverlay() {
   const focusInspectorSection = useV3EditorStore((s) => s.focusInspectorSection);
   const setInlineEditingNodeId = useV3EditorStore((s) => s.setInlineEditingNodeId);
   const inlineEditingNodeId = useV3EditorStore((s) => s.inlineEditingNodeId);
+  const setVisibility = useV3EditorStore((s) => s.setVisibility);
+  const setNodeLocked = useV3EditorStore((s) => s.setNodeLocked);
+  const replaceSection = useV3EditorStore((s) => s.replaceSection);
+  const viewport = useV3EditorStore((s) => s.viewport);
+  const [replaceOpen, setReplaceOpen] = React.useState(false);
   const selectedNode = getSelectedNode();
   const rect = useTrackedRect(
     selectedNodeId,
@@ -57,8 +66,12 @@ export function SelectionOverlay() {
     >
       <div
         style={{ pointerEvents: 'auto' }}
-        draggable
+        draggable={!selectedNode.locked}
         onDragStart={(e) => {
+          if (selectedNode.locked) {
+            e.preventDefault();
+            return;
+          }
           e.dataTransfer.effectAllowed = 'move';
           e.dataTransfer.setData('kdba/node-id', selectedNodeId);
           e.dataTransfer.setData('kdba/node-type', selectedNode.type);
@@ -102,18 +115,34 @@ export function SelectionOverlay() {
         )}
 
         {selectedNode.type === 'section' && (
-          <button
-            type="button"
-            onClick={() => {
-              setActiveNavTab(null);
-              focusInspectorSection('layout');
-            }}
-            className="flex items-center gap-1 px-1.5 h-6 rounded hover:bg-slate-800 hover:text-white text-[10px] font-medium"
-            title="Section settings"
-          >
-            <Settings className="w-3 h-3" />
-            <span>Settings</span>
-          </button>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setReplaceOpen((open) => !open)}
+              className="flex items-center gap-1 px-1.5 h-6 rounded hover:bg-slate-800 hover:text-white text-[10px] font-medium"
+              title="Replace section"
+            >
+              <Settings className="w-3 h-3" />
+              <span>Replace</span>
+            </button>
+            {replaceOpen && (
+              <div className="absolute right-0 top-7 w-40 rounded-lg border border-slate-800 bg-slate-950 p-1 shadow-xl">
+                {SECTION_PRESETS.map((preset) => (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    onClick={() => {
+                      replaceSection(selectedNodeId, preset.build());
+                      setReplaceOpen(false);
+                    }}
+                    className="block w-full rounded px-2 py-1 text-left text-[10px] text-slate-300 hover:bg-slate-800"
+                  >
+                    {preset.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         )}
 
         <button
@@ -123,6 +152,26 @@ export function SelectionOverlay() {
           className="p-1 rounded hover:bg-slate-800 hover:text-white"
         >
           <Plus className="w-3.5 h-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            setVisibility(selectedNodeId, {
+              [viewport]: selectedNode.visibility?.[viewport] === false,
+            })
+          }
+          title="Hide on this breakpoint"
+          className="p-1 rounded hover:bg-slate-800 hover:text-white"
+        >
+          <EyeOff className="w-3.5 h-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={() => setNodeLocked(selectedNodeId, !selectedNode.locked)}
+          title={selectedNode.locked ? 'Unlock' : 'Lock'}
+          className="p-1 rounded hover:bg-slate-800 hover:text-white"
+        >
+          {selectedNode.locked ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
         </button>
         <button
           type="button"

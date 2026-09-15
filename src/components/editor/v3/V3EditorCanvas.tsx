@@ -9,6 +9,7 @@ import { SectionInsertOverlay } from './overlays/SectionInsertOverlay';
 import { COMPONENT_MANIFEST } from '@/lib/editor/component-manifest';
 import { NodeType } from '@/types/v3-document';
 import { resolveDrop, TEXT_EDITABLE_TYPES } from '@/lib/editor/nesting';
+import { findNodeLocation } from '@/lib/document/v3-operations';
 
 const VIEWPORT_WIDTH: Record<string, number> = {
   desktop: 1280,
@@ -86,7 +87,7 @@ export function V3EditorCanvas() {
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     const page = getActivePage();
-    if (!page?.root) return;
+    if (!page?.root || !document) return;
 
     const hit = nodeFromPoint(e.target);
     if (!hit?.id || !hit.el) {
@@ -110,8 +111,28 @@ export function V3EditorCanvas() {
     const movedNode = movedId ? findNode(movedId) : null;
     const childType = (movedNode?.type || draggedType) as NodeType | null;
     if (!childType) return;
+    if (movedNode?.locked) {
+      setDropIndicator(null);
+      e.dataTransfer.dropEffect = 'none';
+      return;
+    }
 
-    const resolved = resolveDrop(page.root, hit.id, childType, position);
+    const loc = findNodeLocation(document, hit.id);
+    const root = loc?.root || page.root;
+    const sourceLoc = movedId ? findNodeLocation(document, movedId) : null;
+    if (sourceLoc && loc && sourceLoc.pageId !== loc.pageId) {
+      setDropIndicator({
+        top: rect.top + rect.height / 2,
+        left: rect.left,
+        width: rect.width,
+        valid: false,
+        label: 'Invalid nest',
+      });
+      e.dataTransfer.dropEffect = 'none';
+      return;
+    }
+
+    const resolved = resolveDrop(root, hit.id, childType, position);
     if (!resolved) {
       setDropIndicator(null);
       e.dataTransfer.dropEffect = 'none';
@@ -150,7 +171,7 @@ export function V3EditorCanvas() {
     if (!nodeType && !movedNodeId) return;
 
     const page = getActivePage();
-    if (!page?.root) return;
+    if (!page?.root || !document) return;
 
     const hit = nodeFromPoint(e.target);
     const targetId = hit?.id || page.root.id;
@@ -162,8 +183,13 @@ export function V3EditorCanvas() {
     }
 
     const movedNode = movedNodeId ? findNode(movedNodeId) : null;
+    if (movedNode?.locked) return;
     const childType = (movedNode?.type || nodeType) as NodeType;
-    const resolved = resolveDrop(page.root, targetId, childType, position);
+    const loc = findNodeLocation(document, targetId);
+    const root = loc?.root || page.root;
+    const sourceLoc = movedNodeId ? findNodeLocation(document, movedNodeId) : null;
+    if (sourceLoc && loc && sourceLoc.pageId !== loc.pageId) return;
+    const resolved = resolveDrop(root, targetId, childType, position);
     if (!resolved?.valid) return;
 
     if (movedNodeId) {

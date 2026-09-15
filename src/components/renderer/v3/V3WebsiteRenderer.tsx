@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { WebsiteDocumentV3 } from '@/types/v3-document';
 import { NodeRenderer } from './NodeRenderer';
+import { V3RenderProvider } from './V3RenderContext';
 import { getThemeLayoutTokens, resolveThemeColor } from '@/lib/editor/theme-tokens';
 
 export interface V3WebsiteRendererProps {
@@ -42,14 +43,13 @@ export function V3WebsiteRenderer({
 
   const pages = Array.isArray(document.pages) ? document.pages : [];
 
-  // Determine active page
   let currentPage = null;
   if (activePageId) {
     currentPage = pages.find((p) => p.id === activePageId);
   } else if (activePageSlug) {
     currentPage = pages.find((p) => p.slug === activePageSlug);
   } else {
-    currentPage = pages.find((p) => p.slug === '/') || pages[0];
+    currentPage = pages.find((p) => p.type === 'home' || p.slug === '/') || pages.find((p) => p.enabled !== false) || pages[0];
   }
 
   if (!currentPage && pages.length > 0) {
@@ -68,6 +68,8 @@ export function V3WebsiteRenderer({
   };
 
   const layoutTokens = getThemeLayoutTokens(document.theme?.tokens);
+  const headingScale = Number(layoutTokens.headingScale) || 1;
+  const bodyScale = Number(layoutTokens.bodyScale) || 1;
 
   const cssVariables = {
     '--kdba-primary': themeColors.primary,
@@ -92,30 +94,61 @@ export function V3WebsiteRenderer({
     '--kdba-button-radius': layoutTokens.buttonRadius,
     '--kdba-button-bg': resolveThemeColor(layoutTokens.buttonBackground) || layoutTokens.buttonBackground,
     '--kdba-button-fg': resolveThemeColor(layoutTokens.buttonColor) || layoutTokens.buttonColor,
+    '--kdba-radius': layoutTokens.radius,
+    '--kdba-shadow': layoutTokens.shadow,
+    '--kdba-space': layoutTokens.spaceScale,
+    '--kdba-heading-line': layoutTokens.headingLineHeight,
+    '--kdba-body-line': layoutTokens.bodyLineHeight,
+    '--kdba-tracking': layoutTokens.letterSpacing,
+    '--kdba-h1': `${Math.round(56 * headingScale)}px`,
+    '--kdba-h2': `${Math.round(40 * headingScale)}px`,
+    '--kdba-h3': `${Math.round(28 * headingScale)}px`,
+    '--kdba-body-size': `${Math.round(16 * bodyScale)}px`,
     ...style,
   } as React.CSSProperties;
 
+  const nodeProps = {
+    isEditing,
+    viewport,
+    inlineEditingNodeId,
+    onCommitProps,
+    onEndInlineEdit,
+    onStartInlineEdit,
+  };
+
   return (
-    <div
-      style={cssVariables}
-      className={`min-h-screen w-full bg-[var(--kdba-background)] text-[var(--kdba-text)] ${className}`}
-    >
-      {currentPage?.root ? (
-        <NodeRenderer
-          node={currentPage.root}
-          isEditing={isEditing}
-          viewport={viewport}
-          inlineEditingNodeId={inlineEditingNodeId}
-          onCommitProps={onCommitProps}
-          onEndInlineEdit={onEndInlineEdit}
-          onStartInlineEdit={onStartInlineEdit}
-        />
-      ) : (
-        <div className="flex min-h-[400px] flex-col items-center justify-center p-12 text-center text-slate-500">
-          <p className="text-sm font-semibold text-slate-300">Empty Page</p>
-          <p className="text-xs mt-1 text-slate-500">Add sections from the left panel.</p>
-        </div>
-      )}
-    </div>
+    <V3RenderProvider value={{ document, isEditing, viewport }}>
+      <div
+        style={cssVariables}
+        className={`min-h-screen w-full bg-[var(--kdba-background)] text-[var(--kdba-text)] ${className}`}
+      >
+        <style>{`
+          .kdba-node[data-has-hover]:hover {
+            background-color: var(--kdba-hover-bg, inherit);
+            color: var(--kdba-hover-color, inherit);
+            box-shadow: var(--kdba-hover-shadow, inherit);
+            opacity: var(--kdba-hover-opacity, inherit);
+          }
+          .kdba-node[data-disabled="true"] {
+            opacity: 0.55;
+            pointer-events: none;
+          }
+        `}</style>
+        {document.global?.headerNode && (
+          <NodeRenderer node={document.global.headerNode} {...nodeProps} />
+        )}
+        {currentPage?.root ? (
+          <NodeRenderer node={currentPage.root} {...nodeProps} />
+        ) : (
+          <div className="flex min-h-[400px] flex-col items-center justify-center p-12 text-center text-slate-500">
+            <p className="text-sm font-semibold text-slate-300">Empty Page</p>
+            <p className="text-xs mt-1 text-slate-500">Add sections from the left panel.</p>
+          </div>
+        )}
+        {document.global?.footerNode && (
+          <NodeRenderer node={document.global.footerNode} {...nodeProps} />
+        )}
+      </div>
+    </V3RenderProvider>
   );
 }
