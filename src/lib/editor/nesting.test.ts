@@ -40,4 +40,11 @@ describe('section presets', () => {
       expect(node.children?.length).toBeGreaterThan(0);
     }
   });
+
+  it('includes a real contact-form node in contact presets', () => {
+    const contact = SECTION_PRESETS.find((preset) => preset.id === 'contact');
+    expect(contact).toBeTruthy();
+    const tree = JSON.stringify(contact!.build());
+    expect(tree).toContain('"type":"contact-form"');
+  });
 });

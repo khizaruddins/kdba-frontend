@@ -12,6 +12,7 @@ import {
   Image as ImageIcon,
   ExternalLink,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -20,9 +21,13 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { EmptyState } from '@/components/ui/empty-state';
+import { Skeleton } from '@/components/ui/skeleton';
 import { MediaPickerModal } from '@/components/ui/media-picker-modal';
+import { PageHeader } from '@/components/kdba/page-header';
+import { useConfirm } from '@/components/kdba/confirm-dialog';
 
 export default function ProductsPage() {
+  const { confirm, dialog } = useConfirm();
   const [products, setProducts] = React.useState<Product[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
 
@@ -111,64 +116,69 @@ export default function ProductsPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this product?')) return;
-    try {
-      await apiClient.delete(`/products/${id}`);
-      loadProducts();
-    } catch (err) {
-      console.error('Failed to delete product:', err);
-    }
+  const handleDelete = (id: string) => {
+    confirm({
+      title: 'Delete this product?',
+      description: 'It will be removed from your catalog and website listings.',
+      confirmLabel: 'Delete product',
+      destructive: true,
+      onConfirm: async () => {
+        await apiClient.delete(`/products/${id}`);
+        toast.success('Product deleted');
+        await loadProducts();
+      },
+    });
   };
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-white">
-            Product Catalog
-          </h1>
-          <p className="text-xs text-slate-400 mt-1">
-            Products and menu items configured here automatically render in your website catalog
-          </p>
-        </div>
+    <div className="flex-1 space-y-6">
+      {dialog}
+      <PageHeader
+        title="Products"
+        description="Catalog items that can appear on published websites."
+        actions={
+          <Button size="sm" onClick={openCreateDialog}>
+            <Plus />
+            Add product
+          </Button>
+        }
+      />
 
-        <Button
-          size="sm"
-          onClick={openCreateDialog}
-          leftIcon={<Plus className="h-4 w-4" />}
-        >
-          Add Product
-        </Button>
-      </div>
-
-      {products.length === 0 && !isLoading ? (
-        <EmptyState
-          icon={<ShoppingBag className="h-6 w-6 text-amber-400" />}
-          title="No products yet"
-          description="Add your first item to display it automatically in your website's products and menu sections."
-          actionLabel="Add First Product"
-          onAction={openCreateDialog}
-        />
-      ) : (
-        <Card>
-          <CardContent className="p-0 overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="border-b border-slate-800 bg-slate-950/40 text-slate-400 font-semibold">
+      <Card>
+        <CardContent className="p-0 overflow-x-auto">
+          {isLoading ? (
+            <div className="p-6 space-y-4">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="flex space-x-4 items-center">
+                  <Skeleton className="h-10 w-full" />
+                </div>
+              ))}
+            </div>
+          ) : products.length === 0 ? (
+            <EmptyState
+              icon={<ShoppingBag className="h-8 w-8 text-muted-foreground" />}
+              title="No products yet"
+              description="Add your first item to display it automatically in your website's products and menu sections."
+              actionLabel="Add First Product"
+              onAction={openCreateDialog}
+              className="border-0 bg-transparent rounded-none my-8"
+            />
+          ) : (
+            <table className="w-full text-left text-sm">
+              <thead className="border-b bg-muted/50 text-muted-foreground font-medium">
                 <tr>
-                  <th className="py-3 px-6">Product</th>
-                  <th className="py-3 px-6">Category</th>
-                  <th className="py-3 px-6">Price</th>
-                  <th className="py-3 px-6">Status</th>
-                  <th className="py-3 px-6 text-right">Actions</th>
+                  <th className="py-3 px-6 h-10 align-middle">Product</th>
+                  <th className="py-3 px-6 h-10 align-middle">Category</th>
+                  <th className="py-3 px-6 h-10 align-middle">Price</th>
+                  <th className="py-3 px-6 h-10 align-middle">Status</th>
+                  <th className="py-3 px-6 h-10 align-middle text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60">
+              <tbody className="divide-y">
                 {products.map((product) => (
                   <tr
                     key={product.id}
-                    className="hover:bg-slate-900/50 transition-colors"
+                    className="hover:bg-muted/50 transition-colors"
                   >
                     <td className="py-4 px-6">
                       <div className="flex items-center gap-3">
@@ -176,32 +186,32 @@ export default function ProductsPage() {
                           <img
                             src={product.imageUrl}
                             alt={product.name}
-                            className="h-10 w-10 rounded-lg object-cover bg-slate-800"
+                            className="h-10 w-10 rounded-md object-cover bg-muted"
                           />
                         ) : (
-                          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-800 text-slate-500">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-md bg-muted text-muted-foreground">
                             <ShoppingBag className="h-5 w-5" />
                           </div>
                         )}
                         <div>
-                          <p className="font-bold text-white">{product.name}</p>
-                          <p className="text-[11px] text-slate-400 line-clamp-1 max-w-xs">
+                          <p className="font-medium">{product.name}</p>
+                          <p className="text-xs text-muted-foreground line-clamp-1 max-w-xs">
                             {product.description}
                           </p>
                         </div>
                       </div>
                     </td>
 
-                    <td className="py-4 px-6 text-slate-300">
+                    <td className="py-4 px-6 text-muted-foreground">
                       {product.category || 'General'}
                     </td>
 
-                    <td className="py-4 px-6 font-bold text-white">
+                    <td className="py-4 px-6 font-medium">
                       {formatCurrency(product.price, product.currency || 'USD')}
                     </td>
 
                     <td className="py-4 px-6">
-                      <Badge variant={product.isActive ? 'success' : 'secondary'}>
+                      <Badge variant={product.isActive ? 'default' : 'secondary'}>
                         {product.isActive ? 'Active' : 'Hidden'}
                       </Badge>
                     </td>
@@ -209,27 +219,28 @@ export default function ProductsPage() {
                     <td className="py-4 px-6 text-right space-x-2">
                       <Button
                         variant="ghost"
-                        size="sm"
+                        size="icon"
+                        className="h-8 w-8"
                         onClick={() => openEditDialog(product)}
                       >
-                        <Edit2 className="h-3.5 w-3.5" />
+                        <Edit2 className="h-4 w-4" />
                       </Button>
                       <Button
                         variant="ghost"
-                        size="sm"
-                        className="text-rose-400 hover:text-rose-300"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:text-destructive/90"
                         onClick={() => handleDelete(product.id)}
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </CardContent>
-        </Card>
-      )}
+          )}
+        </CardContent>
+      </Card>
 
       {/* Add / Edit Product Dialog */}
       <Dialog
@@ -280,13 +291,13 @@ export default function ProductsPage() {
 
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <label className="block text-xs font-medium text-slate-300">
+              <label className="block text-sm font-medium text-foreground">
                 Product Image
               </label>
               <button
                 type="button"
                 onClick={() => setIsMediaPickerOpen(true)}
-                className="text-[11px] font-semibold text-indigo-400 hover:text-indigo-300 cursor-pointer"
+                className="text-xs font-medium text-primary hover:text-primary/80 cursor-pointer"
               >
                 + Choose from Media Library
               </button>
@@ -297,10 +308,10 @@ export default function ProductsPage() {
                 setFormData({ ...formData, imageUrl: e.target.value })
               }
               placeholder="https://... or choose from media"
-              leftIcon={<ImageIcon className="h-4 w-4 text-slate-400" />}
+              leftIcon={<ImageIcon className="h-4 w-4 text-muted-foreground" />}
             />
             {formData.imageUrl && (
-              <div className="mt-2 relative h-24 w-24 rounded-lg overflow-hidden border border-slate-800 bg-slate-900">
+              <div className="mt-2 relative h-24 w-24 rounded-md overflow-hidden border bg-muted">
                 <img
                   src={formData.imageUrl}
                   alt="Product preview"
@@ -329,7 +340,7 @@ export default function ProductsPage() {
             />
           </div>
 
-          <div className="pt-2">
+          <div className="pt-2 border-t">
             <Switch
               label="Active & Visible"
               description="Make this product visible in your website catalog"
@@ -340,7 +351,7 @@ export default function ProductsPage() {
             />
           </div>
 
-          <div className="mt-6 flex justify-end gap-3 pt-4 border-t border-slate-800">
+          <div className="mt-6 flex justify-end gap-3 pt-4 border-t">
             <Button
               type="button"
               variant="ghost"

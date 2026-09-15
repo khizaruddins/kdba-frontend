@@ -90,12 +90,12 @@ export function V3EditorHeader({ onPublishSuccess }: V3EditorHeaderProps) {
   ];
 
   return (
-    <header className="h-14 w-full border-b border-slate-800/80 bg-slate-950 flex items-center justify-between px-4 select-none z-30 shrink-0">
+    <header className="flex h-14 w-full shrink-0 items-center justify-between border-b bg-background px-4 z-30 select-none">
       {/* 1. Left: Navigation, Title & Save Status */}
       <div className="flex items-center gap-3">
         <Link
           href="/dashboard"
-          className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-900 transition-colors"
+          className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           title="Back to Dashboard"
         >
           <ChevronLeft className="w-5 h-5" />
@@ -103,7 +103,7 @@ export function V3EditorHeader({ onPublishSuccess }: V3EditorHeaderProps) {
 
         <div className="flex flex-col">
           <div className="flex items-center gap-2">
-            <span className="font-bold text-sm text-white tracking-tight truncate max-w-[220px]">
+            <span className="max-w-[220px] truncate text-sm font-semibold tracking-tight">
               {document?.site?.name || 'Website Studio'}
             </span>
 
@@ -131,7 +131,7 @@ export function V3EditorHeader({ onPublishSuccess }: V3EditorHeaderProps) {
       {/* 2. Center: Viewport Mode Switcher & Zoom */}
       <div className="flex items-center gap-2">
         {/* Viewport Segmented Control */}
-        <div className="flex items-center p-0.5 rounded-xl bg-slate-900 border border-slate-800">
+        <div className="flex items-center rounded-lg border bg-muted/40 p-0.5">
           {viewportOptions.map((opt) => {
             const isActive = viewport === opt.id;
             return (
@@ -140,10 +140,10 @@ export function V3EditorHeader({ onPublishSuccess }: V3EditorHeaderProps) {
                 type="button"
                 onClick={() => setViewport(opt.id)}
                 title={`${opt.label} (${opt.dim})`}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
                   isActive
-                    ? 'bg-indigo-600 text-white shadow-md'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:bg-background hover:text-foreground'
                 }`}
                 aria-pressed={isActive}
               >
@@ -168,7 +168,7 @@ export function V3EditorHeader({ onPublishSuccess }: V3EditorHeaderProps) {
             }
             setZoom(Number(next));
           }}
-          className="h-8 px-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 text-xs focus:outline-none cursor-pointer"
+          className="h-8 cursor-pointer rounded-lg border bg-background px-2 text-xs text-foreground focus:outline-none"
         >
           <option value="25">25%</option>
           <option value="50">50%</option>
@@ -192,14 +192,14 @@ export function V3EditorHeader({ onPublishSuccess }: V3EditorHeaderProps) {
           </button>
         ) : (
           <>
-            <div className="flex items-center gap-0.5 pr-2 border-r border-slate-800">
+            <div className="flex items-center gap-0.5 border-r pr-2">
               <button
                 type="button"
                 disabled={!canUndo}
                 onClick={undo}
                 title="Undo (Cmd+Z)"
                 aria-label="Undo"
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-900 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
               >
                 <Undo2 className="w-4 h-4" />
               </button>
@@ -209,7 +209,7 @@ export function V3EditorHeader({ onPublishSuccess }: V3EditorHeaderProps) {
                 onClick={redo}
                 title="Redo (Cmd+Shift+Z)"
                 aria-label="Redo"
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-900 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
               >
                 <Redo2 className="w-4 h-4" />
               </button>
@@ -219,7 +219,7 @@ export function V3EditorHeader({ onPublishSuccess }: V3EditorHeaderProps) {
               type="button"
               onClick={() => setPreviewMode(true)}
               title="Preview Live Website"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border border-slate-800 text-slate-300 hover:bg-slate-900 hover:text-white"
+              className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted"
             >
               <Eye className="w-3.5 h-3.5" />
               <span>Preview</span>
@@ -229,7 +229,7 @@ export function V3EditorHeader({ onPublishSuccess }: V3EditorHeaderProps) {
               type="button"
               onClick={() => saveDocument()}
               disabled={saveStatus === 'saving'}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border border-slate-800 bg-slate-900 hover:bg-slate-800 text-white transition-colors"
+              className="flex items-center gap-1.5 rounded-lg border bg-muted/40 px-3 py-1.5 text-xs font-semibold hover:bg-muted"
             >
               {saveStatus === 'saving' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
               <span>{saveStatus === 'error' ? 'Retry save' : 'Save'}</span>
@@ -239,7 +239,7 @@ export function V3EditorHeader({ onPublishSuccess }: V3EditorHeaderProps) {
               type="button"
               disabled={isPublishing}
               onClick={handlePublish}
-              className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white shadow-lg shadow-indigo-600/30 transition-all cursor-pointer"
+              className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-primary px-4 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
             >
               {isPublishing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Rocket className="w-3.5 h-3.5" />}
               <span>Publish</span>

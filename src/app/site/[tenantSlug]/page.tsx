@@ -153,6 +153,7 @@ export default function PublicSiteHomePage() {
         products={products}
         pricingPlans={pricingPlans}
         isEditing={false}
+        tenantSlug={tenantSlug}
         onNavigate={(url) => {
           if (url.startsWith('#')) {
             const el = document.querySelector(url);
@@ -180,12 +181,13 @@ export default function PublicSiteHomePage() {
   };
 
   return (
-    <WebsiteRenderer
-      document={websiteDocument}
-      activePageSlug={activePageSlug}
-      products={products}
-      pricingPlans={pricingPlans}
-      isEditing={false}
+      <WebsiteRenderer
+        document={websiteDocument}
+        activePageSlug={activePageSlug}
+        products={products}
+        pricingPlans={pricingPlans}
+        isEditing={false}
+        tenantSlug={tenantSlug}
       onNavigate={(url) => {
         if (url.startsWith('#')) {
           const el = document.querySelector(url);

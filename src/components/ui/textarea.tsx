@@ -1,46 +1,61 @@
-import * as React from 'react';
-import { cn } from '@/lib/utils';
+import * as React from "react"
+import { cn } from "cn"
 
-export interface TextareaProps
-  extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
-  label?: string;
-  error?: string;
-  helperText?: string;
+export type TextareaProps = React.ComponentProps<"textarea"> & {
+  label?: React.ReactNode
+  error?: string
+  helperText?: React.ReactNode
 }
 
-const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
-  ({ className, label, error, helperText, id, ...props }, ref) => {
-    const inputId = id || (label ? label.toLowerCase().replace(/\s+/g, '-') : undefined);
+function Textarea({
+  className,
+  label,
+  error,
+  helperText,
+  id,
+  ...props
+}: TextareaProps) {
+  const autoId = React.useId()
+  const fieldId = id ?? (label ? autoId : undefined)
+  const textarea = (
+    <textarea
+      id={fieldId}
+      data-slot="textarea"
+      aria-invalid={error ? true : undefined}
+      aria-describedby={
+        error ? `${fieldId}-error` : helperText ? `${fieldId}-help` : undefined
+      }
+      className={cn(
+        "flex field-sizing-content min-h-16 w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40",
+        className
+      )}
+      {...props}
+    />
+  )
 
-    return (
-      <div className="w-full space-y-1.5">
-        {label && (
-          <label
-            htmlFor={inputId}
-            className="block text-xs font-medium text-slate-300"
-          >
-            {label}
-          </label>
-        )}
-        <textarea
-          id={inputId}
-          className={cn(
-            'flex min-h-[90px] w-full rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus-visible:border-indigo-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-50 transition-colors resize-y',
-            error && 'border-rose-500 focus-visible:border-rose-500 focus-visible:ring-rose-500',
-            className,
-          )}
-          ref={ref}
-          {...props}
-        />
-        {error ? (
-          <p className="text-xs text-rose-400">{error}</p>
-        ) : helperText ? (
-          <p className="text-xs text-slate-400">{helperText}</p>
-        ) : null}
-      </div>
-    );
-  },
-);
-Textarea.displayName = 'Textarea';
+  if (!label && !error && !helperText) {
+    return textarea
+  }
 
-export { Textarea };
+  return (
+    <div className="grid w-full gap-1.5">
+      {label ? (
+        <label htmlFor={fieldId} className="text-[13px] font-medium leading-none">
+          {label}
+        </label>
+      ) : null}
+      {textarea}
+      {error ? (
+        <p id={`${fieldId}-error`} role="alert" className="text-xs text-destructive">
+          {error}
+        </p>
+      ) : helperText ? (
+        <p id={`${fieldId}-help`} className="text-xs text-muted-foreground">
+          {helperText}
+        </p>
+      ) : null}
+    </div>
+  )
+}
+
+export { Textarea }

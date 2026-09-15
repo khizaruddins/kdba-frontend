@@ -101,4 +101,20 @@ describe('v3 wire adapter', () => {
     const restoredStack = restored.pages[0].root.children?.[0].children?.[0].children?.[0];
     expect(restoredStack?.children?.map((child) => child.type)).toEqual(['heading', 'grid']);
   });
+
+  it('does not emit nested section nodes when a navbar lives inside a section', () => {
+    const section = createDefaultNode('section', {
+      id: 'hero',
+      children: [
+        createDefaultNode('navbar', { id: 'nav' }),
+        createDefaultNode('container', { id: 'box' }),
+      ],
+    });
+    const wire = toWireDocument(documentWith([section]));
+    const root = (wire.pages as Array<Record<string, unknown>>)[0].root as Record<string, unknown>;
+    const wireSection = (root.children as Array<Record<string, unknown>>)[0];
+    const children = wireSection.children as Array<Record<string, unknown>>;
+    expect(children.map((child) => child.type)).not.toContain('section');
+    expect(children[0].type).toBe('stack');
+  });
 });

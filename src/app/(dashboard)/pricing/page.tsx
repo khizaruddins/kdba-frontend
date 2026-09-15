@@ -13,6 +13,7 @@ import {
   X,
   Star,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -21,8 +22,12 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { EmptyState } from '@/components/ui/empty-state';
+import { Skeleton } from '@/components/ui/skeleton';
+import { PageHeader } from '@/components/kdba/page-header';
+import { useConfirm } from '@/components/kdba/confirm-dialog';
 
 export default function PricingPage() {
+  const { confirm, dialog } = useConfirm();
   const [plans, setPlans] = React.useState<PricingPlan[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
 
@@ -132,41 +137,70 @@ export default function PricingPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this pricing plan?')) return;
-    try {
-      await apiClient.delete(`/pricing-plans/${id}`);
-      loadPlans();
-    } catch (err) {
-      console.error('Failed to delete plan:', err);
-    }
+  const handleDelete = (id: string) => {
+    confirm({
+      title: 'Delete this pricing plan?',
+      description: 'The tier will be removed from your website pricing sections.',
+      confirmLabel: 'Delete plan',
+      destructive: true,
+      onConfirm: async () => {
+        await apiClient.delete(`/pricing-plans/${id}`);
+        toast.success('Plan deleted');
+        await loadPlans();
+      },
+    });
   };
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-white">
-            Pricing Plans & Retainers
-          </h1>
-          <p className="text-xs text-slate-400 mt-1">
-            Pricing tiers configured here automatically power your website pricing sections
-          </p>
+    <div className="flex-1 space-y-6">
+      {dialog}
+      <PageHeader
+        title="Pricing"
+        description="Tiers that power pricing sections on your websites."
+        actions={
+          <Button size="sm" onClick={openCreateDialog}>
+            <Plus />
+            Add plan
+          </Button>
+        }
+      />
+
+      {isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {[1, 2, 3].map((i) => (
+            <Card key={i} className="p-6 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between">
+                  <Skeleton className="h-6 w-1/2" />
+                  <Skeleton className="h-5 w-16" />
+                </div>
+                <Skeleton className="mt-2 h-4 w-3/4" />
+                
+                <div className="mt-6 flex items-baseline gap-1">
+                  <Skeleton className="h-10 w-24" />
+                </div>
+                
+                <div className="my-6 border-t" />
+                
+                <ul className="space-y-3">
+                  {[1, 2, 3].map((j) => (
+                    <li key={j} className="flex items-center gap-2">
+                      <Skeleton className="h-4 w-4 rounded-full" />
+                      <Skeleton className="h-4 w-full" />
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="mt-8 pt-4 border-t flex justify-end gap-2">
+                <Skeleton className="h-9 w-16" />
+                <Skeleton className="h-9 w-20" />
+              </div>
+            </Card>
+          ))}
         </div>
-
-        <Button
-          size="sm"
-          onClick={openCreateDialog}
-          leftIcon={<Plus className="h-4 w-4" />}
-        >
-          Add Pricing Plan
-        </Button>
-      </div>
-
-      {plans.length === 0 && !isLoading ? (
+      ) : plans.length === 0 ? (
         <EmptyState
-          icon={<CreditCard className="h-6 w-6 text-emerald-400" />}
+          icon={<CreditCard className="h-8 w-8 text-muted-foreground" />}
           title="No pricing plans yet"
           description="Create pricing tiers and retainers to display on your website."
           actionLabel="Add First Pricing Tier"
@@ -179,74 +213,74 @@ export default function PricingPage() {
               key={plan.id}
               className={`p-6 flex flex-col justify-between relative ${
                 plan.isRecommended
-                  ? 'border-indigo-500 bg-slate-900/90 shadow-xl shadow-indigo-500/10 ring-1 ring-indigo-500/50'
-                  : 'bg-slate-900/60'
+                  ? 'border-primary shadow-sm shadow-primary/10 ring-1 ring-primary/20'
+                  : ''
               }`}
             >
               {plan.isRecommended && (
-                <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-indigo-600 px-3 py-0.5 text-[10px] font-bold uppercase text-white shadow">
+                <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-1 text-[10px] font-bold uppercase text-primary-foreground shadow-sm">
                   Recommended
                 </span>
               )}
 
               <div>
                 <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-bold text-white">{plan.name}</h3>
-                  <Badge variant={plan.isActive ? 'success' : 'secondary'}>
+                  <h3 className="text-lg font-bold">{plan.name}</h3>
+                  <Badge variant={plan.isActive ? 'default' : 'secondary'}>
                     {plan.isActive ? 'Active' : 'Hidden'}
                   </Badge>
                 </div>
 
                 {plan.description && (
-                  <p className="mt-2 text-xs text-slate-400">
+                  <p className="mt-2 text-sm text-muted-foreground">
                     {plan.description}
                   </p>
                 )}
 
                 <div className="mt-6 flex items-baseline gap-1">
-                  <span className="text-3xl font-extrabold text-white">
+                  <span className="text-3xl font-bold">
                     {formatCurrency(plan.price, plan.currency || 'USD')}
                   </span>
                   {plan.billingPeriod && (
-                    <span className="text-xs text-slate-400">
+                    <span className="text-sm text-muted-foreground">
                       /{plan.billingPeriod}
                     </span>
                   )}
                 </div>
 
-                <div className="my-6 border-t border-slate-800" />
+                <div className="my-6 border-t" />
 
                 <ul className="space-y-2.5">
                   {Array.isArray(plan.features) &&
                     plan.features.map((feat: string, idx: number) => (
                       <li
                         key={idx}
-                        className="flex items-start gap-2 text-xs text-slate-300"
+                        className="flex items-start gap-2 text-sm text-muted-foreground"
                       >
-                        <Check className="h-3.5 w-3.5 text-indigo-400 shrink-0 mt-0.5" />
+                        <Check className="h-4 w-4 text-primary shrink-0 mt-0.5" />
                         <span>{feat}</span>
                       </li>
                     ))}
                 </ul>
               </div>
 
-              <div className="mt-8 pt-4 border-t border-slate-800 flex items-center justify-end gap-2">
+              <div className="mt-8 pt-4 border-t flex items-center justify-end gap-2">
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => openEditDialog(plan)}
                 >
-                  <Edit2 className="h-3.5 w-3.5 mr-1" />
-                  <span>Edit</span>
+                  <Edit2 className="h-4 w-4 mr-2" />
+                  Edit
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-rose-400 hover:text-rose-300"
+                  className="text-destructive hover:text-destructive/90"
                   onClick={() => handleDelete(plan.id)}
                 >
-                  <Trash2 className="h-3.5 w-3.5 mr-1" />
-                  <span>Delete</span>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
                 </Button>
               </div>
             </Card>
@@ -303,22 +337,22 @@ export default function PricingPage() {
 
           {/* Features Manager */}
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">
+            <label className="block text-sm font-medium text-foreground mb-2">
               Included Features
             </label>
             <div className="space-y-2 mb-3">
               {formData.features.map((feat, idx) => (
                 <div
                   key={idx}
-                  className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-950 px-3 py-1.5 text-xs text-slate-200"
+                  className="flex items-center justify-between rounded-md border border-input bg-muted/50 px-3 py-2 text-sm text-foreground"
                 >
                   <span>{feat}</span>
                   <button
                     type="button"
                     onClick={() => removeFeature(idx)}
-                    className="text-slate-500 hover:text-rose-400"
+                    className="text-muted-foreground hover:text-destructive transition-colors"
                   >
-                    <X className="h-3.5 w-3.5" />
+                    <X className="h-4 w-4" />
                   </button>
                 </div>
               ))}
@@ -342,7 +376,7 @@ export default function PricingPage() {
             </div>
           </div>
 
-          <div className="pt-2 space-y-3">
+          <div className="pt-2 space-y-4">
             <Switch
               label="Recommended / Featured Plan"
               description="Highlight this plan with a popular badge"
@@ -361,7 +395,7 @@ export default function PricingPage() {
             />
           </div>
 
-          <div className="mt-6 flex justify-end gap-3 pt-4 border-t border-slate-800">
+          <div className="mt-6 flex justify-end gap-3 pt-4 border-t">
             <Button
               type="button"
               variant="ghost"

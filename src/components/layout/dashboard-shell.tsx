@@ -2,10 +2,11 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/stores/auth-store';
-import { DashboardSidebar } from './dashboard-sidebar';
-import { DashboardHeader } from './dashboard-header';
 import { Loader2 } from 'lucide-react';
+import { useAuthStore } from '@/stores/auth-store';
+import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
+import { AppSidebar } from './app-sidebar';
+import { AppHeader } from './app-header';
 
 export interface DashboardShellProps {
   children: React.ReactNode;
@@ -13,7 +14,7 @@ export interface DashboardShellProps {
   subtitle?: string;
 }
 
-export function DashboardShell({ children, title, subtitle }: DashboardShellProps) {
+export function DashboardShell({ children }: DashboardShellProps) {
   const router = useRouter();
   const { isAuthenticated, isLoading, fetchProfile } = useAuthStore();
 
@@ -29,10 +30,10 @@ export function DashboardShell({ children, title, subtitle }: DashboardShellProp
 
   if (isLoading) {
     return (
-      <div className="flex h-screen w-screen items-center justify-center bg-slate-950 text-slate-400">
+      <div className="flex h-svh w-full items-center justify-center bg-background text-muted-foreground">
         <div className="flex flex-col items-center gap-3">
-          <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
-          <p className="text-xs font-medium tracking-wide">Loading workspace...</p>
+          <Loader2 className="size-6 animate-spin text-primary" />
+          <p className="text-sm">Loading workspace…</p>
         </div>
       </div>
     );
@@ -43,17 +44,14 @@ export function DashboardShell({ children, title, subtitle }: DashboardShellProp
   }
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-slate-950">
-      {/* Sidebar */}
-      <DashboardSidebar />
-
-      {/* Main Content Area */}
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <DashboardHeader title={title} subtitle={subtitle} />
-        <main className="flex-1 overflow-y-auto p-8">
-          <div className="mx-auto max-w-7xl">{children}</div>
-        </main>
-      </div>
-    </div>
+    <SidebarProvider>
+      <AppSidebar />
+      <SidebarInset>
+        <AppHeader />
+        <div className="flex-1 overflow-y-auto">
+          <div className="mx-auto w-full max-w-7xl px-4 py-6 md:px-6 md:py-8">{children}</div>
+        </div>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }

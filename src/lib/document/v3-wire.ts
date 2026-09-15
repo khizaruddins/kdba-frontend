@@ -597,8 +597,17 @@ function toWireStyles(styles: StyleDefinition | undefined): Record<string, unkno
 }
 
 function resolveWireType(rawType: string, parentType: string | null): WireNodeType {
-  if (isWireType(rawType)) return rawType;
-  return TYPE_FALLBACK[rawType] || (parentType === 'page-root' ? 'section' : 'stack');
+  if (isWireType(rawType)) {
+    if (parentType && rawType === 'section' && !canWireNest(parentType, rawType)) {
+      return 'stack';
+    }
+    return rawType;
+  }
+  const fallback = TYPE_FALLBACK[rawType] || (parentType === 'page-root' ? 'section' : 'stack');
+  if (parentType && !canWireNest(parentType, fallback)) {
+    return parentType === 'page-root' ? 'section' : 'stack';
+  }
+  return fallback;
 }
 
 function wrapForParent(parentType: string, wire: Record<string, unknown>): Record<string, unknown> {

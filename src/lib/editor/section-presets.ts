@@ -93,6 +93,15 @@ function grid(columns: number, children: WebsiteNode[]): WebsiteNode {
   });
 }
 
+function contactForm(variant = 'stacked'): WebsiteNode {
+  const item = COMPONENT_MANIFEST['contact-form'];
+  return createDefaultNode('contact-form', {
+    name: 'Contact Form',
+    props: { ...item.defaultProps, variant },
+    styles: item.defaultStyles,
+  });
+}
+
 export const SECTION_PRESETS: SectionPreset[] = [
   {
     id: 'hero',
@@ -223,15 +232,118 @@ export const SECTION_PRESETS: SectionPreset[] = [
   {
     id: 'contact',
     name: 'Contact',
-    description: 'Lead form section.',
+    description: 'Centered heading with a lead form.',
     build: () =>
       section('Contact', [
         container([
           stack([
             heading('Get in touch', 2, '40px'),
             paragraph('Tell us about your project. We typically reply within one business day.'),
-            button('Send message', '#contact'),
+            contactForm('stacked'),
           ]),
+        ]),
+      ]),
+  },
+  {
+    id: 'contact-split',
+    name: 'Contact split',
+    description: 'Copy on the left, form on the right.',
+    build: () =>
+      section('Contact', [
+        container([
+          grid(2, [
+            stack([
+              heading('Let’s talk', 2, '36px'),
+              paragraph('Share a few details and we will follow up with next steps.'),
+            ]),
+            contactForm('card'),
+          ]),
+        ]),
+      ]),
+  },
+  {
+    id: 'contact-with-info',
+    name: 'Contact with details',
+    description: 'Business details beside the form.',
+    build: () =>
+      section('Contact', [
+        container([
+          grid(2, [
+            stack([
+              heading('Visit or write', 2, '32px'),
+              paragraph('Email, phone, and hours from your business profile appear on the live site.'),
+              createDefaultNode('opening-hours', {
+                name: 'Hours',
+                props: COMPONENT_MANIFEST['opening-hours'].defaultProps,
+                styles: COMPONENT_MANIFEST['opening-hours'].defaultStyles,
+              }),
+            ]),
+            contactForm('bordered'),
+          ]),
+        ]),
+      ]),
+  },
+  {
+    id: 'contact-with-image',
+    name: 'Contact with image',
+    description: 'Photo column plus a compact form.',
+    build: () =>
+      section('Contact', [
+        container([
+          grid(2, [
+            image(
+              'https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=1200&q=80',
+              'Studio workspace',
+            ),
+            stack([heading('Book a conversation', 2, '32px'), contactForm('compact')]),
+          ]),
+        ]),
+      ]),
+  },
+  {
+    id: 'contact-narrow',
+    name: 'Contact narrow',
+    description: 'A focused, single-column lead form.',
+    build: () =>
+      section('Contact', [
+        container([
+          stack([heading('Send a note', 2, '32px'), contactForm('minimal')]),
+        ]),
+      ]),
+  },
+  {
+    id: 'contact-full',
+    name: 'Contact full width',
+    description: 'Wide two-column field layout.',
+    build: () =>
+      section('Contact', [
+        container([
+          stack([
+            heading('Start a project', 2, '40px'),
+            contactForm('two-column'),
+          ]),
+        ]),
+      ]),
+  },
+  {
+    id: 'contact-inline',
+    name: 'Contact inline',
+    description: 'Name, email, and submit in one row.',
+    build: () =>
+      section('Contact', [
+        container([
+          stack([heading('Stay in the loop', 2, '32px'), contactForm('inline')]),
+        ]),
+      ]),
+  },
+  {
+    id: 'contact-pill',
+    name: 'Contact rounded',
+    description: 'Rounded fields and a pill-shaped submit button.',
+    build: () =>
+      section('Contact', [
+        container([
+          stack([heading('Say hello', 2, '32px'), contactForm('pill')]),
         ]),
       ]),
   },

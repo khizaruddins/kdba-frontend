@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Dialog } from '@/components/ui/dialog';
+import { PageHeader } from '@/components/kdba/page-header';
 import { WebsiteRenderer } from '@/components/renderer/WebsiteRenderer';
 
 export default function TemplatesPage() {
@@ -113,55 +114,48 @@ export default function TemplatesPage() {
   };
 
   return (
-    <div className="space-y-8 select-none">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
-            Curated Website Templates
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            20 bespoke, industry-specific website architectures built for instant conversion
-          </p>
-        </div>
-
-        {/* Search */}
-        <div className="relative w-full md:w-72">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search templates & styles..."
-            className="w-full rounded-xl border border-slate-800 bg-slate-900/90 pl-10 pr-4 py-2 text-xs text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-hidden shadow-inner"
-          />
-        </div>
-      </div>
+    <div className="flex-1 space-y-6">
+      <PageHeader
+        title="Templates"
+        description="Start from an industry layout, then edit every page in the visual builder."
+        actions={
+          <div className="relative w-full md:w-72">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search templates"
+              className="h-9 w-full rounded-lg border border-input bg-background pl-9 pr-3 text-sm"
+            />
+          </div>
+        }
+      />
 
       {errorMsg && (
-        <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 p-4 text-xs font-semibold text-rose-400 flex items-center justify-between">
+        <div className="rounded-md border border-destructive/20 bg-destructive/10 p-4 text-sm font-medium text-destructive flex items-center justify-between">
           <span>{errorMsg}</span>
           <button
             type="button"
             onClick={() => setErrorMsg(null)}
-            className="text-rose-400 hover:text-white ml-4"
+            className="hover:opacity-80 ml-4"
           >
-            ✕
+            <X className="h-4 w-4" />
           </button>
         </div>
       )}
 
       {/* Category Filter Pills */}
-      <div className="flex flex-wrap items-center gap-2 overflow-x-auto pb-1">
+      <div className="flex flex-wrap items-center gap-2 overflow-x-auto pb-2">
         {categories.map((cat) => (
           <button
             key={cat.id}
             type="button"
             onClick={() => setActiveCategory(cat.id)}
-            className={`rounded-xl px-4 py-2 text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
+            className={`rounded-md px-4 py-2 text-sm font-medium transition-all cursor-pointer whitespace-nowrap ${
               activeCategory === cat.id
-                ? 'bg-indigo-600 text-white shadow-md'
-                : 'bg-slate-900 text-slate-400 border border-slate-800 hover:text-white hover:border-slate-700'
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground'
             }`}
           >
             {cat.label}
@@ -170,15 +164,15 @@ export default function TemplatesPage() {
       </div>
 
       {/* Templates Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredTemplates.map((template) => (
           <Card
             key={template.id}
-            className="overflow-hidden card-hover flex flex-col justify-between group border-slate-800 bg-slate-900/70"
+            className="flex flex-col justify-between group overflow-hidden"
           >
             <div>
               {/* Preview Banner */}
-              <div className="relative h-52 w-full overflow-hidden bg-slate-950">
+              <div className="relative h-48 w-full overflow-hidden bg-muted">
                 {template.previewImage ? (
                   <img
                     src={template.previewImage}
@@ -186,50 +180,48 @@ export default function TemplatesPage() {
                     className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
                   />
                 ) : (
-                  <div className="flex h-full w-full items-center justify-center bg-gradient-to-tr from-slate-900 to-indigo-950 text-indigo-400">
-                    <LayoutTemplate className="h-12 w-12 opacity-50" />
+                  <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+                    <LayoutTemplate className="h-10 w-10 opacity-50" />
                   </div>
                 )}
 
                 <div className="absolute top-3 left-3 flex gap-2">
-                  <Badge variant="default">{template.industry.replace('_', ' ')}</Badge>
+                  <Badge variant="secondary">{template.industry.replace('_', ' ')}</Badge>
                   {template.featured && (
-                    <Badge variant="success">Featured</Badge>
+                    <Badge variant="default">Featured</Badge>
                   )}
                 </div>
               </div>
 
               {/* Template Details */}
               <div className="p-6">
-                <h3 className="text-lg font-bold text-white group-hover:text-indigo-300 transition-colors">
+                <h3 className="text-lg font-semibold tracking-tight group-hover:text-primary transition-colors">
                   {template.name}
                 </h3>
-
-                <p className="text-[11px] font-mono text-indigo-400 mt-0.5">
+                <p className="text-xs font-medium text-muted-foreground mt-1">
                   {template.style}
                 </p>
-
-                <p className="mt-2.5 text-xs text-slate-400 leading-relaxed min-h-[38px] line-clamp-2">
+                <p className="mt-3 text-sm text-muted-foreground leading-relaxed line-clamp-2">
                   {template.description}
                 </p>
 
                 {/* Theme tokens preview */}
-                <div className="mt-4 flex items-center gap-2.5 border-t border-slate-800/80 pt-4">
+                <div className="mt-4 flex items-center gap-2.5 border-t pt-4">
                   <div
-                    className="h-4 w-4 rounded-full border border-white/20 shadow-sm"
+                    className="h-4 w-4 rounded-full border shadow-sm"
                     style={{
                       backgroundColor: template.document.theme?.accentColor || '#6366f1',
                     }}
                     title="Accent Color"
                   />
                   <div
-                    className="h-4 w-4 rounded-full border border-white/20 shadow-sm"
+                    className="h-4 w-4 rounded-full border shadow-sm"
                     style={{
                       backgroundColor: template.document.theme?.primaryColor || '#0f172a',
                     }}
                     title="Primary Theme Color"
                   />
-                  <span className="text-[11px] text-slate-400 font-mono ml-2">
+                  <span className="text-xs text-muted-foreground font-mono ml-2">
                     {template.document.theme?.headingFont.split(',')[0]}
                   </span>
                 </div>
@@ -242,19 +234,19 @@ export default function TemplatesPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => setPreviewTemplate(template)}
-                leftIcon={<Eye className="h-3.5 w-3.5" />}
                 className="flex-1"
               >
+                <Eye className="mr-2 h-4 w-4" />
                 Inspect
               </Button>
               <Button
                 size="sm"
                 onClick={() => handleUseTemplate(template)}
                 isLoading={isCreating}
-                rightIcon={<ArrowRight className="h-3.5 w-3.5" />}
                 className="flex-1"
               >
                 Use Template
+                <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </div>
           </Card>
@@ -263,26 +255,26 @@ export default function TemplatesPage() {
 
       {/* Inspect Template Fullscreen Preview Modal */}
       {previewTemplate && (
-        <div className="fixed inset-0 z-50 flex flex-col bg-slate-950/95 backdrop-blur-xl select-none">
-          <header className="flex h-16 w-full items-center justify-between border-b border-slate-800 px-6 bg-slate-900/90 z-20">
+        <div className="fixed inset-0 z-50 flex flex-col bg-background/95 backdrop-blur-xl select-none">
+          <header className="flex h-16 w-full items-center justify-between border-b px-6 bg-card/90 z-20">
             <div className="flex items-center gap-3">
-              <span className="text-sm font-bold text-white">
+              <span className="text-sm font-bold text-foreground">
                 {previewTemplate.name}
               </span>
-              <span className="rounded-full bg-indigo-500/20 text-indigo-300 px-2.5 py-0.5 text-[10px] font-mono font-bold uppercase border border-indigo-500/30">
+              <span className="rounded-full bg-primary/20 text-primary px-2.5 py-0.5 text-[10px] font-mono font-bold uppercase border border-primary/30">
                 {previewTemplate.industry}
               </span>
             </div>
 
             {/* Viewport switcher */}
-            <div className="flex items-center rounded-xl border border-slate-800 bg-slate-950 p-1">
+            <div className="flex items-center rounded-lg border bg-background p-1">
               <button
                 type="button"
                 onClick={() => setPreviewViewMode('desktop')}
-                className={`flex h-8 w-8 items-center justify-center rounded-lg transition-all ${
+                className={`flex h-8 w-8 items-center justify-center rounded-md transition-all ${
                   previewViewMode === 'desktop'
-                    ? 'bg-indigo-600 text-white shadow'
-                    : 'text-slate-400 hover:text-white'
+                    ? 'bg-primary text-primary-foreground shadow'
+                    : 'text-muted-foreground hover:text-foreground'
                 }`}
                 title="Desktop"
               >
@@ -291,10 +283,10 @@ export default function TemplatesPage() {
               <button
                 type="button"
                 onClick={() => setPreviewViewMode('tablet')}
-                className={`flex h-8 w-8 items-center justify-center rounded-lg transition-all ${
+                className={`flex h-8 w-8 items-center justify-center rounded-md transition-all ${
                   previewViewMode === 'tablet'
-                    ? 'bg-indigo-600 text-white shadow'
-                    : 'text-slate-400 hover:text-white'
+                    ? 'bg-primary text-primary-foreground shadow'
+                    : 'text-muted-foreground hover:text-foreground'
                 }`}
                 title="Tablet"
               >
@@ -303,10 +295,10 @@ export default function TemplatesPage() {
               <button
                 type="button"
                 onClick={() => setPreviewViewMode('mobile')}
-                className={`flex h-8 w-8 items-center justify-center rounded-lg transition-all ${
+                className={`flex h-8 w-8 items-center justify-center rounded-md transition-all ${
                   previewViewMode === 'mobile'
-                    ? 'bg-indigo-600 text-white shadow'
-                    : 'text-slate-400 hover:text-white'
+                    ? 'bg-primary text-primary-foreground shadow'
+                    : 'text-muted-foreground hover:text-foreground'
                 }`}
                 title="Mobile"
               >
@@ -323,31 +315,31 @@ export default function TemplatesPage() {
                   handleUseTemplate(tpl);
                 }}
                 isLoading={isCreating}
-                rightIcon={<ArrowRight className="h-3.5 w-3.5" />}
               >
                 Use This Template
+                <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
               <button
                 type="button"
                 onClick={() => setPreviewTemplate(null)}
-                className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white"
+                className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
           </header>
 
-          <div className="flex-1 overflow-y-auto p-4 sm:p-6 flex justify-center items-start bg-slate-950">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 flex justify-center items-start bg-background">
             <div
               className={`transition-all duration-300 ${
                 previewViewMode === 'desktop'
                   ? 'w-full max-w-full'
                   : previewViewMode === 'tablet'
-                  ? 'w-[768px] max-w-[768px] my-6 rounded-[28px] border-[8px] border-slate-800 shadow-2xl overflow-y-auto max-h-[85vh]'
-                  : 'w-[375px] max-w-[375px] my-6 rounded-[36px] border-[8px] border-slate-800 shadow-2xl overflow-y-auto max-h-[85vh]'
+                  ? 'w-[768px] max-w-[768px] my-6 rounded-[28px] border-[8px] border-muted shadow-2xl overflow-y-auto max-h-[85vh]'
+                  : 'w-[375px] max-w-[375px] my-6 rounded-[36px] border-[8px] border-muted shadow-2xl overflow-y-auto max-h-[85vh]'
               }`}
             >
-              <div data-view-mode={previewViewMode} className="w-full bg-slate-950">
+              <div data-view-mode={previewViewMode} className="w-full bg-background">
                 <WebsiteRenderer
                   document={previewTemplate.document}
                   isEditing={false}

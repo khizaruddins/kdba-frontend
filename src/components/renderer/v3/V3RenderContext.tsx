@@ -7,6 +7,7 @@ export interface V3RenderContextValue {
   document: WebsiteDocumentV3;
   isEditing: boolean;
   viewport: 'desktop' | 'tablet' | 'mobile';
+  tenantSlug?: string | null;
 }
 
 const V3RenderContext = React.createContext<V3RenderContextValue | null>(null);

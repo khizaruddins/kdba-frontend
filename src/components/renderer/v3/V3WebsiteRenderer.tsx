@@ -18,6 +18,7 @@ export interface V3WebsiteRendererProps {
   onStartInlineEdit?: (nodeId: string) => void;
   className?: string;
   style?: React.CSSProperties;
+  tenantSlug?: string | null;
 }
 
 export function V3WebsiteRenderer({
@@ -32,6 +33,7 @@ export function V3WebsiteRenderer({
   onStartInlineEdit,
   className = '',
   style = {},
+  tenantSlug,
 }: V3WebsiteRendererProps) {
   if (!document) {
     return (
@@ -117,7 +119,14 @@ export function V3WebsiteRenderer({
   };
 
   return (
-    <V3RenderProvider value={{ document, isEditing, viewport }}>
+    <V3RenderProvider
+      value={{
+        document,
+        isEditing,
+        viewport,
+        tenantSlug: tenantSlug || document.settings?.subdomain || document.settings?.customDomain || null,
+      }}
+    >
       <div
         style={cssVariables}
         className={`min-h-screen w-full bg-[var(--kdba-background)] text-[var(--kdba-text)] ${className}`}

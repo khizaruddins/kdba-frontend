@@ -10,7 +10,6 @@ import {
   FolderOpen,
   Settings,
   HelpCircle,
-  Sparkles,
   Globe,
 } from 'lucide-react';
 
@@ -31,12 +30,12 @@ export function V3EditorSidebarRail() {
   };
 
   return (
-    <aside className="w-14 shrink-0 border-r border-slate-800/80 bg-slate-950 flex flex-col justify-between items-center py-3 select-none z-30">
+    <aside className="z-30 flex w-14 shrink-0 flex-col items-center justify-between border-r bg-sidebar py-3 text-sidebar-foreground select-none">
       {/* Top Brand & Navigation Icons */}
       <div className="flex flex-col items-center gap-4 w-full">
         {/* Brand Icon */}
-        <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-indigo-600/30 text-white font-black text-base">
-          <Sparkles className="w-5 h-5 text-white" />
+        <div className="flex size-9 items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-foreground">
+          K
         </div>
 
         {/* Primary Tool Rail Buttons */}
@@ -49,10 +48,10 @@ export function V3EditorSidebarRail() {
                 type="button"
                 onClick={() => handleTabClick(item.id)}
                 title={item.label}
-                className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
+                className={`flex size-10 items-center justify-center rounded-lg transition-all ${
                   isActive
-                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/25 ring-2 ring-indigo-500/40'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-900'
+                    ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                    : 'text-muted-foreground hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground'
                 }`}
               >
                 {item.icon}
@@ -68,14 +67,14 @@ export function V3EditorSidebarRail() {
           type="button"
           title="Help & Shortcuts"
           onClick={() => window.dispatchEvent(new Event('kdba-editor-help'))}
-          className="w-9 h-9 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-300 hover:bg-slate-900 transition-colors"
+          className="flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
         >
           <HelpCircle className="w-4 h-4" />
         </button>
         <button
           type="button"
           title="Settings"
-          className="w-9 h-9 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-300 hover:bg-slate-900 transition-colors"
+          className="flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
         >
           <Settings className="w-4 h-4" />
         </button>

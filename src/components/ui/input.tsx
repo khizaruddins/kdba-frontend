@@ -1,63 +1,81 @@
-import * as React from 'react';
-import { cn } from '@/lib/utils';
+import * as React from "react"
+import { cn } from "cn"
 
-export interface InputProps
-  extends React.InputHTMLAttributes<HTMLInputElement> {
-  label?: string;
-  error?: string;
-  helperText?: string;
-  leftIcon?: React.ReactNode;
-  rightIcon?: React.ReactNode;
+export type InputProps = React.ComponentProps<"input"> & {
+  label?: React.ReactNode
+  error?: string
+  helperText?: React.ReactNode
+  leftIcon?: React.ReactNode
+  rightIcon?: React.ReactNode
 }
 
-const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ className, type, label, error, helperText, leftIcon, rightIcon, id, ...props }, ref) => {
-    const inputId = id || (label ? label.toLowerCase().replace(/\s+/g, '-') : undefined);
+function Input({
+  className,
+  type,
+  label,
+  error,
+  helperText,
+  leftIcon,
+  rightIcon,
+  id,
+  ...props
+}: InputProps) {
+  const autoId = React.useId()
+  const inputId = id ?? (label ? autoId : undefined)
+  const input = (
+    <input
+      type={type}
+      id={inputId}
+      data-slot="input"
+      aria-invalid={error ? true : undefined}
+      aria-describedby={
+        error ? `${inputId}-error` : helperText ? `${inputId}-help` : undefined
+      }
+      className={cn(
+        "h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40",
+        leftIcon && "pl-8",
+        rightIcon && "pr-8",
+        className
+      )}
+      {...props}
+    />
+  )
 
-    return (
-      <div className="w-full space-y-1.5">
-        {label && (
-          <label
-            htmlFor={inputId}
-            className="block text-xs font-medium text-slate-300"
-          >
-            {label}
-          </label>
-        )}
-        <div className="relative flex items-center">
-          {leftIcon && (
-            <div className="pointer-events-none absolute left-3 flex items-center text-slate-400">
-              {leftIcon}
-            </div>
-          )}
-          <input
-            type={type}
-            id={inputId}
-            className={cn(
-              'flex h-10 w-full rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus-visible:border-indigo-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-50 transition-colors',
-              leftIcon && 'pl-10',
-              rightIcon && 'pr-10',
-              error && 'border-rose-500 focus-visible:border-rose-500 focus-visible:ring-rose-500',
-              className,
-            )}
-            ref={ref}
-            {...props}
-          />
-          {rightIcon && (
-            <div className="absolute right-3 flex items-center text-slate-400">
-              {rightIcon}
-            </div>
-          )}
-        </div>
-        {error ? (
-          <p className="text-xs text-rose-400">{error}</p>
-        ) : helperText ? (
-          <p className="text-xs text-slate-400">{helperText}</p>
+  if (!label && !error && !helperText && !leftIcon && !rightIcon) {
+    return input
+  }
+
+  return (
+    <div className="grid w-full gap-1.5">
+      {label ? (
+        <label htmlFor={inputId} className="text-[13px] font-medium leading-none">
+          {label}
+        </label>
+      ) : null}
+      <div className="relative">
+        {leftIcon ? (
+          <span className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-muted-foreground [&_svg]:size-4">
+            {leftIcon}
+          </span>
+        ) : null}
+        {input}
+        {rightIcon ? (
+          <span className="absolute inset-y-0 right-2.5 flex items-center text-muted-foreground [&_svg]:size-4">
+            {rightIcon}
+          </span>
         ) : null}
       </div>
-    );
-  },
-);
-Input.displayName = 'Input';
+      {error ? (
+        <p id={`${inputId}-error`} role="alert" className="text-xs text-destructive">
+          {error}
+        </p>
+      ) : helperText ? (
+        <p id={`${inputId}-help`} className="text-xs text-muted-foreground">
+          {helperText}
+        </p>
+      ) : null}
+    </div>
+  )
+}
 
-export { Input };
+export { Input }

@@ -799,30 +799,71 @@ export function ContentControl({ node, onChangeProps }: ContentControlProps) {
 
   // 11. Form & Contact Form Controls
   if (node.type === 'form' || node.type === 'contact-form') {
-    const currentTitle = String(props.title || 'Send a Message');
-    const currentBtn = String(props.buttonText || props.submitText || 'Send Message');
+    const currentTitle = String(props.headline || props.title || 'Get in touch');
+    const currentBtn = String(props.buttonText || props.submitText || props.submitLabel || 'Send message');
+    const currentVariant = String(props.variant || 'stacked');
+    const currentFields = Array.isArray(props.fields) ? (props.fields as string[]) : ['name', 'email', 'phone', 'message'];
+    const fieldIds = ['name', 'email', 'phone', 'message'] as const;
 
     return (
       <div className="space-y-3 select-none text-xs">
         <div className="space-y-1">
-          <label className="text-[11px] font-medium text-slate-400">Form Heading / Title</label>
+          <label className="text-[11px] font-medium text-muted-foreground">Form heading</label>
           <input
             type="text"
             value={currentTitle}
-            onChange={(e) => onChangeProps({ title: e.target.value })}
-            placeholder="Send a Message"
-            className="w-full h-8 px-2.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-100 text-xs focus:border-indigo-500 focus:outline-none"
+            onChange={(e) => onChangeProps({ title: e.target.value, headline: e.target.value })}
+            className="h-8 w-full rounded-lg border border-input bg-background px-2.5 text-xs"
           />
         </div>
-
         <div className="space-y-1">
-          <label className="text-[11px] font-medium text-slate-400">Submit Button Text</label>
+          <label className="text-[11px] font-medium text-muted-foreground">Layout</label>
+          <select
+            value={currentVariant}
+            onChange={(e) => onChangeProps({ variant: e.target.value })}
+            className="h-8 w-full rounded-lg border border-input bg-background px-2.5 text-xs"
+          >
+            <option value="stacked">Stacked</option>
+            <option value="compact">Compact</option>
+            <option value="inline">Inline</option>
+            <option value="two-column">Two column</option>
+            <option value="card">Card</option>
+            <option value="minimal">Minimal</option>
+            <option value="bordered">Bordered</option>
+            <option value="pill">Rounded</option>
+          </select>
+        </div>
+        <div className="space-y-1">
+          <p className="text-[11px] font-medium text-muted-foreground">Fields</p>
+          {fieldIds.map((id) => (
+            <label key={id} className="flex items-center justify-between gap-2 text-[11px]">
+              <span className="capitalize">{id}</span>
+              <input
+                type="checkbox"
+                checked={currentFields.includes(id)}
+                onChange={(e) => {
+                  const next = e.target.checked
+                    ? [...currentFields, id]
+                    : currentFields.filter((field) => field !== id);
+                  onChangeProps({ fields: next });
+                }}
+              />
+            </label>
+          ))}
+        </div>
+        <div className="space-y-1">
+          <label className="text-[11px] font-medium text-muted-foreground">Submit button</label>
           <input
             type="text"
             value={currentBtn}
-            onChange={(e) => onChangeProps({ buttonText: e.target.value, submitText: e.target.value })}
-            placeholder="Send Message"
-            className="w-full h-8 px-2.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-100 text-xs focus:border-indigo-500 focus:outline-none"
+            onChange={(e) =>
+              onChangeProps({
+                buttonText: e.target.value,
+                submitText: e.target.value,
+                submitLabel: e.target.value,
+              })
+            }
+            className="h-8 w-full rounded-lg border border-input bg-background px-2.5 text-xs"
           />
         </div>
       </div>

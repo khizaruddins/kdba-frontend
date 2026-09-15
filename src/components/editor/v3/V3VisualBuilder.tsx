@@ -105,7 +105,7 @@ export function V3VisualBuilder() {
     document?.settings?.subdomain || document?.site?.id || websiteId;
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-[#0B0D13] text-slate-100 overflow-hidden">
+    <div className="h-screen w-screen flex flex-col bg-background text-foreground overflow-hidden">
       <V3EditorHeader
         onPublishSuccess={() => setPublishSuccessOpen(true)}
       />

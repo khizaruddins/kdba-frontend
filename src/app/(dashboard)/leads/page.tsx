@@ -15,14 +15,19 @@ import {
   Sparkles,
   CheckCircle2,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { EmptyState } from '@/components/ui/empty-state';
+import { Skeleton } from '@/components/ui/skeleton';
+import { PageHeader } from '@/components/kdba/page-header';
+import { useConfirm } from '@/components/kdba/confirm-dialog';
 
 export default function LeadsPage() {
+  const { confirm, dialog } = useConfirm();
   const [leads, setLeads] = React.useState<Lead[]>([]);
   const [stats, setStats] = React.useState<LeadStats>({
     total: 0,
@@ -76,15 +81,19 @@ export default function LeadsPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this lead?')) return;
-    try {
-      await apiClient.delete(`/leads/${id}`);
-      setSelectedLead(null);
-      loadLeads();
-    } catch (err) {
-      console.error('Failed to delete lead:', err);
-    }
+  const handleDelete = (id: string) => {
+    confirm({
+      title: 'Delete this lead?',
+      description: 'The inquiry will be removed from your inbox.',
+      confirmLabel: 'Delete lead',
+      destructive: true,
+      onConfirm: async () => {
+        await apiClient.delete(`/leads/${id}`);
+        setSelectedLead(null);
+        toast.success('Lead deleted');
+        await loadLeads();
+      },
+    });
   };
 
   const statusOptions: LeadStatus[] = [
@@ -96,38 +105,54 @@ export default function LeadsPage() {
   ];
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-extrabold tracking-tight text-white">
-          Leads & Customer Inquiries
-        </h1>
-        <p className="text-xs text-slate-400 mt-1">
-          Inbound customer leads collected automatically through your website contact forms
-        </p>
-      </div>
+    <div className="flex-1 space-y-6">
+      {dialog}
+      <PageHeader
+        title="Forms & leads"
+        description="Inbound inquiries collected from published contact forms."
+      />
 
       {/* Stats Counters */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-        <Card className="p-4 bg-slate-900/60">
-          <span className="text-[11px] font-semibold text-slate-400">Total Leads</span>
-          <p className="text-2xl font-black text-white mt-1">{stats.total}</p>
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-xs font-medium">Total Leads</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? <Skeleton className="h-7 w-12" /> : <div className="text-2xl font-bold">{stats.total}</div>}
+          </CardContent>
         </Card>
-        <Card className="p-4 bg-indigo-950/20 border-indigo-500/30">
-          <span className="text-[11px] font-semibold text-indigo-400">New Inquiries</span>
-          <p className="text-2xl font-black text-indigo-300 mt-1">{stats.new}</p>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-xs font-medium text-primary">New</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? <Skeleton className="h-7 w-12" /> : <div className="text-2xl font-bold">{stats.new}</div>}
+          </CardContent>
         </Card>
-        <Card className="p-4 bg-slate-900/60">
-          <span className="text-[11px] font-semibold text-amber-400">Contacted</span>
-          <p className="text-2xl font-black text-white mt-1">{stats.contacted}</p>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-xs font-medium text-amber-500">Contacted</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? <Skeleton className="h-7 w-12" /> : <div className="text-2xl font-bold">{stats.contacted}</div>}
+          </CardContent>
         </Card>
-        <Card className="p-4 bg-slate-900/60">
-          <span className="text-[11px] font-semibold text-sky-400">Qualified</span>
-          <p className="text-2xl font-black text-white mt-1">{stats.qualified}</p>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-xs font-medium text-sky-500">Qualified</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? <Skeleton className="h-7 w-12" /> : <div className="text-2xl font-bold">{stats.qualified}</div>}
+          </CardContent>
         </Card>
-        <Card className="p-4 bg-emerald-950/20 border-emerald-500/30">
-          <span className="text-[11px] font-semibold text-emerald-400">Converted</span>
-          <p className="text-2xl font-black text-emerald-300 mt-1">{stats.converted}</p>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-xs font-medium text-emerald-500">Converted</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? <Skeleton className="h-7 w-12" /> : <div className="text-2xl font-bold">{stats.converted}</div>}
+          </CardContent>
         </Card>
       </div>
 
@@ -142,16 +167,16 @@ export default function LeadsPage() {
           />
         </div>
 
-        <div className="flex items-center gap-2 overflow-x-auto">
+        <div className="flex items-center gap-2 overflow-x-auto p-1 border rounded-lg bg-muted/50">
           {['ALL', ...statusOptions].map((st) => (
             <button
               key={st}
               type="button"
               onClick={() => setStatusFilter(st)}
-              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
+              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${
                 statusFilter === st
-                  ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'bg-slate-900 text-slate-400 border border-slate-800 hover:text-white'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
               }`}
             >
               {st}
@@ -161,44 +186,53 @@ export default function LeadsPage() {
       </div>
 
       {/* Leads Table */}
-      {leads.length === 0 && !isLoading ? (
-        <EmptyState
-          icon={<Users className="h-6 w-6 text-indigo-400" />}
-          title="No leads found"
-          description="Inbound inquiries submitted by website visitors will appear here in real-time."
-        />
-      ) : (
-        <Card>
-          <CardContent className="p-0 overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="border-b border-slate-800 bg-slate-950/40 text-slate-400 font-semibold">
+      <Card>
+        <CardContent className="p-0 overflow-x-auto">
+          {isLoading ? (
+            <div className="p-6 space-y-4">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="flex space-x-4 items-center">
+                  <Skeleton className="h-10 w-full" />
+                </div>
+              ))}
+            </div>
+          ) : leads.length === 0 ? (
+            <EmptyState
+              icon={<Users className="h-6 w-6 text-muted-foreground" />}
+              title="No leads found"
+              description="Inbound inquiries submitted by website visitors will appear here in real-time."
+              className="border-0 bg-transparent rounded-none my-8"
+            />
+          ) : (
+            <table className="w-full text-left text-sm">
+              <thead className="border-b bg-muted/50 text-muted-foreground font-medium">
                 <tr>
-                  <th className="py-3 px-6">Name</th>
-                  <th className="py-3 px-6">Contact Info</th>
-                  <th className="py-3 px-6">Message Preview</th>
-                  <th className="py-3 px-6">Status</th>
-                  <th className="py-3 px-6">Received</th>
-                  <th className="py-3 px-6 text-right">Actions</th>
+                  <th className="py-3 px-6 h-10 align-middle">Name</th>
+                  <th className="py-3 px-6 h-10 align-middle">Contact Info</th>
+                  <th className="py-3 px-6 h-10 align-middle">Message Preview</th>
+                  <th className="py-3 px-6 h-10 align-middle">Status</th>
+                  <th className="py-3 px-6 h-10 align-middle">Received</th>
+                  <th className="py-3 px-6 h-10 align-middle text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60">
+              <tbody className="divide-y">
                 {leads.map((lead) => (
                   <tr
                     key={lead.id}
-                    className="hover:bg-slate-900/50 transition-colors"
+                    className="hover:bg-muted/50 transition-colors"
                   >
-                    <td className="py-4 px-6 font-bold text-white">
+                    <td className="py-4 px-6 font-medium">
                       {lead.name}
                     </td>
                     <td className="py-4 px-6">
-                      <p className="text-slate-200">{lead.email}</p>
+                      <p>{lead.email}</p>
                       {lead.phone && (
-                        <p className="text-[11px] text-slate-400 mt-0.5">
+                        <p className="text-xs text-muted-foreground mt-0.5">
                           {lead.phone}
                         </p>
                       )}
                     </td>
-                    <td className="py-4 px-6 max-w-xs truncate text-slate-300">
+                    <td className="py-4 px-6 max-w-[200px] truncate text-muted-foreground">
                       {lead.message || 'No message'}
                     </td>
                     <td className="py-4 px-6">
@@ -210,7 +244,7 @@ export default function LeadsPage() {
                             e.target.value as LeadStatus,
                           )
                         }
-                        className="rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1 text-xs font-semibold text-slate-200 cursor-pointer"
+                        className="h-8 rounded-md border border-input bg-background px-2.5 py-1 text-xs font-medium cursor-pointer"
                       >
                         {statusOptions.map((opt) => (
                           <option key={opt} value={opt}>
@@ -219,33 +253,34 @@ export default function LeadsPage() {
                         ))}
                       </select>
                     </td>
-                    <td className="py-4 px-6 text-slate-400">
+                    <td className="py-4 px-6 text-muted-foreground">
                       {formatDate(lead.createdAt)}
                     </td>
                     <td className="py-4 px-6 text-right space-x-2">
                       <Button
                         variant="ghost"
-                        size="sm"
+                        size="icon"
+                        className="h-8 w-8"
                         onClick={() => setSelectedLead(lead)}
                       >
-                        <Eye className="h-3.5 w-3.5" />
+                        <Eye className="h-4 w-4" />
                       </Button>
                       <Button
                         variant="ghost"
-                        size="sm"
-                        className="text-rose-400 hover:text-rose-300"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:text-destructive/90"
                         onClick={() => handleDelete(lead.id)}
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </CardContent>
-        </Card>
-      )}
+          )}
+        </CardContent>
+      </Card>
 
       {/* Lead Detail Dialog */}
       <Dialog
@@ -256,40 +291,40 @@ export default function LeadsPage() {
       >
         {selectedLead && (
           <div className="space-y-6 pt-2">
-            <div className="grid grid-cols-2 gap-4 p-4 rounded-xl border border-slate-800 bg-slate-950">
+            <div className="grid grid-cols-2 gap-4 p-4 rounded-xl border bg-muted/30">
               <div>
-                <span className="text-[11px] font-semibold text-slate-400 block">
+                <span className="text-[11px] font-semibold text-muted-foreground block mb-1">
                   Email
                 </span>
                 <a
                   href={`mailto:${selectedLead.email}`}
-                  className="text-xs font-semibold text-indigo-400 hover:underline mt-0.5 block"
+                  className="text-sm font-medium hover:underline text-foreground block"
                 >
                   {selectedLead.email}
                 </a>
               </div>
               <div>
-                <span className="text-[11px] font-semibold text-slate-400 block">
+                <span className="text-[11px] font-semibold text-muted-foreground block mb-1">
                   Phone
                 </span>
-                <span className="text-xs text-white mt-0.5 block">
+                <span className="text-sm font-medium text-foreground block">
                   {selectedLead.phone || 'Not provided'}
                 </span>
               </div>
             </div>
 
             <div>
-              <span className="text-xs font-semibold text-slate-400 block mb-2">
+              <span className="text-xs font-semibold text-muted-foreground block mb-2">
                 Inquiry Message
               </span>
-              <div className="p-4 rounded-xl border border-slate-800 bg-slate-950 text-xs text-slate-200 leading-relaxed whitespace-pre-wrap">
+              <div className="p-4 rounded-xl border bg-muted/30 text-sm text-foreground leading-relaxed whitespace-pre-wrap">
                 {selectedLead.message || 'No message provided.'}
               </div>
             </div>
 
-            <div className="flex items-center justify-between pt-4 border-t border-slate-800">
+            <div className="flex items-center justify-between pt-4 border-t">
               <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-400">Update Status:</span>
+                <span className="text-sm text-muted-foreground">Update Status:</span>
                 <select
                   value={selectedLead.status}
                   onChange={(e) =>
@@ -298,7 +333,7 @@ export default function LeadsPage() {
                       e.target.value as LeadStatus,
                     )
                   }
-                  className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-slate-200"
+                  className="h-9 rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium cursor-pointer"
                 >
                   {statusOptions.map((opt) => (
                     <option key={opt} value={opt}>

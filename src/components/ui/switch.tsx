@@ -1,60 +1,60 @@
-'use client';
+"use client"
 
-import * as React from 'react';
-import { cn } from '@/lib/utils';
+import * as React from "react"
+import { cn } from "cn"
+import { Switch as SwitchPrimitive } from "radix-ui"
 
-export interface SwitchProps {
-  checked: boolean;
-  onCheckedChange: (checked: boolean) => void;
-  disabled?: boolean;
-  label?: string;
-  description?: string;
-  className?: string;
-}
-
-export function Switch({
-  checked,
-  onCheckedChange,
-  disabled,
+function Switch({
+  className,
+  size = "default",
   label,
   description,
-  className,
-}: SwitchProps) {
-  return (
-    <label
+  id,
+  ...props
+}: React.ComponentProps<typeof SwitchPrimitive.Root> & {
+  size?: "sm" | "default"
+  label?: React.ReactNode
+  description?: React.ReactNode
+}) {
+  const autoId = React.useId()
+  const switchId = id ?? (label ? autoId : undefined)
+  const control = (
+    <SwitchPrimitive.Root
+      id={switchId}
+      data-slot="switch"
+      data-size={size}
       className={cn(
-        'inline-flex items-center justify-between gap-3 cursor-pointer select-none',
-        disabled && 'cursor-not-allowed opacity-50',
-        className,
+        "peer group/switch relative inline-flex shrink-0 items-center rounded-full border border-transparent transition-all outline-none group-has-[:focus-visible]/field-label:border-transparent group-has-[:focus-visible]/field-label:ring-0 after:absolute after:-inset-x-3 after:-inset-y-2 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 data-[size=default]:h-[18.4px] data-[size=default]:w-[32px] data-[size=sm]:h-[14px] data-[size=sm]:w-[24px] dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 data-checked:bg-primary data-unchecked:bg-input dark:data-unchecked:bg-input/80 data-disabled:cursor-not-allowed data-disabled:opacity-50",
+        className
       )}
+      {...props}
     >
-      {(label || description) && (
-        <div className="flex flex-col">
-          {label && <span className="text-sm font-medium text-slate-200">{label}</span>}
-          {description && (
-            <span className="text-xs text-slate-400">{description}</span>
-          )}
-        </div>
-      )}
-      <button
-        type="button"
-        role="switch"
-        aria-checked={checked}
-        disabled={disabled}
-        onClick={() => !disabled && onCheckedChange(!checked)}
-        className={cn(
-          'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500',
-          checked ? 'bg-indigo-600' : 'bg-slate-700',
-        )}
-      >
-        <span
-          aria-hidden="true"
-          className={cn(
-            'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out',
-            checked ? 'translate-x-5' : 'translate-x-0',
-          )}
-        />
-      </button>
-    </label>
-  );
+      <SwitchPrimitive.Thumb
+        data-slot="switch-thumb"
+        className="pointer-events-none block rounded-full bg-background ring-0 transition-transform group-data-[size=default]/switch:size-4 group-data-[size=sm]/switch:size-3 group-data-[size=default]/switch:data-checked:translate-x-[calc(100%-2px)] group-data-[size=sm]/switch:data-checked:translate-x-[calc(100%-2px)] dark:data-checked:bg-primary-foreground group-data-[size=default]/switch:data-unchecked:translate-x-0 group-data-[size=sm]/switch:data-unchecked:translate-x-0 dark:data-unchecked:bg-foreground"
+      />
+    </SwitchPrimitive.Root>
+  )
+
+  if (!label && !description) {
+    return control
+  }
+
+  return (
+    <div className="flex items-start justify-between gap-4">
+      <div className="grid gap-0.5">
+        {label ? (
+          <label htmlFor={switchId} className="text-[13px] font-medium leading-none">
+            {label}
+          </label>
+        ) : null}
+        {description ? (
+          <p className="text-xs text-muted-foreground">{description}</p>
+        ) : null}
+      </div>
+      {control}
+    </div>
+  )
 }
+
+export { Switch }

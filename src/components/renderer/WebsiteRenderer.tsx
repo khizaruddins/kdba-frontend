@@ -19,6 +19,7 @@ export interface WebsiteRendererProps {
   onSelectSection?: (sectionId: string) => void;
   className?: string;
   style?: React.CSSProperties;
+  tenantSlug?: string | null;
 }
 
 export function WebsiteRenderer({
@@ -33,6 +34,7 @@ export function WebsiteRenderer({
   onSelectSection,
   className = '',
   style = {},
+  tenantSlug,
 }: WebsiteRendererProps) {
   const [internalPageSlug, setInternalPageSlug] = React.useState<string>('/');
 
@@ -56,6 +58,7 @@ export function WebsiteRenderer({
         isEditing={isEditing}
         className={className}
         style={style}
+        tenantSlug={tenantSlug || docAny?.settings?.subdomain || docAny?.slug || null}
       />
     );
   }

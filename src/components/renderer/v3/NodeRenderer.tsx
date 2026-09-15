@@ -9,6 +9,7 @@ import {
 import { resolveThemeColor } from '@/lib/editor/theme-tokens';
 import { GRADIENT_PROP } from '@/lib/document/v3-wire';
 import { useV3RenderContext } from './V3RenderContext';
+import { ContactFormPrimitive } from './ContactFormPrimitive';
 import { buttonVariantStyle, cardVariantStyle } from '@/lib/editor/variants';
 import { normalizeRuns, sanitizeHref, TEXT_RUNS_PROP, textFromRuns } from '@/lib/editor/rich-text';
 
@@ -799,44 +800,18 @@ function NodeRendererInner({
     case 'contact-form':
     case 'form':
       return (
-        <form
-          {...commonProps}
-          onSubmit={(e) => {
-            if (isEditing) e.preventDefault();
-          }}
-          className={`space-y-4 p-6 rounded-2xl bg-slate-900/60 border border-slate-800 ${commonProps.className}`}
-        >
-          {Boolean(props.title || props.headline) && (
-            <h4 className="text-lg font-bold text-white mb-2">{String(props.title || props.headline)}</h4>
-          )}
-          <div className="space-y-3">
-            <input
-              type="text"
-              placeholder="Your Name"
-              disabled={isEditing}
-              className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
-            />
-            <input
-              type="email"
-              placeholder="Your Email"
-              disabled={isEditing}
-              className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
-            />
-            <textarea
-              rows={3}
-              placeholder="Your Message"
-              disabled={isEditing}
-              className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 resize-none"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={isEditing}
-            className="w-full py-2.5 rounded-xl font-semibold bg-indigo-600 hover:bg-indigo-500 text-white text-sm transition-colors cursor-pointer"
-          >
-            {String(props.buttonText || props.submitText || props.submitLabel || 'Send Message')}
-          </button>
-        </form>
+        <div {...commonProps}>
+          <ContactFormPrimitive
+            variant={String(props.variant || 'stacked')}
+            headline={String(props.headline || props.title || '')}
+            description={props.description ? String(props.description) : undefined}
+            fields={Array.isArray(props.fields) ? (props.fields as string[]) : undefined}
+            submitLabel={String(props.buttonText || props.submitText || props.submitLabel || 'Send message')}
+            successMessage={props.successMessage ? String(props.successMessage) : undefined}
+            isEditing={isEditing}
+            tenantSlug={renderContext?.tenantSlug}
+          />
+        </div>
       );
 
     case 'navbar': {

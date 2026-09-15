@@ -427,7 +427,14 @@ export const COMPONENT_MANIFEST: Record<NodeType, ComponentManifestItem> = {
     description: 'Pre-wired lead intake form connected to CRM.',
     allowedParents: ['section', 'container', 'column'],
     isLeaf: true,
-    defaultProps: { headline: 'Get in Touch', fields: ['name', 'email', 'phone', 'message'] },
+    defaultProps: {
+      headline: 'Get in Touch',
+      description: '',
+      variant: 'stacked',
+      fields: ['name', 'email', 'phone', 'message'],
+      submitLabel: 'Send message',
+      successMessage: 'Thanks — we received your message.',
+    },
     defaultStyles: { layout: { width: '100%' } },
   },
 
@@ -542,7 +549,7 @@ export const COMPONENT_MANIFEST: Record<NodeType, ComponentManifestItem> = {
     category: 'Navigation',
     icon: 'PanelTop',
     description: 'Site header navigation bar with logo and links.',
-    allowedParents: ['page-root', 'section'],
+    allowedParents: ['page-root'],
     isLeaf: true,
     defaultProps: { brandName: 'KDBA Studio', sticky: true },
     defaultStyles: {
@@ -571,7 +578,7 @@ export const COMPONENT_MANIFEST: Record<NodeType, ComponentManifestItem> = {
     category: 'Navigation',
     icon: 'PanelBottom',
     description: 'Site bottom footer with copyright and links.',
-    allowedParents: ['page-root', 'section'],
+    allowedParents: ['page-root'],
     isLeaf: true,
     defaultProps: { copyright: '© 2026 KDBA Inc. All rights reserved.' },
     defaultStyles: {
