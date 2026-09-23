@@ -38,6 +38,7 @@ export function SelectionOverlay() {
   const viewport = useV3EditorStore((s) => s.viewport);
   const [replaceOpen, setReplaceOpen] = React.useState(false);
   const selectedNode = getSelectedNode();
+  const parentInfo = selectedNodeId ? findParent(selectedNodeId) : null;
   const rect = useTrackedRect(
     selectedNodeId,
     Boolean(selectedNodeId && document && !previewMode && selectedNode && selectedNode.type !== 'page-root'),
@@ -48,7 +49,8 @@ export function SelectionOverlay() {
   }
   if (inlineEditingNodeId === selectedNodeId) return null;
 
-  const parentInfo = findParent(selectedNodeId);
+  const isLocked = Boolean(selectedNode.locked);
+  const displayName = selectedNode.label || selectedNode.name || selectedNode.type;
 
   return (
     <div

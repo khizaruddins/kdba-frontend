@@ -6,6 +6,8 @@ import { V3WebsiteRenderer } from '@/components/renderer/v3/V3WebsiteRenderer';
 import { SelectionOverlay } from './overlays/SelectionOverlay';
 import { HoverOverlay } from './overlays/HoverOverlay';
 import { SectionInsertOverlay } from './overlays/SectionInsertOverlay';
+import { CanvasBreadcrumb } from './breadcrumbs/CanvasBreadcrumb';
+import { KeyboardShortcutsModal } from './modals/KeyboardShortcutsModal';
 import { COMPONENT_MANIFEST } from '@/lib/editor/component-manifest';
 import { NodeType } from '@/types/v3-document';
 import { resolveDrop, TEXT_EDITABLE_TYPES } from '@/lib/editor/nesting';
@@ -74,6 +76,47 @@ export function V3EditorCanvas() {
   }, [websiteId, cmsSlugKey]);
 
   const canvasRef = React.useRef<HTMLDivElement>(null);
+
+  // M3.1 Keyboard Shortcuts & Precision State
+  const duplicateNode = useV3EditorStore((s) => s.duplicateNode);
+  const removeNode = useV3EditorStore((s) => s.removeNode);
+  const copySelectedNode = useV3EditorStore((s) => s.copySelectedNode);
+  const pasteClipboard = useV3EditorStore((s) => s.pasteClipboard);
+  const selectedNodeId = useV3EditorStore((s) => s.selectedNodeId);
+  const [shortcutsModalOpen, setShortcutsModalOpen] = React.useState(false);
+  const [toastMessage, setToastMessage] = React.useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 2000);
+  };
+
+  // Keyboard shortcuts listener
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const cmd = isMac ? e.metaKey : e.ctrlKey;
+      if (cmd && (e.key === 'c' || e.key === 'C')) {
+        if (selectedNodeId) { e.preventDefault(); copySelectedNode(); showToast('Copied to clipboard'); }
+      } else if (cmd && (e.key === 'v' || e.key === 'V')) {
+        e.preventDefault();
+        const pasted = pasteClipboard();
+        if (pasted) showToast('Pasted element');
+      } else if (cmd && (e.key === 'd' || e.key === 'D')) {
+        if (selectedNodeId) { e.preventDefault(); duplicateNode(selectedNodeId); showToast('Duplicated'); }
+      } else if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (selectedNodeId) { e.preventDefault(); removeNode(selectedNodeId); showToast('Deleted'); }
+      } else if (e.key === '?') {
+        e.preventDefault();
+        setShortcutsModalOpen(true);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedNodeId, copySelectedNode, pasteClipboard, duplicateNode, removeNode]);
+
   const [dropIndicator, setDropIndicator] = React.useState<{
     top: number;
     left: number;
@@ -260,83 +303,106 @@ export function V3EditorCanvas() {
   }[viewport];
 
   return (
-    <div
-      ref={canvasRef}
-      onClick={handlePointerSelect}
-      onDoubleClick={handleDoubleClick}
-      onMouseOver={handleMouseOver}
-      onMouseLeave={() => setHoveredNodeId(null)}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
-      className="flex-1 overflow-auto bg-[#101218] flex justify-center items-start p-6 relative"
-    >
+    <div className="flex-1 flex flex-col h-full overflow-hidden relative">
+      {/* Canvas Breadcrumbs (Hidden in preview mode) */}
+      {!previewMode && <CanvasBreadcrumb />}
+
+      {/* Scrollable Canvas Surface */}
       <div
-        style={{
-          transform: `scale(${zoom / 100})`,
-          transformOrigin: 'top center',
-          width: viewport === 'desktop' ? '100%' : undefined,
-          maxWidth: viewport === 'desktop' ? VIEWPORT_WIDTH.desktop : undefined,
-        }}
-        className={`flex justify-center ${viewportStyles}`}
+        ref={canvasRef}
+        onClick={handlePointerSelect}
+        onDoubleClick={handleDoubleClick}
+        onMouseOver={handleMouseOver}
+        onMouseLeave={() => setHoveredNodeId(null)}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        className="flex-1 overflow-auto bg-[#101218] flex justify-center items-start p-6 relative"
       >
-        {viewport === 'mobile' && !previewMode && (
-          <div className="h-7 w-full bg-muted/50 flex items-center justify-center shrink-0" data-editor-chrome>
-            <div className="h-3 w-28 rounded-full bg-background" />
-          </div>
-        )}
-        {viewport === 'tablet' && !previewMode && (
-          <div className="h-5 w-full bg-muted/50 flex items-center justify-center shrink-0" data-editor-chrome>
-            <div className="h-1.5 w-16 rounded-full bg-muted" />
-          </div>
-        )}
-
-        <div data-viewport-mode={viewport} className="w-full flex-1 overflow-visible relative">
-          <V3WebsiteRenderer
-            document={document}
-            activePageId={activePageId}
-            isEditing={!previewMode}
-            viewport={viewport}
-            inlineEditingNodeId={inlineEditingNodeId}
-            onCommitProps={(id, props) => updateProps(id, props)}
-            onEndInlineEdit={() => setInlineEditingNodeId(null)}
-            onStartInlineEdit={(id) => {
-              setSelectedNodeId(id);
-              setInlineEditingNodeId(id);
-            }}
-            cms={cms}
-            activeRecord={previewRecord}
-          />
-        </div>
-      </div>
-
-      {!previewMode && <SelectionOverlay />}
-      {!previewMode && <HoverOverlay />}
-      {!previewMode && <SectionInsertOverlay />}
-
-      {dropIndicator && !previewMode && (
         <div
           style={{
-            position: 'fixed',
-            top: dropIndicator.top - 1,
-            left: dropIndicator.left,
-            width: dropIndicator.width,
-            pointerEvents: 'none',
-            zIndex: 50,
+            transform: `scale(${zoom / 100})`,
+            transformOrigin: 'top center',
+            transition: 'transform 0.15s ease-out',
+            width: viewport === 'desktop' ? '100%' : undefined,
+            maxWidth: viewport === 'desktop' ? VIEWPORT_WIDTH.desktop : undefined,
           }}
-          className={`h-0.5 rounded-full flex items-center justify-center ${
-            dropIndicator.valid ? 'bg-primary shadow-[0_0_10px_color-mix(in_oklch,var(--primary)_45%,transparent)]' : 'bg-destructive'
-          }`}
+          className={`flex justify-center ${viewportStyles}`}
         >
-          <div
-            className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider shadow ${
-              dropIndicator.valid ? 'bg-primary text-primary-foreground' : 'bg-destructive text-destructive-foreground'
-            }`}
-          >
-            {dropIndicator.label}
+          {viewport === 'mobile' && !previewMode && (
+            <div className="h-7 w-full bg-muted/50 flex items-center justify-center shrink-0" data-editor-chrome>
+              <div className="h-3 w-28 rounded-full bg-background flex items-center justify-end px-3">
+                <div className="w-2.5 h-2.5 rounded-full bg-muted" />
+              </div>
+            </div>
+          )}
+          {viewport === 'tablet' && !previewMode && (
+            <div className="h-5 w-full bg-muted/50 flex items-center justify-center shrink-0" data-editor-chrome>
+              <div className="h-1.5 w-16 rounded-full bg-muted" />
+            </div>
+          )}
+
+          <div data-viewport-mode={viewport} className="w-full flex-1 overflow-visible relative">
+            <V3WebsiteRenderer
+              document={document}
+              activePageId={activePageId}
+              isEditing={!previewMode}
+              viewport={viewport}
+              inlineEditingNodeId={inlineEditingNodeId}
+              onCommitProps={(id, props) => updateProps(id, props)}
+              onEndInlineEdit={() => setInlineEditingNodeId(null)}
+              onStartInlineEdit={(id) => {
+                setSelectedNodeId(id);
+                setInlineEditingNodeId(id);
+              }}
+              cms={cms}
+              activeRecord={previewRecord}
+            />
           </div>
         </div>
+
+        {!previewMode && <SelectionOverlay />}
+        {!previewMode && <HoverOverlay />}
+        {!previewMode && <SectionInsertOverlay />}
+
+        {dropIndicator && !previewMode && (
+          <div
+            style={{
+              position: 'fixed',
+              top: dropIndicator.top - 1,
+              left: dropIndicator.left,
+              width: dropIndicator.width,
+              pointerEvents: 'none',
+              zIndex: 50,
+            }}
+            className={`h-0.5 rounded-full flex items-center justify-center ${
+              dropIndicator.valid ? 'bg-primary shadow-[0_0_10px_color-mix(in_oklch,var(--primary)_45%,transparent)]' : 'bg-destructive'
+            }`}
+          >
+            <div
+              className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider shadow ${
+                dropIndicator.valid ? 'bg-primary text-primary-foreground' : 'bg-destructive text-destructive-foreground'
+              }`}
+            >
+              {dropIndicator.label}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Toast Notification for keyboard shortcuts */}
+      {toastMessage && (
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-4 py-2 rounded-xl bg-card/90 border border-border shadow-2xl backdrop-blur-md text-foreground text-xs font-semibold flex items-center gap-2 z-50 animate-in fade-in duration-150">
+          <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+          <span>{toastMessage}</span>
+        </div>
       )}
+
+      {/* Keyboard Shortcuts Modal */}
+      <KeyboardShortcutsModal
+        isOpen={shortcutsModalOpen}
+        onClose={() => setShortcutsModalOpen(false)}
+      />
     </div>
   );
 }

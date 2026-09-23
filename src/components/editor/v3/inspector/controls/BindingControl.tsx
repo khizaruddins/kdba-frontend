@@ -46,7 +46,7 @@ export function BindingControl({
         <Label>Bind content from</Label>
         <Select
           value={source}
-          onValueChange={(value) => {
+          onValueChange={(value: string) => {
             if (value === 'none') {
               onChangeBinding(undefined);
               return;
@@ -76,7 +76,7 @@ export function BindingControl({
           <Label>Business field</Label>
           <Select
             value={binding.field || 'name'}
-            onValueChange={(field) => onChangeBinding({ ...binding, field })}
+            onValueChange={(field: string) => onChangeBinding({ ...binding, field })}
           >
             <SelectTrigger aria-label="Business field">
               <SelectValue />
@@ -98,7 +98,7 @@ export function BindingControl({
             <Label>Collection</Label>
             <Select
               value={binding.collection || undefined}
-              onValueChange={(collection) => onChangeBinding({ ...binding, collection })}
+              onValueChange={(collection: string) => onChangeBinding({ ...binding, collection })}
             >
               <SelectTrigger aria-label="Bound collection">
                 <SelectValue placeholder="Choose collection" />
@@ -116,7 +116,7 @@ export function BindingControl({
             <Label>Field</Label>
             <Select
               value={binding.field || undefined}
-              onValueChange={(field) => onChangeBinding({ ...binding, field })}
+              onValueChange={(field: string) => onChangeBinding({ ...binding, field })}
             >
               <SelectTrigger aria-label="Bound field">
                 <SelectValue placeholder="Choose field" />
@@ -199,7 +199,7 @@ export function CollectionListControl({
             <Label>Collection</Label>
             <Select
               value={String(props.collectionSlug || '')}
-              onValueChange={(collectionSlug) => onChangeProps({ collectionSlug })}
+              onValueChange={(collectionSlug: string) => onChangeProps({ collectionSlug })}
             >
               <SelectTrigger aria-label="List collection">
                 <SelectValue placeholder="Choose collection" />
@@ -223,7 +223,7 @@ export function CollectionListControl({
             <Label>Layout</Label>
             <Select
               value={String(props.layout || 'cards')}
-              onValueChange={(layout) => onChangeProps({ layout })}
+              onValueChange={(layout: string) => onChangeProps({ layout })}
             >
               <SelectTrigger aria-label="List layout">
                 <SelectValue />

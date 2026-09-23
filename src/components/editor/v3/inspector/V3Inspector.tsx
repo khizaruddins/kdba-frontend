@@ -16,6 +16,7 @@ import { VariantControl } from './controls/VariantControl';
 import { StatesControl } from './controls/StatesControl';
 import { RichTextControl } from './controls/RichTextControl';
 import { BindingControl, CollectionListControl } from './controls/BindingControl';
+import { AnimationControl } from './controls/AnimationControl';
 import { cmsApi } from '@/lib/api/cms';
 import { CmsCollection } from '@/types/cms';
 import { NodeBinding } from '@/types/v3-document';
@@ -38,6 +39,13 @@ import {
   Smartphone,
   Tablet,
   RotateCcw,
+  Search,
+  X,
+  Lock,
+  Unlock,
+  SlidersHorizontal,
+  MousePointer,
+  CheckCircle2,
 } from 'lucide-react';
 
 function OverrideBadge({
@@ -148,6 +156,14 @@ export function V3Inspector() {
     getActivePage,
     updateNode,
     websiteId,
+    updateAnimation,
+    updateState,
+    resetResponsive,
+    setLock,
+    quickMode,
+    setQuickMode,
+    propertySearchQuery,
+    setPropertySearchQuery,
   } = useV3EditorStore();
 
   const selectedNode = getSelectedNode();
@@ -170,16 +186,18 @@ export function V3Inspector() {
     content: true,
     variant: true,
     states: false,
+    animations: false,
+    background: true,
     layout: true,
     size: true,
     spacing: true,
     typography: true,
     color: true,
-    background: true,
     border: false,
     radius: false,
     shadow: false,
     responsive: true,
+    effects: true,
   });
 
   React.useEffect(() => {
@@ -225,18 +243,66 @@ export function V3Inspector() {
     onChangeEffects: (effects: StyleDefinition['effects']) => updateStyles(selectedNode.id, { effects }),
   };
 
+  // Property Search filtering
+  const query = propertySearchQuery.toLowerCase().trim();
+  const matches = (keywords: string[]) => {
+    if (!query) return true;
+    return keywords.some((kw) => kw.toLowerCase().includes(query));
+  };
+
+  const showContent = matches(['content', 'text', 'image', 'url', 'settings', 'title', 'button', 'variant', 'props']);
+  const showStates = matches(['states', 'hover', 'active', 'focus', 'interaction', 'color']);
+  const showAnimations = matches(['animation', 'animate', 'fade', 'scale', 'slide', 'blur', 'trigger', 'motion']);
+  const showLayout = matches(['layout', 'display', 'flex', 'grid', 'columns', 'align', 'gap', 'direction']);
+  const showSpacing = matches(['spacing', 'margin', 'padding', 'box', 'model', 'gap']);
+  const showBackground = matches(['background', 'color', 'image', 'overlay', 'gradient', 'tint']);
+  const showTypography = isTextElement && matches(['typography', 'font', 'size', 'weight', 'color', 'text', 'lineheight']);
+  const showEffects = matches(['effects', 'border', 'radius', 'shadow', 'opacity', 'size', 'width', 'height']);
+
   return (
     <aside className="flex h-full w-full min-w-0 shrink-0 flex-col overflow-hidden border-l border-border bg-background z-20 select-none text-foreground">
-      <div className="p-3 border-b border-border bg-muted/40">
+      {/* Header: Node Info + Mode Toggle + Lock */}
+      <div className="p-3 border-b border-border bg-muted/40 space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/30 shrink-0">
+              {selectedNode.type}
+            </span>
+            <span className="text-xs font-semibold text-foreground truncate" title={selectedNode.name}>
+              {selectedNode.label || selectedNode.name}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1 shrink-0">
+            {/* Quick vs Advanced Mode Switch */}
+            <button
+              type="button"
+              onClick={() => setQuickMode(!quickMode)}
+              className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold transition-all ${
+                quickMode ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'
+              }`}
+              title="Toggle between Quick Mode and Advanced Mode"
+            >
+              <SlidersHorizontal className="w-2.5 h-2.5" />
+              <span>{quickMode ? 'Quick' : 'Advanced'}</span>
+            </button>
+
+            {/* Lock / Unlock */}
+            <button
+              type="button"
+              onClick={() => setLock(selectedNode.id, !selectedNode.locked)}
+              className={`p-1 rounded transition-colors ${
+                selectedNode.locked ? 'text-warning' : 'text-muted-foreground hover:text-foreground'
+              }`}
+              title={selectedNode.locked ? 'Unlock element' : 'Lock element'}
+            >
+              {selectedNode.locked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
+            </button>
+          </div>
+        </div>
+
+        {/* Breadcrumb Hierarchy */}
         <div className="flex items-center gap-1 text-[11px] text-muted-foreground font-medium overflow-x-auto scrollbar-none py-0.5">
-          {activePage ? (
-            <>
-              <span className="truncate max-w-[90px] px-1.5 py-0.5" title={activePage.title}>
-                {activePage.title}
-              </span>
-              {(path.length > 0) && <ChevronRight className="w-3 h-3 text-muted-foreground shrink-0" />}
-            </>
-          ) : null}
           {path.map((item, idx) => (
             <React.Fragment key={item.id}>
               {idx > 0 && <ChevronRight className="w-3 h-3 text-muted-foreground shrink-0" />}
@@ -250,13 +316,35 @@ export function V3Inspector() {
                 }`}
                 title={item.name || item.type}
               >
-                {item.name || item.type}
+                {item.label || item.name || item.type}
               </button>
             </React.Fragment>
           ))}
         </div>
+
+        {/* Property Search Bar */}
+        <div className="relative">
+          <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <input
+            type="text"
+            value={propertySearchQuery}
+            onChange={(e) => setPropertySearchQuery(e.target.value)}
+            placeholder="Search properties (color, gap, anim...)"
+            className="w-full h-7 pl-8 pr-7 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 text-xs focus:border-indigo-500 focus:outline-none placeholder:text-slate-500"
+          />
+          {propertySearchQuery && (
+            <button
+              type="button"
+              onClick={() => setPropertySearchQuery('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          )}
+        </div>
       </div>
 
+      {/* Quick Alignment Bar */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-muted/30 text-muted-foreground">
         <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Align</span>
         <div className="flex items-center gap-0.5 bg-muted/50 rounded-lg p-0.5 border border-border">
@@ -284,22 +372,74 @@ export function V3Inspector() {
         </div>
       </div>
 
+      {/* Responsive Cascade Indicator */}
+      {viewport !== 'desktop' && (
+        <div className="px-4 py-2 bg-primary/10 border-b border-primary/30 flex items-center justify-between text-[11px]">
+          <div className="flex items-center gap-1.5 text-primary font-medium">
+            {viewport === 'tablet' ? <Tablet className="w-3.5 h-3.5" /> : <Smartphone className="w-3.5 h-3.5" />}
+            <span>Editing {viewport}</span>
+            {hasResponsiveOverride ? (
+              <span className="text-[9px] px-1.5 py-0.5 rounded bg-warning/20 text-warning border border-warning/30">Overridden</span>
+            ) : (
+              <span className="text-[9px] px-1.5 py-0.5 rounded bg-success/20 text-success border border-success/30 flex items-center gap-1"><CheckCircle2 className="w-2.5 h-2.5" />Inherited</span>
+            )}
+          </div>
+          {hasResponsiveOverride && (
+            <button
+              type="button"
+              onClick={() => { resetViewportStyles(selectedNode.id); resetResponsive(selectedNode.id, viewport); }}
+              className="flex items-center gap-1 text-[10px] text-warning hover:underline"
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>Reset all</span>
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="flex-1 overflow-y-auto divide-y divide-border">
-        {viewport !== 'desktop' && (
-          <div className="px-4 py-2 bg-primary/10 border-b border-primary/30 flex items-center justify-between text-[11px]">
-            <div className="flex items-center gap-1.5 text-primary font-medium">
-              {viewport === 'tablet' ? <Tablet className="w-3.5 h-3.5" /> : <Smartphone className="w-3.5 h-3.5" />}
-              <span>Editing {viewport}</span>
-            </div>
-            {hasResponsiveOverride && (
-              <button
-                type="button"
-                onClick={() => resetViewportStyles(selectedNode.id)}
-                className="flex items-center gap-1 text-[10px] text-warning hover:underline"
-              >
-                <RotateCcw className="w-3 h-3" />
-                <span>Reset all</span>
-              </button>
+        {showContent && (
+          <div className="p-3 bg-muted/30">
+            <button
+              type="button"
+              onClick={() => toggleSection('content')}
+              className="w-full flex items-center justify-between text-xs font-bold text-foreground hover:text-foreground mb-2"
+            >
+              <div className="flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-primary" />
+                <span>Content &amp; Settings</span>
+              </div>
+              {openSections.content ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />}
+            </button>
+            {openSections.content && (
+              <div className="space-y-3">
+                <RichTextControl
+                  node={selectedNode}
+                  onChangeProps={(propsPatch) => updateProps(selectedNode.id, propsPatch)}
+                  onChangeAlign={(textAlign) => updateStyles(selectedNode.id, { typography: { textAlign } })}
+                />
+                <ContentControl
+                  node={selectedNode}
+                  onChangeProps={(propsPatch) => updateProps(selectedNode.id, propsPatch)}
+                />
+                <BindingControl
+                  node={selectedNode}
+                  collections={cmsCollections}
+                  onChangeBinding={(binding: NodeBinding | undefined) => updateNode(selectedNode.id, { binding })}
+                />
+                {(selectedNode.type === 'section' || selectedNode.type === 'container' || selectedNode.type === 'grid') ? (
+                  <CollectionListControl
+                    node={selectedNode}
+                    collections={cmsCollections}
+                    onChangeProps={(propsPatch) => updateProps(selectedNode.id, propsPatch)}
+                  />
+                ) : null}
+                {selectedNode.props?.[INSTANCE_OF_PROP] ? (
+                  <button type="button" onClick={() => syncReusableFromSelection()} className="w-full h-8 rounded-lg bg-primary/10 border border-primary/40 text-[11px] font-semibold text-primary">Update all instances</button>
+                ) : selectedNode.type !== 'page-root' ? (
+                  <button type="button" onClick={() => saveReusableFromSelection()} className="w-full h-8 rounded-lg bg-muted/50 border border-border text-[11px] font-semibold text-muted-foreground hover:text-foreground">Save as reusable</button>
+                ) : null}
+              </div>
             )}
           </div>
         )}
@@ -376,21 +516,8 @@ export function V3Inspector() {
           />
         </InspectorSection>
 
-        <InspectorSection
-          id="states"
-          title="States"
-          open={openSections.states}
-          onToggle={() => toggleSection('states')}
-          overridden={false}
-          viewport={viewport}
-        >
-          <StatesControl
-            node={selectedNode}
-            themeColors={themeColors}
-            onChangeStyles={(patch) => updateStyles(selectedNode.id, patch)}
-            onChangeProps={(propsPatch) => updateProps(selectedNode.id, propsPatch)}
-          />
-        </InspectorSection>
+
+
 
         <InspectorSection
           id="layout"

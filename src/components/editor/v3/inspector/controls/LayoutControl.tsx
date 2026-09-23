@@ -188,19 +188,31 @@ export function LayoutControl({
       {/* Grid Specific Controls */}
       {display === 'grid' && (
         <div className="space-y-2.5 pt-1 border-t border-border">
-          <div className="space-y-1">
+          {/* Visual Columns Selector */}
+          <div className="space-y-1.5">
             <div className="flex justify-between items-center text-[11px] text-muted-foreground">
-              <span>Columns</span>
-              <span className="font-mono text-primary">{grid.columns || 3}</span>
+              <span className="font-semibold text-foreground">Columns</span>
+              <span className="font-mono text-primary font-semibold">{grid.columns || 3} cols</span>
             </div>
-            <input
-              type="range"
-              min="1"
-              max="6"
-              value={grid.columns || 3}
-              onChange={(e) => onChangeGrid({ ...grid, columns: Number(e.target.value), autoFit: false })}
-              className="w-full accent-primary cursor-pointer"
-            />
+            <div className="grid grid-cols-6 gap-1 p-0.5 rounded-lg bg-muted/50 border border-border">
+              {[1, 2, 3, 4, 5, 6].map((num) => {
+                const isActive = (grid.columns || 3) === num;
+                return (
+                  <button
+                    key={num}
+                    type="button"
+                    onClick={() => onChangeGrid({ ...grid, columns: num })}
+                    className={`py-1.5 rounded text-[11px] font-semibold transition-all ${
+                      isActive
+                        ? 'bg-primary text-primary-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                    }`}
+                  >
+                    {num}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <label className="flex items-center justify-between text-[11px] text-muted-foreground">
@@ -254,6 +266,7 @@ export function LayoutControl({
           </div>
         </div>
       )}
+
 
       <div className="space-y-1 pt-1 border-t border-border">
         <label className="text-[11px] font-medium text-muted-foreground">Overflow</label>

@@ -285,6 +285,83 @@ export function BackgroundControl({ background = {}, onChangeBackground }: Backg
           </div>
         </div>
       )}
+
+      {/* Background Color Overlay */}
+      <div className="space-y-2 pt-2 border-t border-border">
+        <div className="flex items-center justify-between">
+          <label className="text-[11px] font-semibold text-foreground">Background Overlay</label>
+          {background.overlay?.color && (
+            <button
+              type="button"
+              onClick={() => onChangeBackground({ ...background, overlay: undefined })}
+              className="text-[10px] text-muted-foreground hover:text-warning transition-colors"
+            >
+              Remove
+            </button>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <input
+            type="color"
+            value={background.overlay?.color || '#000000'}
+            onChange={(e) =>
+              onChangeBackground({
+                ...background,
+                overlay: {
+                  color: e.target.value,
+                  opacity: typeof background.overlay?.opacity === 'number' ? background.overlay.opacity : 0.6,
+                },
+              })
+            }
+            className="w-7 h-7 rounded border border-border bg-muted cursor-pointer p-0.5"
+            title="Overlay Tint Color"
+          />
+          <input
+            type="text"
+            value={background.overlay?.color || ''}
+            placeholder="#000000 (No Overlay)"
+            onChange={(e) =>
+              onChangeBackground({
+                ...background,
+                overlay: {
+                  color: e.target.value,
+                  opacity: typeof background.overlay?.opacity === 'number' ? background.overlay.opacity : 0.6,
+                },
+              })
+            }
+            className="flex-1 h-8 px-2.5 rounded-lg bg-muted/50 border border-border text-foreground font-mono text-[11px] focus:border-ring focus:outline-none"
+          />
+        </div>
+
+        {background.overlay?.color && (
+          <div className="space-y-1">
+            <div className="flex justify-between items-center text-[10px] text-muted-foreground">
+              <span>Overlay Opacity</span>
+              <span className="font-mono text-foreground">
+                {Math.round((background.overlay.opacity ?? 0.6) * 100)}%
+              </span>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              value={background.overlay.opacity ?? 0.6}
+              onChange={(e) =>
+                onChangeBackground({
+                  ...background,
+                  overlay: {
+                    ...background.overlay,
+                    opacity: parseFloat(e.target.value),
+                  },
+                })
+              }
+              className="w-full h-1.5 rounded-lg appearance-none cursor-pointer accent-primary"
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 }

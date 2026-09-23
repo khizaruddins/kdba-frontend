@@ -152,6 +152,32 @@ export function SpacingBoxModel({
           />
         </div>
       </div>
+
+      {/* Quick Spacing Presets */}
+      <div className="grid grid-cols-4 gap-1 pt-1 text-[10px]">
+        {[
+          { label: 'Reset', pad: '0px' },
+          { label: 'Tight', pad: '8px' },
+          { label: 'Comfort', pad: '16px' },
+          { label: 'Spacious', pad: '32px' },
+        ].map((preset) => (
+          <button
+            key={preset.label}
+            type="button"
+            onClick={() =>
+              onChangePadding({
+                top: preset.pad,
+                right: preset.pad,
+                bottom: preset.pad,
+                left: preset.pad,
+              })
+            }
+            className="py-1 px-1 rounded border border-slate-800 bg-slate-900/60 hover:bg-slate-800 text-slate-400 hover:text-slate-200 text-center transition-colors"
+          >
+            {preset.label}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

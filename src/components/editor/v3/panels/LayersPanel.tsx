@@ -26,9 +26,10 @@ import {
   MessageSquareQuote,
   PanelTop,
   PanelBottom,
-  Pencil,
   Lock,
   Unlock,
+  Edit2,
+  Check,
 } from 'lucide-react';
 import { canAcceptChild, isContainerType } from '@/lib/editor/nesting';
 
@@ -62,6 +63,8 @@ function TreeItem({ node, depth = 0, searchFilter }: TreeItemProps) {
     duplicateNode,
     removeNode,
     setVisibility,
+    setLock,
+    setNodeLabel,
     viewport,
     updateNode,
     setNodeLocked,
@@ -69,18 +72,29 @@ function TreeItem({ node, depth = 0, searchFilter }: TreeItemProps) {
 
   const [isExpanded, setIsExpanded] = React.useState(true);
   const [dropHint, setDropHint] = React.useState<'before' | 'after' | 'inside' | null>(null);
-  const [renaming, setRenaming] = React.useState(false);
+  const [isEditingLabel, setIsEditingLabel] = React.useState(false);
+  const [tempLabel, setTempLabel] = React.useState(node.label || node.name || node.type);
+
   const isSelected = selectedNodeId === node.id;
   const hasChildren = Boolean(node.children && node.children.length > 0);
   const isHidden = node.visibility && node.visibility[viewport] === false;
 
+  const displayLabel = node.label || node.name || node.type;
+
   // Filter check
   const matchesSearch =
     !searchFilter ||
-    (node.name && node.name.toLowerCase().includes(searchFilter.toLowerCase())) ||
+    (displayLabel && displayLabel.toLowerCase().includes(searchFilter.toLowerCase())) ||
     node.type.toLowerCase().includes(searchFilter.toLowerCase());
 
   if (!matchesSearch && !hasChildren) return null;
+
+  const handleSaveLabel = () => {
+    if (tempLabel.trim()) {
+      setNodeLabel(node.id, tempLabel.trim());
+    }
+    setIsEditingLabel(false);
+  };
 
   return (
     <div className="flex flex-col select-none">
@@ -147,7 +161,7 @@ function TreeItem({ node, depth = 0, searchFilter }: TreeItemProps) {
                 : ''
         }`}
       >
-        <div className="flex items-center gap-1.5 truncate flex-1">
+        <div className="flex items-center gap-1.5 truncate flex-1 min-w-0 mr-1">
           {hasChildren ? (
             <button
               type="button"
@@ -155,51 +169,89 @@ function TreeItem({ node, depth = 0, searchFilter }: TreeItemProps) {
                 e.stopPropagation();
                 setIsExpanded(!isExpanded);
               }}
-              className="p-0.5 rounded text-muted-foreground hover:text-foreground"
+              className="p-0.5 rounded text-muted-foreground hover:text-foreground shrink-0"
             >
               {isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
             </button>
           ) : (
-            <div className="w-4" />
+            <div className="w-4 shrink-0" />
           )}
 
           <div className="shrink-0">{NODE_ICONS[node.type] || <Sparkles className="w-3.5 h-3.5 text-muted-foreground" />}</div>
 
-          {renaming ? (
-            <input
-              autoFocus
-              defaultValue={node.name || node.type}
-              onClick={(e) => e.stopPropagation()}
-              onBlur={(e) => {
-                const name = e.target.value.trim();
-                if (name) updateNode(node.id, { name });
-                setRenaming(false);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-                if (e.key === 'Escape') setRenaming(false);
-              }}
-              className="h-5 min-w-0 flex-1 rounded bg-background px-1 text-xs text-foreground"
-            />
+          {isEditingLabel ? (
+            <div className="flex items-center gap-1 flex-1 mr-1" onClick={(e) => e.stopPropagation()}>
+              <input
+                type="text"
+                autoFocus
+                value={tempLabel}
+                onChange={(e) => setTempLabel(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleSaveLabel();
+                  if (e.key === 'Escape') setIsEditingLabel(false);
+                }}
+                className="h-5 min-w-0 flex-1 rounded bg-background border border-primary/50 px-1 text-xs text-foreground outline-none"
+              />
+              <button
+                type="button"
+                onClick={handleSaveLabel}
+                className="p-0.5 rounded hover:bg-muted text-success"
+              >
+                <Check className="w-3 h-3" />
+              </button>
+            </div>
           ) : (
             <span
-              className="truncate"
               onDoubleClick={(e) => {
                 e.stopPropagation();
-                setRenaming(true);
+                setIsEditingLabel(true);
               }}
+              className="truncate flex-1"
+              title="Double-click to rename"
             >
-              {node.name || node.type}
+              {displayLabel}
             </span>
+          )}
+
+          {node.locked && (
+            <Lock className="w-2.5 h-2.5 text-warning shrink-0 opacity-80" />
           )}
         </div>
 
         {/* Action icons on hover */}
         <div
-          className={`flex items-center gap-1 transition-opacity ${
+          className={`flex items-center gap-0.5 transition-opacity shrink-0 ${
             isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
           }`}
         >
+          {/* Rename label button */}
+          {!isEditingLabel && (
+            <button
+              type="button"
+              title="Rename layer"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsEditingLabel(true);
+              }}
+              className="p-1 hover:text-white text-slate-400"
+            >
+              <Edit2 className="w-3 h-3" />
+            </button>
+          )}
+
+          {/* Lock / Unlock */}
+          <button
+            type="button"
+            title={node.locked ? 'Unlock layer' : 'Lock layer'}
+            onClick={(e) => {
+              e.stopPropagation();
+              setLock(node.id, !node.locked);
+            }}
+            className={`p-1 hover:text-white ${node.locked ? 'text-amber-400' : 'text-slate-400'}`}
+          >
+            {node.locked ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
+          </button>
+
           {/* Visibility toggle */}
           <button
             type="button"
@@ -213,26 +265,15 @@ function TreeItem({ node, depth = 0, searchFilter }: TreeItemProps) {
             {isHidden ? <EyeOff className="w-3 h-3 text-muted-foreground" /> : <Eye className="w-3 h-3" />}
           </button>
 
+          {/* Lock / Unlock */}
           <button
             type="button"
-            title="Rename layer"
+            title={node.locked ? 'Unlock layer' : 'Lock layer'}
             onClick={(e) => {
               e.stopPropagation();
-              setRenaming(true);
+              setLock(node.id, !node.locked);
             }}
-            className="p-1 hover:text-foreground"
-          >
-            <Pencil className="w-3 h-3" />
-          </button>
-
-          <button
-            type="button"
-            title={node.locked ? 'Unlock' : 'Lock'}
-            onClick={(e) => {
-              e.stopPropagation();
-              setNodeLocked(node.id, !node.locked);
-            }}
-            className="p-1 hover:text-foreground"
+            className={`p-1 hover:text-foreground ${node.locked ? 'text-warning' : ''}`}
           >
             {node.locked ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
           </button>
@@ -241,29 +282,32 @@ function TreeItem({ node, depth = 0, searchFilter }: TreeItemProps) {
           <button
             type="button"
             title="Duplicate node"
+            disabled={node.locked}
             onClick={(e) => {
               e.stopPropagation();
               duplicateNode(node.id);
             }}
-            className="p-1 hover:text-foreground"
+            className={`p-1 hover:text-foreground ${node.locked ? 'opacity-30 cursor-not-allowed' : ''}`}
           >
             <Copy className="w-3 h-3" />
           </button>
 
-          {/* Delete button (prevent deleting page-root) */}
+          {/* Delete button (prevent deleting page-root or locked nodes) */}
           {node.type !== 'page-root' && (
             <button
               type="button"
-              title="Delete node"
+              title={node.locked ? 'Element is locked' : 'Delete node'}
+              disabled={node.locked}
               onClick={(e) => {
                 e.stopPropagation();
                 removeNode(node.id);
               }}
-              className="p-1 hover:text-destructive"
+              className={`p-1 ${node.locked ? 'opacity-30 cursor-not-allowed' : 'hover:text-destructive'}`}
             >
               <Trash2 className="w-3 h-3" />
             </button>
           )}
+
         </div>
       </div>
 

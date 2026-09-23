@@ -18,6 +18,8 @@ import {
   DocumentOperation,
   GlobalComponentsV3,
   NavigationConfig,
+  ComponentStateKey,
+  AnimationDefinition,
 } from '@/types/v3-document';
 import { websitesApi } from '@/lib/api/websites';
 import {
@@ -53,6 +55,18 @@ export type EditorNavTab = 'add' | 'pages' | 'layers' | 'assets' | 'theme' | 'si
 
 const HISTORY_COALESCE_MS = 700;
 
+function searchNode(root: WebsiteNode, id: string): WebsiteNode | null {
+  if (root.id === id) return root;
+  if (!root.children) return null;
+  for (const child of root.children) {
+    const found = searchNode(child, id);
+    if (found) return found;
+  }
+  return null;
+}
+
+const recursivelyCloneWithFreshIds = cloneNodeWithFreshIds;
+
 export interface V3EditorState {
   websiteId: string | null;
   document: WebsiteDocumentV3 | null;
@@ -76,6 +90,13 @@ export interface V3EditorState {
   isInlineEditing: boolean;
   inlineEditingNodeId: string | null;
 
+  // Precision UX States
+  activeStateMode: ComponentStateKey | 'default';
+  activeAnimationPreviewId: string | null;
+  quickMode: boolean;
+  propertySearchQuery: string;
+
+  // Drag & Drop State
   isDragging: boolean;
   draggedNodeType: NodeType | null;
   draggedNodeId: string | null;
@@ -98,9 +119,20 @@ export interface V3EditorState {
   setPreviewMode: (preview: boolean) => void;
   setIsInlineEditing: (editing: boolean) => void;
   setInlineEditingNodeId: (id: string | null) => void;
+  setQuickMode: (quick: boolean) => void;
+  setPropertySearchQuery: (query: string) => void;
+  setActiveStateMode: (mode: ComponentStateKey | 'default') => void;
+  setAnimationPreview: (nodeId: string | null) => void;
   setDragState: (isDragging: boolean, type?: NodeType | null, id?: string | null) => void;
   setDropTarget: (targetId: string | null, position?: 'before' | 'after' | 'inside' | null) => void;
 
+  // Clipboard & Node Precision
+  copyNode: (nodeId: string) => void;
+  pasteNode: (targetParentId?: string, targetIndex?: number) => WebsiteNode | null;
+  setLock: (nodeId: string, locked: boolean) => void;
+  setNodeLabel: (nodeId: string, label: string) => void;
+
+  // Tree Queries
   getActivePage: () => PageDocumentV3 | null;
   getSelectedNode: () => WebsiteNode | null;
   getNodePath: (nodeId: string) => WebsiteNode[];
@@ -122,6 +154,10 @@ export interface V3EditorState {
   resetViewportStyles: (nodeId: string) => void;
   resetViewportStyleGroup: (nodeId: string, groups: Array<keyof StyleDefinition>) => void;
   resetViewportStylePath: (nodeId: string, path: string[]) => void;
+  updateState: (nodeId: string, stateKey: ComponentStateKey, stylesPatch: Partial<StyleDefinition>) => void;
+  updateAnimation: (nodeId: string, animationPatch: AnimationDefinition) => void;
+  resetResponsive: (nodeId: string, breakpoint: 'tablet' | 'mobile', category?: string, property?: string) => void;
+  changeLayout: (sectionId: string, newLayout: string) => void;
   setVisibility: (nodeId: string, visibilityPatch: Partial<ResponsiveVisibility>) => void;
   setNodeLocked: (nodeId: string, locked: boolean) => void;
   reorderChildren: (parentId: string, childIds: string[]) => void;
@@ -133,7 +169,8 @@ export interface V3EditorState {
   setHomePage: (pageId: string) => void;
   reorderPages: (pageIds: string[]) => void;
   insertSectionPreset: (presetNode: WebsiteNode, afterNodeId?: string | null) => WebsiteNode | null;
-  replaceSection: (sectionId: string, presetNode: WebsiteNode) => WebsiteNode | null;
+  setSectionVariant: (sectionId: string, newVariant: string) => void;
+  replaceSection: (sectionId: string, presetOrVariant: WebsiteNode | string) => WebsiteNode | null;
   updateNavigation: (navigation: Partial<NavigationConfig>) => void;
   updateGlobal: (global: Partial<GlobalComponentsV3>) => void;
   saveReusableFromSelection: (name?: string) => string | null;
@@ -184,6 +221,10 @@ export const useV3EditorStore = create<V3EditorState>((set, get) => ({
   dropPosition: null,
 
   clipboardNode: null,
+  activeStateMode: 'default',
+  activeAnimationPreviewId: null,
+  quickMode: true,
+  propertySearchQuery: '',
 
   undoStack: [],
   redoStack: [],
@@ -236,6 +277,10 @@ export const useV3EditorStore = create<V3EditorState>((set, get) => ({
   setIsInlineEditing: (isInlineEditing) => set({ isInlineEditing }),
   setInlineEditingNodeId: (inlineEditingNodeId) =>
     set({ inlineEditingNodeId, isInlineEditing: Boolean(inlineEditingNodeId) }),
+  setQuickMode: (quickMode) => set({ quickMode }),
+  setPropertySearchQuery: (propertySearchQuery) => set({ propertySearchQuery }),
+  setActiveStateMode: (activeStateMode) => set({ activeStateMode }),
+  setAnimationPreview: (activeAnimationPreviewId) => set({ activeAnimationPreviewId }),
 
   setDragState: (isDragging, draggedNodeType = null, draggedNodeId = null) => {
     set({
@@ -580,6 +625,288 @@ export const useV3EditorStore = create<V3EditorState>((set, get) => ({
     get().executeOperation({ type: 'reorderChildren', pageId: loc.pageId, parentId, childIds });
   },
 
+  copyNode: (nodeId) => {
+    const node = get().findNode(nodeId);
+    if (!node) return;
+    const copied = recursivelyCloneWithFreshIds(node);
+    set({ clipboardNode: copied });
+  },
+
+  pasteNode: (targetParentId, targetIndex) => {
+    const { clipboardNode, activePageId, document, undoStack, selectedNodeId, findParent, findNode } = get();
+    if (!clipboardNode || !document) return null;
+
+    const prevDoc = deepClone(document);
+    const docClone = deepClone(document);
+    const page = docClone.pages.find((p) => p.id === activePageId);
+    if (!page) return null;
+
+    const nodeToPaste = recursivelyCloneWithFreshIds(clipboardNode);
+    nodeToPaste.name = `${clipboardNode.name || clipboardNode.type} (Copy)`;
+
+    let pId = targetParentId;
+    let idx = targetIndex;
+
+    if (!pId && selectedNodeId) {
+      const selected = findNode(selectedNodeId);
+      if (selected && ['container', 'section', 'column', 'grid', 'stack', 'row', 'page-root'].includes(selected.type)) {
+        pId = selected.id;
+      } else {
+        const pInfo = findParent(selectedNodeId);
+        if (pInfo) {
+          pId = pInfo.parent.id;
+          idx = pInfo.index + 1;
+        }
+      }
+    }
+
+    if (!pId) pId = page.root.id;
+
+    const parent = searchNode(page.root, pId);
+    if (!parent) return null;
+    if (!parent.children) parent.children = [];
+
+    if (typeof idx === 'number' && idx >= 0 && idx <= parent.children.length) {
+      parent.children.splice(idx, 0, nodeToPaste);
+    } else {
+      parent.children.push(nodeToPaste);
+    }
+
+    set({
+      document: docClone,
+      selectedNodeId: nodeToPaste.id,
+      isDirty: true,
+      saveStatus: 'unsaved',
+      undoStack: [prevDoc, ...undoStack.slice(0, 49)],
+      redoStack: [],
+    });
+
+    return nodeToPaste;
+  },
+
+  setLock: (nodeId, locked) => {
+    const { document, activePageId, undoStack } = get();
+    if (!document) return;
+    const prevDoc = deepClone(document);
+    const docClone = deepClone(document);
+    const page = docClone.pages.find((p) => p.id === activePageId);
+    if (!page) return;
+    const node = searchNode(page.root, nodeId);
+    if (!node) return;
+    node.locked = locked;
+    set({
+      document: docClone,
+      isDirty: true,
+      saveStatus: 'unsaved',
+      undoStack: [prevDoc, ...undoStack.slice(0, 49)],
+      redoStack: [],
+    });
+  },
+
+  setNodeLabel: (nodeId, label) => {
+    const { document, activePageId, undoStack } = get();
+    if (!document) return;
+    const prevDoc = deepClone(document);
+    const docClone = deepClone(document);
+    const page = docClone.pages.find((p) => p.id === activePageId);
+    if (!page) return;
+    const node = searchNode(page.root, nodeId);
+    if (!node) return;
+    node.label = label;
+    if (label) node.name = label;
+    set({
+      document: docClone,
+      isDirty: true,
+      saveStatus: 'unsaved',
+      undoStack: [prevDoc, ...undoStack.slice(0, 49)],
+      redoStack: [],
+    });
+  },
+
+  updateState: (nodeId, stateKey, stylesPatch) => {
+    const { document, activePageId, undoStack } = get();
+    if (!document) return;
+    const prevDoc = deepClone(document);
+    const docClone = deepClone(document);
+    const page = docClone.pages.find((p) => p.id === activePageId);
+    if (!page) return;
+    const node = searchNode(page.root, nodeId);
+    if (!node) return;
+    if (!node.states) node.states = {};
+    node.states[stateKey] = {
+      ...(node.states[stateKey] || {}),
+      ...stylesPatch,
+    };
+    set({
+      document: docClone,
+      isDirty: true,
+      saveStatus: 'unsaved',
+      undoStack: [prevDoc, ...undoStack.slice(0, 49)],
+      redoStack: [],
+    });
+  },
+
+  updateAnimation: (nodeId, animationPatch) => {
+    const { document, activePageId, undoStack } = get();
+    if (!document) return;
+    const prevDoc = deepClone(document);
+    const docClone = deepClone(document);
+    const page = docClone.pages.find((p) => p.id === activePageId);
+    if (!page) return;
+    const node = searchNode(page.root, nodeId);
+    if (!node) return;
+    node.animations = {
+      ...(node.animations || {}),
+      ...animationPatch,
+    };
+    set({
+      document: docClone,
+      isDirty: true,
+      saveStatus: 'unsaved',
+      undoStack: [prevDoc, ...undoStack.slice(0, 49)],
+      redoStack: [],
+    });
+  },
+
+  resetResponsive: (nodeId, breakpoint, category, property) => {
+    const { document, activePageId, undoStack } = get();
+    if (!document) return;
+    const prevDoc = deepClone(document);
+    const docClone = deepClone(document);
+    const page = docClone.pages.find((p) => p.id === activePageId);
+    if (!page) return;
+    const node = searchNode(page.root, nodeId);
+    if (!node || !node.responsive || !node.responsive[breakpoint]) return;
+
+    if (!category) {
+      delete node.responsive[breakpoint];
+    } else {
+      const bpObj = node.responsive[breakpoint] as unknown as Record<string, Record<string, unknown>>;
+      if (bpObj && bpObj[category]) {
+        if (!property) {
+          delete bpObj[category];
+        } else if (typeof bpObj[category] === 'object') {
+          delete bpObj[category][property];
+        }
+      }
+    }
+
+    set({
+      document: docClone,
+      isDirty: true,
+      saveStatus: 'unsaved',
+      undoStack: [prevDoc, ...undoStack.slice(0, 49)],
+      redoStack: [],
+    });
+  },
+
+  changeLayout: (sectionId, newLayout) => {
+    const { document, activePageId, undoStack } = get();
+    if (!document) return;
+    const prevDoc = deepClone(document);
+    const docClone = deepClone(document);
+    const page = docClone.pages.find((p) => p.id === activePageId);
+    if (!page) return;
+
+    const section = searchNode(page.root, sectionId);
+    if (!section) return;
+
+    section.props = {
+      ...(section.props || {}),
+      layoutVariant: newLayout,
+    };
+
+    // Find first container inside section to adapt its layout
+    const container = section.children?.find((c: WebsiteNode) => c.type === 'container' || c.type === 'grid' || c.type === 'row') || section;
+
+    if (newLayout === 'centered') {
+      container.styles = {
+        ...container.styles,
+        layout: { ...(container.styles?.layout || {}), display: 'flex' },
+        flex: { ...(container.styles?.flex || {}), direction: 'column', alignItems: 'center' },
+        typography: { ...(container.styles?.typography || {}), textAlign: 'center' },
+      };
+    } else if (newLayout === 'split' || newLayout === 'image-left' || newLayout === 'image-right') {
+      container.styles = {
+        ...container.styles,
+        layout: { ...(container.styles?.layout || {}), display: 'grid' },
+        grid: { ...(container.styles?.grid || {}), columns: 2, columnGap: '32px', rowGap: '32px' },
+      };
+    } else if (newLayout === 'bento') {
+      container.styles = {
+        ...container.styles,
+        layout: { ...(container.styles?.layout || {}), display: 'grid' },
+        grid: { ...(container.styles?.grid || {}), columns: 3, columnGap: '20px', rowGap: '20px' },
+      };
+    } else if (newLayout === 'grid') {
+      container.styles = {
+        ...container.styles,
+        layout: { ...(container.styles?.layout || {}), display: 'grid' },
+        grid: { ...(container.styles?.grid || {}), columns: 3, columnGap: '24px', rowGap: '24px' },
+      };
+    } else if (newLayout === 'minimal') {
+      container.styles = {
+        ...container.styles,
+        layout: { ...(container.styles?.layout || {}), display: 'flex', maxWidth: '800px' },
+        flex: { ...(container.styles?.flex || {}), direction: 'column', gap: '24px' },
+      };
+    }
+
+    set({
+      document: docClone,
+      isDirty: true,
+      saveStatus: 'unsaved',
+      undoStack: [prevDoc, ...undoStack.slice(0, 49)],
+      redoStack: [],
+    });
+  },
+
+  setSectionVariant: (sectionId, newVariant) => {
+    const { document, activePageId, undoStack } = get();
+    if (!document) return;
+    const prevDoc = deepClone(document);
+    const docClone = deepClone(document);
+    const page = docClone.pages.find((p) => p.id === activePageId);
+    if (!page) return;
+
+    const section = searchNode(page.root, sectionId);
+    if (!section) return;
+
+    section.props = {
+      ...(section.props || {}),
+      variant: newVariant,
+    };
+
+    const container = section.children?.find((c: WebsiteNode) => c.type === 'container' || c.type === 'grid') || section;
+    if (newVariant.includes('bento')) {
+      container.styles = {
+        ...container.styles,
+        layout: { ...(container.styles?.layout || {}), display: 'grid' },
+        grid: { ...(container.styles?.grid || {}), columns: 3, columnGap: '20px', rowGap: '20px' },
+      };
+    } else if (newVariant.includes('grid-3col') || newVariant.includes('three-column')) {
+      container.styles = {
+        ...container.styles,
+        layout: { ...(container.styles?.layout || {}), display: 'grid' },
+        grid: { ...(container.styles?.grid || {}), columns: 3, columnGap: '24px', rowGap: '24px' },
+      };
+    } else if (newVariant.includes('grid-4col') || newVariant.includes('four-column')) {
+      container.styles = {
+        ...container.styles,
+        layout: { ...(container.styles?.layout || {}), display: 'grid' },
+        grid: { ...(container.styles?.grid || {}), columns: 4, columnGap: '20px', rowGap: '20px' },
+      };
+    }
+
+    set({
+      document: docClone,
+      isDirty: true,
+      saveStatus: 'unsaved',
+      undoStack: [prevDoc, ...undoStack.slice(0, 49)],
+      redoStack: [],
+    });
+  },
+
   updateTheme: (themePatch) => {
     get().executeOperation(
       { type: 'updateTheme', theme: themePatch },
@@ -699,7 +1026,12 @@ export const useV3EditorStore = create<V3EditorState>((set, get) => ({
     return presetNode;
   },
 
-  replaceSection: (sectionId, presetNode) => {
+  replaceSection: (sectionId, presetOrVariant) => {
+    if (typeof presetOrVariant === 'string') {
+      get().setSectionVariant(sectionId, presetOrVariant);
+      return null;
+    }
+    const presetNode = presetOrVariant;
     const { document, undoStack } = get();
     if (!document) return null;
     const loc = findNodeLocation(document, sectionId);
@@ -881,22 +1213,24 @@ export const useV3EditorStore = create<V3EditorState>((set, get) => ({
       return true;
     } catch (err: unknown) {
       const axiosErr = err as {
-        response?: { status?: number; data?: { message?: string | string[]; error?: string } };
+        response?: { status?: number; data?: { message?: string | string[]; error?: string; errors?: Array<{ path: string; message: string }>; } };
         status?: number;
         statusCode?: number;
         message?: string;
       };
+      console.error('Failed to save document error details:', (axiosErr as {response?: unknown}).response || axiosErr?.message || err);
       const resMsg = axiosErr?.response?.data?.message || axiosErr?.message;
       const status = axiosErr?.response?.status || axiosErr?.status || axiosErr?.statusCode;
-      const isConflict =
-        status === 409 || /revision|conflict|modified in another/i.test(String(resMsg || ''));
+      const validationErrors = axiosErr?.response?.data?.errors;
+      const details = Array.isArray(validationErrors) && validationErrors.length > 0
+        ? ` (${validationErrors.map((e: {path: string; message: string}) => `${e.path}: ${e.message}`).join('; ')})`
+        : '';
+      const isConflict = status === 409 || /revision|conflict|modified in another/i.test(String(resMsg || ''));
       const msg = isConflict
         ? 'This website was modified in another session. Reload the latest version, or keep editing and retry — retry may fail until you reload.'
         : Array.isArray(resMsg)
-          ? resMsg.join(', ')
-          : typeof resMsg === 'string'
-            ? resMsg
-            : 'Failed to save changes.';
+          ? `${Array.isArray(resMsg) ? resMsg.join(', ') : resMsg || axiosErr?.message || 'Failed to save changes.'}${details}`
+          : `${resMsg || axiosErr?.message || 'Failed to save changes.'}${details}`;
       set({ saveStatus: 'error', errorMessage: msg, hasConflict: isConflict });
       return false;
     }
@@ -907,7 +1241,10 @@ export const useV3EditorStore = create<V3EditorState>((set, get) => ({
     if (!websiteId) throw new Error('No website selected');
 
     const saved = await saveDocument();
-    if (!saved) throw new Error('Failed to save latest changes before publishing');
+    if (!saved) {
+      const err = get().errorMessage || 'Failed to save latest changes before publishing';
+      throw new Error(err);
+    }
 
     const result = await websitesApi.publish(websiteId);
     return { success: true, versionId: result.versionId };

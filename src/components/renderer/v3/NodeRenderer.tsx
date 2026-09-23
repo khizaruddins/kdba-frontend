@@ -56,32 +56,34 @@ function RichTextRuns({ runs, fallback }: { runs?: unknown; fallback: string }) 
 
 /**
  * Resolves final CSS styles by merging desktop styles with responsive overrides
+ * and active component interaction states (e.g. Hover, Active, Focus in preview)
  */
 export function resolveNodeStyles(
   styles?: StyleDefinition,
   responsive?: ResponsiveStyleDefinition,
   viewport: 'desktop' | 'tablet' | 'mobile' = 'desktop',
+  stateOverride?: Partial<StyleDefinition>
 ): React.CSSProperties {
-  if (!styles && !responsive) return {};
+  if (!styles && !responsive && !stateOverride) return {};
 
   const base = styles || {};
   const tabletOverride = viewport === 'tablet' || viewport === 'mobile' ? responsive?.tablet || {} : {};
   const mobileOverride = viewport === 'mobile' ? responsive?.mobile || {} : {};
 
   // Merge layout
-  const layout = { ...base.layout, ...tabletOverride.layout, ...mobileOverride.layout };
-  const flex = { ...base.flex, ...tabletOverride.flex, ...mobileOverride.flex };
-  const grid = { ...base.grid, ...tabletOverride.grid, ...mobileOverride.grid };
-  const size = { ...base.size, ...tabletOverride.size, ...mobileOverride.size };
+  const layout = { ...base.layout, ...tabletOverride.layout, ...mobileOverride.layout, ...stateOverride?.layout };
+  const flex = { ...base.flex, ...tabletOverride.flex, ...mobileOverride.flex, ...stateOverride?.flex };
+  const grid = { ...base.grid, ...tabletOverride.grid, ...mobileOverride.grid, ...stateOverride?.grid };
+  const size = { ...base.size, ...tabletOverride.size, ...mobileOverride.size, ...stateOverride?.size };
   const spacing = {
-    margin: { ...base.spacing?.margin, ...tabletOverride.spacing?.margin, ...mobileOverride.spacing?.margin },
-    padding: { ...base.spacing?.padding, ...tabletOverride.spacing?.padding, ...mobileOverride.spacing?.padding },
+    margin: { ...base.spacing?.margin, ...tabletOverride.spacing?.margin, ...mobileOverride.spacing?.margin, ...stateOverride?.spacing?.margin },
+    padding: { ...base.spacing?.padding, ...tabletOverride.spacing?.padding, ...mobileOverride.spacing?.padding, ...stateOverride?.spacing?.padding },
   };
-  const typography = { ...base.typography, ...tabletOverride.typography, ...mobileOverride.typography };
-  const background = { ...base.background, ...tabletOverride.background, ...mobileOverride.background };
-  const border = { ...base.border, ...tabletOverride.border, ...mobileOverride.border };
-  const effects = { ...base.effects, ...tabletOverride.effects, ...mobileOverride.effects };
-  const transform = { ...base.transform, ...tabletOverride.transform, ...mobileOverride.transform };
+  const typography = { ...base.typography, ...tabletOverride.typography, ...mobileOverride.typography, ...stateOverride?.typography };
+  const background = { ...base.background, ...tabletOverride.background, ...mobileOverride.background, ...stateOverride?.background };
+  const border = { ...base.border, ...tabletOverride.border, ...mobileOverride.border, ...stateOverride?.border };
+  const effects = { ...base.effects, ...tabletOverride.effects, ...mobileOverride.effects, ...stateOverride?.effects };
+  const transform = { ...base.transform, ...tabletOverride.transform, ...mobileOverride.transform, ...stateOverride?.transform };
 
   const css: React.CSSProperties = {};
 
@@ -260,6 +262,32 @@ function NodeRendererInner({
     onStartInlineEdit?.(node.id);
   };
 
+  // Helper to render background color overlay
+  const renderOverlay = () => {
+    const overlay = (node.styles?.background as any)?.overlay;
+    if (!overlay || !overlay.color) return null;
+    return (
+      <div
+        className="absolute inset-0 pointer-events-none z-0 rounded-[inherit]"
+        style={{
+          backgroundColor: overlay.color,
+          opacity: typeof overlay.opacity === 'number' ? overlay.opacity : 0.5,
+        }}
+      />
+    );
+  };
+
+  // Helper to render section label pill tag when custom label exists in editor
+  const renderSectionHeaderTag = () => {
+    if (!isEditing || !node.label) return null;
+    return (
+      <div className="absolute top-2 left-3 z-20 pointer-events-none flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-semibold tracking-wider uppercase bg-primary text-primary-foreground shadow-sm">
+        <span>{node.label}</span>
+        {node.locked && <span className="text-[10px]">🔒</span>}
+      </div>
+    );
+  };
+
   const renderChildren = (filterChrome = false) => {
     const hasGlobalHeader = Boolean(renderContext?.document.global?.headerNode);
     const hasGlobalFooter = Boolean(renderContext?.document.global?.footerNode);
@@ -410,6 +438,8 @@ function NodeRendererInner({
           id={(props.anchorId as string) || undefined}
           className={`relative ${props.fullWidth === false ? 'mx-auto max-w-[var(--kdba-container-max)]' : 'w-full'} ${heroClass} ${commonProps.className}`}
         >
+          {renderOverlay()}
+          {renderSectionHeaderTag()}
           {renderChildren()}
         </section>
       );

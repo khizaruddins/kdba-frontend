@@ -145,7 +145,7 @@ export function V3EditorHeader({ onPublishSuccess, onOpenInspector }: V3EditorHe
         <ToggleGroup
           type="single"
           value={viewport}
-          onValueChange={(value) => {
+          onValueChange={(value: string) => {
             if (value === 'desktop' || value === 'tablet' || value === 'mobile') setViewport(value);
           }}
           variant="outline"
@@ -167,7 +167,7 @@ export function V3EditorHeader({ onPublishSuccess, onOpenInspector }: V3EditorHe
 
         <Select
           value={String(zoom)}
-          onValueChange={(next) => {
+          onValueChange={(next: string) => {
             if (next === 'fit') {
               const desktopWidth = viewport === 'desktop' ? 1280 : viewport === 'tablet' ? 768 : 390;
               const available = Math.max(320, window.innerWidth - 420);

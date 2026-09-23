@@ -225,7 +225,7 @@ export function V3VisualBuilder() {
       {!previewMode && compact ? (
         <Sheet
           open={Boolean(activeNavTab)}
-          onOpenChange={(open) => {
+          onOpenChange={(open: boolean) => {
             if (!open) setActiveNavTab(null);
           }}
         >

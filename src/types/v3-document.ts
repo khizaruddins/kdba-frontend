@@ -213,6 +213,10 @@ export interface StyleDefinition {
     size?: 'cover' | 'contain' | 'auto' | string;
     repeat?: 'no-repeat' | 'repeat' | 'repeat-x' | 'repeat-y';
     opacity?: number;
+    overlay?: {
+      color?: string;
+      opacity?: number;
+    };
   };
   border?: {
     top?: BorderSide;
@@ -278,12 +282,39 @@ export interface InteractionDefinition {
   payload?: Record<string, unknown>;
 }
 
+export type AnimationPreset =
+  | 'none'
+  | 'fade'
+  | 'fade-up'
+  | 'fade-down'
+  | 'fade-left'
+  | 'fade-right'
+  | 'scale'
+  | 'slide'
+  | 'blur-in';
+
+export type AnimationTrigger = 'on-load' | 'on-scroll' | 'on-hover' | 'load' | 'scroll' | 'hover';
+
 export interface AnimationDefinition {
-  type: 'fade' | 'slide-up' | 'slide-down' | 'zoom' | 'bounce' | 'none';
+  type?: AnimationPreset | 'slide-up' | 'slide-down' | 'zoom' | 'bounce';
+  preset?: AnimationPreset;
+  trigger?: AnimationTrigger;
   duration?: number; // ms
   delay?: number; // ms
   easing?: 'ease' | 'ease-in' | 'ease-out' | 'ease-in-out' | 'linear' | string;
-  trigger?: 'load' | 'scroll' | 'hover';
+  direction?: 'normal' | 'reverse' | 'alternate';
+  distance?: number; // px or %
+  intensity?: number;
+  repeat?: boolean | number;
+}
+
+export type ComponentStateKey = 'hover' | 'active' | 'focus' | 'disabled';
+
+export interface ComponentStatesDefinition {
+  hover?: Partial<StyleDefinition>;
+  active?: Partial<StyleDefinition>;
+  focus?: Partial<StyleDefinition>;
+  disabled?: Partial<StyleDefinition>;
 }
 
 // ─── V3 HIERARCHICAL NODE MODEL ───────────────────────────────────────────────
@@ -302,6 +333,7 @@ export interface WebsiteNode {
   id: string;
   type: NodeType;
   name?: string;
+  label?: string;
   children?: WebsiteNode[];
   props?: Record<string, unknown>;
   styles?: StyleDefinition;
@@ -309,6 +341,7 @@ export interface WebsiteNode {
   visibility?: ResponsiveVisibility;
   interactions?: InteractionDefinition[];
   animations?: AnimationDefinition;
+  states?: ComponentStatesDefinition;
   locked?: boolean;
   binding?: NodeBinding;
 }
@@ -358,9 +391,9 @@ export interface ThemeSystemV3 {
   colors: ColorTokensV3;
   typography: TypographySystemV3;
   breakpoints: BreakpointConfig;
-  borderRadius: 'none' | 'sm' | 'md' | 'lg' | 'full';
-  shadows: 'none' | 'subtle' | 'medium' | 'dramatic';
-  customCss?: string;
+  borderRadius: 'none' | 'sm' | 'md' | 'lg' | 'full' | string;
+  shadows: 'none' | 'subtle' | 'medium' | 'dramatic' | string;
+  customCss?: string | null;
   headingFont?: string;
   bodyFont?: string;
   primaryColor?: string;
@@ -539,6 +572,14 @@ export type DocumentOperationType =
   | 'setVisibility'
   | 'changeParent'
   | 'reorderChildren'
+  | 'updateState'
+  | 'updateAnimation'
+  | 'resetResponsive'
+  | 'setNodeLabel'
+  | 'setLock'
+  | 'pasteNode'
+  | 'changeLayout'
+  | 'replaceSection'
   | 'addPage'
   | 'updatePage'
   | 'removePage'
@@ -621,6 +662,61 @@ export type DocumentOperation =
       childIds: string[];
     }
   | {
+      type: 'updateState';
+      pageId: string;
+      nodeId: string;
+      state: ComponentStateKey;
+      styles: Partial<StyleDefinition>;
+    }
+  | {
+      type: 'updateAnimation';
+      pageId: string;
+      nodeId: string;
+      animation: AnimationDefinition;
+    }
+  | {
+      type: 'resetResponsive';
+      pageId: string;
+      nodeId: string;
+      breakpoint: 'tablet' | 'mobile';
+      category?: string;
+      property?: string;
+    }
+  | {
+      type: 'setNodeLabel';
+      pageId: string;
+      nodeId: string;
+      label: string;
+    }
+  | {
+      type: 'setLock';
+      pageId: string;
+      nodeId: string;
+      locked: boolean;
+    }
+  | {
+      type: 'pasteNode';
+      pageId: string;
+      targetParentId: string;
+      node: WebsiteNode;
+      index?: number;
+    }
+  | {
+      type: 'changeLayout';
+      pageId: string;
+      nodeId: string;
+      layout: string;
+      props?: Record<string, unknown>;
+      styles?: Partial<StyleDefinition>;
+    }
+  | {
+      type: 'replaceSection';
+      pageId: string;
+      sectionId: string;
+      sectionType: string;
+      variant: string;
+    }
+  | {
       type: 'addPage';
       page: PageDocumentV3;
     }
@@ -664,6 +760,7 @@ export type DocumentOperation =
 
 export interface DocumentOperationsPayload {
   baseRevision?: number;
+  batchName?: string;
   operations: DocumentOperation[];
 }
 
@@ -672,6 +769,7 @@ export interface DocumentOperationsResult {
   revision: number;
   schemaVersion: '3.0';
   documentHash: string;
+  batchName?: string;
   updatedAt: string;
   document: WebsiteDocumentV3;
   operationsApplied: number;
