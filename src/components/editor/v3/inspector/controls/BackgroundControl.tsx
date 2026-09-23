@@ -164,6 +164,83 @@ export function BackgroundControl({ background = {}, onChangeBackground }: Backg
           )}
         </div>
       </div>
+
+      {/* 4. Background Color Overlay (Wix-grade image overlay) */}
+      <div className="space-y-2 pt-2 border-t border-slate-800/60">
+        <div className="flex items-center justify-between">
+          <label className="text-[11px] font-semibold text-slate-300">Background Overlay</label>
+          {background.overlay?.color && (
+            <button
+              type="button"
+              onClick={() => onChangeBackground({ ...background, overlay: undefined })}
+              className="text-[10px] text-slate-400 hover:text-amber-400 transition-colors"
+            >
+              Remove
+            </button>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <input
+            type="color"
+            value={background.overlay?.color || '#000000'}
+            onChange={(e) =>
+              onChangeBackground({
+                ...background,
+                overlay: {
+                  color: e.target.value,
+                  opacity: typeof background.overlay?.opacity === 'number' ? background.overlay.opacity : 0.6,
+                },
+              })
+            }
+            className="w-7 h-7 rounded border border-slate-700 bg-slate-800 cursor-pointer p-0.5"
+            title="Overlay Tint Color"
+          />
+          <input
+            type="text"
+            value={background.overlay?.color || ''}
+            placeholder="#000000 (No Overlay)"
+            onChange={(e) =>
+              onChangeBackground({
+                ...background,
+                overlay: {
+                  color: e.target.value,
+                  opacity: typeof background.overlay?.opacity === 'number' ? background.overlay.opacity : 0.6,
+                },
+              })
+            }
+            className="flex-1 h-8 px-2.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-200 font-mono text-[11px] focus:border-indigo-500 focus:outline-none"
+          />
+        </div>
+
+        {background.overlay?.color && (
+          <div className="space-y-1">
+            <div className="flex justify-between items-center text-[10px] text-slate-400">
+              <span>Overlay Opacity</span>
+              <span className="font-mono text-slate-300">
+                {Math.round((background.overlay.opacity ?? 0.6) * 100)}%
+              </span>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              value={background.overlay.opacity ?? 0.6}
+              onChange={(e) =>
+                onChangeBackground({
+                  ...background,
+                  overlay: {
+                    ...background.overlay,
+                    opacity: parseFloat(e.target.value),
+                  },
+                })
+              }
+              className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 }

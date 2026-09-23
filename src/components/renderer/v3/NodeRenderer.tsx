@@ -7,6 +7,7 @@ import {
   ResponsiveStyleDefinition,
 } from '@/types/v3-document';
 import { useV3EditorStore } from '@/stores/v3-editor-store';
+import { SectionDividerAdd } from '@/components/editor/v3/overlays/SectionDividerAdd';
 
 export interface NodeRendererProps {
   node: WebsiteNode;
@@ -22,32 +23,34 @@ export interface NodeRendererProps {
 
 /**
  * Resolves final CSS styles by merging desktop styles with responsive overrides
+ * and active component interaction states (e.g. Hover, Active, Focus in preview)
  */
 export function resolveNodeStyles(
   styles?: StyleDefinition,
   responsive?: ResponsiveStyleDefinition,
   viewport: 'desktop' | 'tablet' | 'mobile' = 'desktop',
+  stateOverride?: Partial<StyleDefinition>
 ): React.CSSProperties {
-  if (!styles && !responsive) return {};
+  if (!styles && !responsive && !stateOverride) return {};
 
   const base = styles || {};
   const tabletOverride = viewport === 'tablet' || viewport === 'mobile' ? responsive?.tablet || {} : {};
   const mobileOverride = viewport === 'mobile' ? responsive?.mobile || {} : {};
 
   // Merge layout
-  const layout = { ...base.layout, ...tabletOverride.layout, ...mobileOverride.layout };
-  const flex = { ...base.flex, ...tabletOverride.flex, ...mobileOverride.flex };
-  const grid = { ...base.grid, ...tabletOverride.grid, ...mobileOverride.grid };
-  const size = { ...base.size, ...tabletOverride.size, ...mobileOverride.size };
+  const layout = { ...base.layout, ...tabletOverride.layout, ...mobileOverride.layout, ...stateOverride?.layout };
+  const flex = { ...base.flex, ...tabletOverride.flex, ...mobileOverride.flex, ...stateOverride?.flex };
+  const grid = { ...base.grid, ...tabletOverride.grid, ...mobileOverride.grid, ...stateOverride?.grid };
+  const size = { ...base.size, ...tabletOverride.size, ...mobileOverride.size, ...stateOverride?.size };
   const spacing = {
-    margin: { ...base.spacing?.margin, ...tabletOverride.spacing?.margin, ...mobileOverride.spacing?.margin },
-    padding: { ...base.spacing?.padding, ...tabletOverride.spacing?.padding, ...mobileOverride.spacing?.padding },
+    margin: { ...base.spacing?.margin, ...tabletOverride.spacing?.margin, ...mobileOverride.spacing?.margin, ...stateOverride?.spacing?.margin },
+    padding: { ...base.spacing?.padding, ...tabletOverride.spacing?.padding, ...mobileOverride.spacing?.padding, ...stateOverride?.spacing?.padding },
   };
-  const typography = { ...base.typography, ...tabletOverride.typography, ...mobileOverride.typography };
-  const background = { ...base.background, ...tabletOverride.background, ...mobileOverride.background };
-  const border = { ...base.border, ...tabletOverride.border, ...mobileOverride.border };
-  const effects = { ...base.effects, ...tabletOverride.effects, ...mobileOverride.effects };
-  const transform = { ...base.transform, ...tabletOverride.transform, ...mobileOverride.transform };
+  const typography = { ...base.typography, ...tabletOverride.typography, ...mobileOverride.typography, ...stateOverride?.typography };
+  const background = { ...base.background, ...tabletOverride.background, ...mobileOverride.background, ...stateOverride?.background };
+  const border = { ...base.border, ...tabletOverride.border, ...mobileOverride.border, ...stateOverride?.border };
+  const effects = { ...base.effects, ...tabletOverride.effects, ...mobileOverride.effects, ...stateOverride?.effects };
+  const transform = { ...base.transform, ...tabletOverride.transform, ...mobileOverride.transform, ...stateOverride?.transform };
 
   const css: React.CSSProperties = {};
 
@@ -183,7 +186,13 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
   onDoubleClickText,
   className = '',
 }) => {
-  const { inlineEditingNodeId, setInlineEditingNodeId, updateProps } = useV3EditorStore();
+  const {
+    inlineEditingNodeId,
+    setInlineEditingNodeId,
+    updateProps,
+    activeStateMode,
+    activeAnimationPreviewId,
+  } = useV3EditorStore();
   const isInlineEditing = isEditing && inlineEditingNodeId === node.id;
 
   // Check responsive visibility
@@ -194,8 +203,35 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
 
   const isSelected = isEditing && selectedNodeId === node.id;
   const isHovered = isEditing && hoveredNodeId === node.id && !isSelected;
-  const resolvedStyles = resolveNodeStyles(node.styles, node.responsive, viewport);
+
+  // Interaction State Override (Preview state in editor when activeStateMode !== 'default' and node is selected)
+  const stateOverride = (isEditing && isSelected && activeStateMode && activeStateMode !== 'default' && node.states?.[activeStateMode])
+    ? node.states[activeStateMode]
+    : undefined;
+
+  const resolvedStyles = resolveNodeStyles(node.styles, node.responsive, viewport, stateOverride);
   const props = node.props || {};
+
+  // Animation preview & styles
+  let animationClass = '';
+  const anim = node.animations;
+  const isAnimationPreviewing = activeAnimationPreviewId === node.id;
+
+  if (anim && anim.preset && anim.preset !== 'none') {
+    const shouldAnimate = isAnimationPreviewing || (!isEditing && anim.trigger === 'on-load');
+    if (shouldAnimate) {
+      animationClass = `animate-wix-${anim.preset}`;
+    }
+  }
+
+  const animInlineStyles: React.CSSProperties = (anim && anim.preset && anim.preset !== 'none' && (isAnimationPreviewing || (!isEditing && anim.trigger === 'on-load')))
+    ? {
+        animationDuration: anim.duration ? `${anim.duration}ms` : '600ms',
+        animationDelay: anim.delay ? `${anim.delay}ms` : '0ms',
+        animationTimingFunction: anim.easing || 'cubic-bezier(0.16, 1, 0.3, 1)',
+        animationFillMode: 'both',
+      }
+    : {};
 
   const handleClick = (e: React.MouseEvent) => {
     if (isEditing) {
@@ -227,6 +263,32 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
     }
   };
 
+  // Helper to render background color overlay
+  const renderOverlay = () => {
+    const overlay = node.styles?.background?.overlay;
+    if (!overlay || !overlay.color) return null;
+    return (
+      <div
+        className="absolute inset-0 pointer-events-none z-0 rounded-[inherit]"
+        style={{
+          backgroundColor: overlay.color,
+          opacity: typeof overlay.opacity === 'number' ? overlay.opacity : 0.5,
+        }}
+      />
+    );
+  };
+
+  // Helper to render section label pill tag when hovered/selected in editor
+  const renderSectionHeaderTag = () => {
+    if (!isEditing || (!isSelected && !isHovered)) return null;
+    return (
+      <div className="absolute top-2 left-3 z-30 pointer-events-none flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-semibold tracking-wider uppercase bg-indigo-600/90 text-white shadow-sm backdrop-blur-sm">
+        <span>{node.label || 'Section'}</span>
+        {node.locked && <span className="text-[10px]">🔒</span>}
+      </div>
+    );
+  };
+
   // Render children recursively
   const renderChildren = () => {
     if (!node.children || node.children.length === 0) {
@@ -238,6 +300,29 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
         );
       }
       return null;
+    }
+
+    if (node.type === 'page-root' && isEditing) {
+      return (
+        <>
+          <SectionDividerAdd key="divider-start" index={0} targetParentId={node.id} />
+          {node.children.map((child, index) => (
+            <React.Fragment key={child.id}>
+              <NodeRenderer
+                node={child}
+                isEditing={isEditing}
+                viewport={viewport}
+                selectedNodeId={selectedNodeId}
+                hoveredNodeId={hoveredNodeId}
+                onSelectNode={onSelectNode}
+                onHoverNode={onHoverNode}
+                onDoubleClickText={onDoubleClickText}
+              />
+              <SectionDividerAdd key={`divider-${child.id}`} index={index + 1} targetParentId={node.id} />
+            </React.Fragment>
+          ))}
+        </>
+      );
     }
 
     return node.children.map((child) => (
@@ -269,11 +354,11 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
   const commonProps = {
     'data-node-id': node.id,
     'data-node-type': node.type,
-    style: resolvedStyles,
+    style: { ...resolvedStyles, ...animInlineStyles },
     onClick: handleClick,
     onMouseEnter: handleMouseEnter,
     onMouseLeave: handleMouseLeave,
-    className: `${editorClasses} ${className}`.trim(),
+    className: `${editorClasses} ${animationClass} ${className}`.trim(),
   };
 
   // ─── COMPONENT TYPE DISPATCH ────────────────────────────────────────────────
@@ -293,6 +378,8 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
           id={(props.anchorId as string) || undefined}
           className={`w-full relative ${commonProps.className}`}
         >
+          {renderOverlay()}
+          {renderSectionHeaderTag()}
           {renderChildren()}
         </section>
       );
@@ -300,6 +387,7 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
     case 'container':
       return (
         <div {...commonProps} className={`w-full mx-auto relative ${commonProps.className}`}>
+          {renderOverlay()}
           {renderChildren()}
         </div>
       );

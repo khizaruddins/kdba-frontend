@@ -157,19 +157,31 @@ export function LayoutControl({
       {/* Grid Specific Controls */}
       {display === 'grid' && (
         <div className="space-y-2.5 pt-1 border-t border-slate-800/60">
-          <div className="space-y-1">
+          {/* Visual Columns Selector */}
+          <div className="space-y-1.5">
             <div className="flex justify-between items-center text-[11px] text-slate-400">
-              <span>Columns</span>
-              <span className="font-mono text-indigo-400">{grid.columns || 3}</span>
+              <span className="font-semibold text-slate-300">Columns</span>
+              <span className="font-mono text-indigo-400 font-semibold">{grid.columns || 3} cols</span>
             </div>
-            <input
-              type="range"
-              min="1"
-              max="6"
-              value={grid.columns || 3}
-              onChange={(e) => onChangeGrid({ ...grid, columns: Number(e.target.value) })}
-              className="w-full accent-indigo-500 cursor-pointer"
-            />
+            <div className="grid grid-cols-6 gap-1 p-0.5 rounded-lg bg-slate-900 border border-slate-800">
+              {[1, 2, 3, 4, 5, 6].map((num) => {
+                const isActive = (grid.columns || 3) === num;
+                return (
+                  <button
+                    key={num}
+                    type="button"
+                    onClick={() => onChangeGrid({ ...grid, columns: num })}
+                    className={`py-1.5 rounded text-[11px] font-semibold transition-all ${
+                      isActive
+                        ? 'bg-indigo-600 text-white shadow-sm'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+                    }`}
+                  >
+                    {num}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-2">
@@ -180,7 +192,7 @@ export function LayoutControl({
                 placeholder="24px"
                 value={grid.columnGap || ''}
                 onChange={(e) => onChangeGrid({ ...grid, columnGap: e.target.value })}
-                className="w-full h-8 px-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-200 text-xs"
+                className="w-full h-8 px-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-200 text-xs focus:border-indigo-500 focus:outline-none"
               />
             </div>
             <div className="space-y-1">
@@ -190,7 +202,7 @@ export function LayoutControl({
                 placeholder="24px"
                 value={grid.rowGap || ''}
                 onChange={(e) => onChangeGrid({ ...grid, rowGap: e.target.value })}
-                className="w-full h-8 px-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-200 text-xs"
+                className="w-full h-8 px-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-200 text-xs focus:border-indigo-500 focus:outline-none"
               />
             </div>
           </div>
