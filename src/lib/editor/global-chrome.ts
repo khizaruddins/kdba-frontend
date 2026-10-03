@@ -42,16 +42,71 @@ export function buildDefaultFooter(siteName = 'Studio'): WebsiteNode {
   });
 }
 
+export function isNavbarNode(node: WebsiteNode): boolean {
+  if (!node) return false;
+  if (node.type === 'navbar') return true;
+  const name = String(node.name || '').toLowerCase();
+  if (
+    name === 'navbar' ||
+    name === 'site header' ||
+    name === 'navbar section' ||
+    name === 'header' ||
+    name.startsWith('navbar') ||
+    name.endsWith('navbar')
+  ) {
+    return true;
+  }
+  const variant = String(node.props?.variant || '').toLowerCase();
+  if (variant === 'navbar' || variant === 'transparent' || variant === 'centered') {
+    if (node.props?.brandName !== undefined || node.props?.links !== undefined) return true;
+  }
+  if (
+    node.props?.brandName !== undefined &&
+    (node.props?.links !== undefined || node.props?.ctaText !== undefined || node.props?.useSiteNavigation !== undefined || node.props?.ctaUrl !== undefined)
+  ) {
+    return true;
+  }
+  return false;
+}
+
+export function isFooterNode(node: WebsiteNode): boolean {
+  if (!node) return false;
+  if (node.type === 'footer') return true;
+  const name = String(node.name || '').toLowerCase();
+  if (
+    name === 'footer' ||
+    name === 'site footer' ||
+    name === 'footer section' ||
+    name.startsWith('footer') ||
+    name.endsWith('footer')
+  ) {
+    return true;
+  }
+  const variant = String(node.props?.variant || '').toLowerCase();
+  if (variant === 'footer' || variant === 'multi-column-detailed' || variant === 'columns') {
+    if (node.props?.copyright !== undefined || node.props?.links !== undefined) return true;
+  }
+  if (node.props?.copyright !== undefined) return true;
+  return false;
+}
+
 function cloneChromeNode(node: WebsiteNode, id: string): WebsiteNode {
   const cloned = JSON.parse(JSON.stringify(node)) as WebsiteNode;
   cloned.id = id;
+  if (id === 'global_header') {
+    cloned.type = 'navbar';
+    cloned.name = cloned.name || 'Site Header';
+  } else if (id === 'global_footer') {
+    cloned.type = 'footer';
+    cloned.name = cloned.name || 'Site Footer';
+  }
   cloned.props = { ...(cloned.props || {}), useSiteNavigation: true };
   return cloned;
 }
 
-function firstPageChildOfType(doc: WebsiteDocumentV3, type: WebsiteNode['type']): WebsiteNode | undefined {
+function firstPageChildMatching(doc: WebsiteDocumentV3, predicate: (node: WebsiteNode) => boolean): WebsiteNode | undefined {
   for (const page of doc.pages) {
-    const found = page.root?.children?.find((child) => child.type === type);
+    const found = page.root?.children?.find(predicate);
     if (found) return found;
   }
   return undefined;
@@ -61,17 +116,65 @@ export function ensureGlobalChrome(doc: WebsiteDocumentV3): WebsiteDocumentV3 {
   const siteName = doc.site?.name || doc.business?.name;
   const headerDisabled = Boolean(doc.global?.headerDisabled);
   const footerDisabled = Boolean(doc.global?.footerDisabled);
-  const navbar = firstPageChildOfType(doc, 'navbar');
-  const pageFooter = firstPageChildOfType(doc, 'footer');
-  const headerNode = headerDisabled
-    ? undefined
-    : doc.global?.headerNode || (navbar ? cloneChromeNode(navbar, 'global_header') : buildDefaultHeader(siteName));
-  const footerNode = footerDisabled
-    ? undefined
-    : doc.global?.footerNode ||
-      (pageFooter ? cloneChromeNode(pageFooter, 'global_footer') : buildDefaultFooter(siteName));
+
+  const pageNavbar = firstPageChildMatching(doc, isNavbarNode);
+  const pageFooter = firstPageChildMatching(doc, isFooterNode);
+
+  let headerNode = headerDisabled ? undefined : doc.global?.headerNode;
+  if (!headerDisabled) {
+    if (!headerNode) {
+      headerNode = pageNavbar ? cloneChromeNode(pageNavbar, 'global_header') : buildDefaultHeader(siteName);
+    } else if (
+      pageNavbar &&
+      headerNode.id === 'global_header' &&
+      (!headerNode.props?.brandName || headerNode.props.brandName === 'Studio' || headerNode.props.brandName === siteName)
+    ) {
+      if (pageNavbar.props?.brandName && pageNavbar.props.brandName !== headerNode.props?.brandName) {
+        headerNode = cloneChromeNode(pageNavbar, 'global_header');
+      }
+    }
+  }
+
+  let footerNode = footerDisabled ? undefined : doc.global?.footerNode;
+  if (!footerDisabled) {
+    if (!footerNode) {
+      footerNode = pageFooter ? cloneChromeNode(pageFooter, 'global_footer') : buildDefaultFooter(siteName);
+    } else if (
+      pageFooter &&
+      footerNode.id === 'global_footer' &&
+      pageFooter.props?.copyright &&
+      pageFooter.props.copyright !== footerNode.props?.copyright
+    ) {
+      footerNode = cloneChromeNode(pageFooter, 'global_footer');
+    }
+  }
+
+  // Strip page-level navbars & footers from page.root.children so there are NEVER duplicate navbars or footers
+  let pagesChanged = false;
+  const cleanedPages = doc.pages.map((page) => {
+    if (!page.root?.children) return page;
+    const originalCount = page.root.children.length;
+    const filteredChildren = page.root.children.filter((child) => {
+      if (headerNode && isNavbarNode(child)) return false;
+      if (footerNode && isFooterNode(child)) return false;
+      return true;
+    });
+    if (filteredChildren.length !== originalCount) {
+      pagesChanged = true;
+      return {
+        ...page,
+        root: {
+          ...page.root,
+          children: filteredChildren,
+        },
+      };
+    }
+    return page;
+  });
+
   const reusableNodes = doc.global?.reusableNodes || {};
   if (
+    !pagesChanged &&
     doc.global?.headerNode === headerNode &&
     doc.global?.footerNode === footerNode &&
     doc.global?.reusableNodes &&
@@ -80,8 +183,10 @@ export function ensureGlobalChrome(doc: WebsiteDocumentV3): WebsiteDocumentV3 {
   ) {
     return doc;
   }
+
   return {
     ...doc,
+    pages: cleanedPages,
     global: {
       ...(doc.global || {}),
       headerDisabled,

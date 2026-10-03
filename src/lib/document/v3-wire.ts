@@ -11,6 +11,7 @@ import {
 import { DEFAULT_THEME_LAYOUT_TOKENS } from '@/lib/editor/theme-tokens';
 import { COMPONENT_MANIFEST } from '@/lib/editor/component-manifest';
 import { STATES_PROP } from '@/lib/editor/rich-text';
+import { ensureGlobalChrome } from '@/lib/editor/global-chrome';
 
 export const WIRE_NODE_TYPES = [
   'page-root',
@@ -816,7 +817,7 @@ export function toEditorDocument(raw: unknown): WebsiteDocumentV3 {
   const theme = toEditorTheme(source.theme as Record<string, unknown> | undefined);
   const pagesIn = Array.isArray(source.pages) ? source.pages : [];
 
-  return {
+  return ensureGlobalChrome({
     schemaVersion: '3.0',
     site: {
       id: (source.site as Record<string, unknown> | undefined)?.id as string | undefined,
@@ -843,6 +844,52 @@ export function toEditorDocument(raw: unknown): WebsiteDocumentV3 {
             const secVariant = String(sec.variant || 'default');
             const secProps = (sec.props || {}) as Record<string, unknown>;
             const secId = String(sec.id || `sec_${secIdx}`);
+
+            if (secType === 'navbar' || secType === 'header') {
+              return {
+                id: secId,
+                type: 'navbar',
+                name: 'Site Header',
+                props: {
+                  brandName: String(secProps.brandName || secProps.headline || secProps.title || 'Brand'),
+                  variant: secVariant !== 'default' ? secVariant : 'standard',
+                  sticky: secProps.sticky !== undefined ? Boolean(secProps.sticky) : true,
+                  links: Array.isArray(secProps.links) ? secProps.links : undefined,
+                  ctaText: secProps.ctaText ? String(secProps.ctaText) : undefined,
+                  ctaHref: (secProps.ctaHref || secProps.ctaUrl) ? String(secProps.ctaHref || secProps.ctaUrl) : undefined,
+                  useSiteNavigation: true,
+                  ...secProps,
+                },
+                styles: {
+                  layout: { position: 'sticky', width: '100%', zIndex: 30 },
+                  spacing: { padding: { top: '16px', bottom: '16px', left: '24px', right: '24px' } },
+                  background: { color: 'background' },
+                },
+                children: [],
+              };
+            }
+
+            if (secType === 'footer') {
+              return {
+                id: secId,
+                type: 'footer',
+                name: 'Site Footer',
+                props: {
+                  copyright: secProps.copyright ? String(secProps.copyright) : undefined,
+                  brandName: secProps.brandName ? String(secProps.brandName) : undefined,
+                  tagline: secProps.tagline ? String(secProps.tagline) : undefined,
+                  links: Array.isArray(secProps.links) ? secProps.links : undefined,
+                  columns: Array.isArray(secProps.columns) ? secProps.columns : undefined,
+                  useSiteNavigation: true,
+                  ...secProps,
+                },
+                styles: {
+                  layout: { width: '100%' },
+                  background: { color: 'background' },
+                },
+                children: [],
+              };
+            }
 
             const innerNodes: WebsiteNode[] = [];
             if (secProps.badge) {
@@ -952,7 +999,7 @@ export function toEditorDocument(raw: unknown): WebsiteDocumentV3 {
       enableContactForm: true,
       language: 'en',
     },
-  };
+  });
 }
 
 export function toWireDocument(document: WebsiteDocumentV3): Record<string, unknown> {

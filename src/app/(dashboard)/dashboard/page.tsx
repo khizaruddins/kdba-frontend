@@ -337,7 +337,21 @@ export default function DashboardPage() {
                     {formatDate(site.updatedAt)}
                   </span>
                   <Button size="sm" variant="outline" asChild>
-                    <Link href={`/editor/${site.id}`}>Open</Link>
+                    <Link href={`/editor/${site.id}`} className="gap-1.5">
+                      <Pencil className="size-3.5" />
+                      <span>Edit</span>
+                    </Link>
+                  </Button>
+                  <Button size="sm" variant="ghost" asChild>
+                    <Link
+                      href={`/site/${tenant?.slug || site.slug}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="gap-1.5"
+                    >
+                      <ExternalLink className="size-3.5" />
+                      <span>Open</span>
+                    </Link>
                   </Button>
                   <WebsiteActionsMenu
                     website={site}

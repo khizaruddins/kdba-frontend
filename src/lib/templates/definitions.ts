@@ -808,6 +808,21 @@ export const TEMPLATES_DEFINITIONS: TemplateDefinition[] = [
               },
             },
             {
+              id: 'sec_f_features',
+              type: 'features',
+              variant: 'cards',
+              enabled: true,
+              props: {
+                badge: 'Amenities & Training',
+                headline: 'Engineered for Elite Performance',
+                items: [
+                  { title: 'Olympic Lifting Zones', description: 'Eleiko calibrated plates, competition benches, and deadlift platforms.' },
+                  { title: 'Contrast Hydrotherapy', description: '38°F cold plunges and 200°F Finnish saunas for rapid recovery.' },
+                  { title: 'Metabolic Coaching', description: 'Continuous lactate threshold testing and custom heart rate zone programming.' },
+                ],
+              },
+            },
+            {
               id: 'sec_f_pricing',
               type: 'pricing',
               variant: 'tier-cards',

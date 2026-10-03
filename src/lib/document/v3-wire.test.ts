@@ -209,4 +209,53 @@ describe('v3 wire adapter', () => {
     });
     expect(restoredHeading?.styles?.typography?.fontFamily).toBe('Playfair Display');
   });
+
+  it('promotes template sections navbar and footer to global chrome without duplicating them in page root', () => {
+    const rawTemplate = {
+      site: { name: 'Aura Dining' },
+      pages: [
+        {
+          id: 'page_home',
+          title: 'Home',
+          slug: '/',
+          sections: [
+            {
+              id: 'sec_nav',
+              type: 'navbar',
+              props: { brandName: 'AURA', links: [{ label: 'Menu', url: '#menu' }] },
+            },
+            {
+              id: 'sec_hero',
+              type: 'hero',
+              props: { headline: 'Welcome to Aura' },
+            },
+            {
+              id: 'sec_footer',
+              type: 'footer',
+              props: { copyright: '© 2026 Aura Dining' },
+            },
+          ],
+        },
+      ],
+    };
+
+    const doc = toEditorDocument(rawTemplate);
+
+    // Global chrome has the template's navbar and footer
+    expect(doc.global?.headerNode).toBeDefined();
+    expect(doc.global?.headerNode?.type).toBe('navbar');
+    expect(doc.global?.headerNode?.props?.brandName).toBe('AURA');
+
+    expect(doc.global?.footerNode).toBeDefined();
+    expect(doc.global?.footerNode?.type).toBe('footer');
+    expect(doc.global?.footerNode?.props?.copyright).toBe('© 2026 Aura Dining');
+
+    // Page root has ONLY the body section (no navbar or footer)
+    const pageChildren = doc.pages[0].root.children || [];
+    expect(pageChildren.length).toBe(1);
+    expect(pageChildren[0].id).toBe('sec_hero');
+    expect(pageChildren.some((child) => child.type === 'navbar')).toBe(false);
+    expect(pageChildren.some((child) => child.type === 'footer')).toBe(false);
+  });
 });
+

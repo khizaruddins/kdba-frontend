@@ -16,6 +16,7 @@ import { applyBindingToProps, recordsForList, resolveCmsMediaValue } from '@/lib
 import { SectionDividerAdd } from '@/components/editor/v3/overlays/SectionDividerAdd';
 import { useV3EditorStore } from '@/stores/v3-editor-store';
 import { formatFontFamilyWithFallback } from '@/lib/fonts/google-fonts';
+import { isNavbarNode, isFooterNode } from '@/lib/editor/global-chrome';
 
 export interface NodeRendererProps {
   node: WebsiteNode;
@@ -656,8 +657,8 @@ function NodeRendererInner({
     const hasGlobalFooter = Boolean(renderContext?.document.global?.footerNode);
     const children = (node.children || []).filter((child) => {
       if (!filterChrome) return true;
-      if (hasGlobalHeader && child.type === 'navbar') return false;
-      if (hasGlobalFooter && child.type === 'footer') return false;
+      if (hasGlobalHeader && (child.type === 'navbar' || isNavbarNode(child))) return false;
+      if (hasGlobalFooter && (child.type === 'footer' || isFooterNode(child))) return false;
       return true;
     });
 
