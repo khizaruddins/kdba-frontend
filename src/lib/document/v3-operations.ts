@@ -387,6 +387,11 @@ export function createDefaultNode(
     styles: partial?.styles || {},
     responsive: partial?.responsive || {},
     visibility: partial?.visibility || { desktop: true, tablet: true, mobile: true },
+    ...(partial?.animations ? { animations: partial.animations } : {}),
+    ...(partial?.interactions ? { interactions: partial.interactions } : {}),
+    ...(partial?.states ? { states: partial.states } : {}),
+    ...(partial?.binding ? { binding: partial.binding } : {}),
+    ...(partial?.locked !== undefined ? { locked: partial.locked } : {}),
   };
 }
 

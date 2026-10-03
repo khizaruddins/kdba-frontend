@@ -7,6 +7,7 @@ import { V3RenderProvider } from './V3RenderContext';
 import { getThemeLayoutTokens, resolveThemeColor } from '@/lib/editor/theme-tokens';
 import { CmsRenderPayload } from '@/lib/cms/bindings';
 import { CmsRecord } from '@/types/cms';
+import { buildGoogleFontsUrl, extractAllDocumentFonts, formatFontFamilyWithFallback } from '@/lib/fonts/google-fonts';
 
 export interface V3WebsiteRendererProps {
   document: WebsiteDocumentV3;
@@ -18,6 +19,7 @@ export interface V3WebsiteRendererProps {
   onCommitProps?: (nodeId: string, props: Record<string, unknown>) => void;
   onEndInlineEdit?: () => void;
   onStartInlineEdit?: (nodeId: string) => void;
+  onNavigate?: (url: string) => void;
   className?: string;
   style?: React.CSSProperties;
   tenantSlug?: string | null;
@@ -35,6 +37,7 @@ export function V3WebsiteRenderer({
   onCommitProps,
   onEndInlineEdit,
   onStartInlineEdit,
+  onNavigate,
   className = '',
   style = {},
   tenantSlug,
@@ -79,6 +82,41 @@ export function V3WebsiteRenderer({
   const headingScale = Number(layoutTokens.headingScale) || 1;
   const bodyScale = Number(layoutTokens.bodyScale) || 1;
 
+  const rawHeadingFont =
+    document.theme?.typography?.headingFont ||
+    document.theme?.headingFont ||
+    document.theme?.typography?.h1?.fontFamily ||
+    'Inter';
+  const rawBodyFont =
+    document.theme?.typography?.bodyFont ||
+    document.theme?.bodyFont ||
+    document.theme?.typography?.body?.fontFamily ||
+    'Inter';
+
+  const headingFont = formatFontFamilyWithFallback(rawHeadingFont);
+  const bodyFont = formatFontFamilyWithFallback(rawBodyFont);
+
+  const googleFontsUrl = React.useMemo(() => {
+    const fonts = extractAllDocumentFonts(document as unknown as Record<string, unknown>);
+    return buildGoogleFontsUrl(fonts);
+  }, [document]);
+
+  // Inject Google Fonts into the real document <head> so they load in the editor canvas too
+  React.useEffect(() => {
+    if (!googleFontsUrl || typeof window === 'undefined') return;
+    const linkId = 'kdba-google-fonts';
+    let link = window.document.getElementById(linkId) as HTMLLinkElement | null;
+    if (!link) {
+      link = window.document.createElement('link');
+      link.id = linkId;
+      link.rel = 'stylesheet';
+      window.document.head.appendChild(link);
+    }
+    if (link.href !== googleFontsUrl) {
+      link.href = googleFontsUrl;
+    }
+  }, [googleFontsUrl]);
+
   const cssVariables = {
     '--kdba-primary': themeColors.primary,
     '--kdba-secondary': themeColors.secondary,
@@ -88,16 +126,8 @@ export function V3WebsiteRenderer({
     '--kdba-text': themeColors.text,
     '--kdba-muted': themeColors.muted,
     '--kdba-border': themeColors.border,
-    '--kdba-font-heading':
-      document.theme?.typography?.headingFont ||
-      document.theme?.headingFont ||
-      document.theme?.typography?.h1?.fontFamily ||
-      'Inter',
-    '--kdba-font-body':
-      document.theme?.typography?.bodyFont ||
-      document.theme?.bodyFont ||
-      document.theme?.typography?.body?.fontFamily ||
-      'Inter',
+    '--kdba-font-heading': headingFont,
+    '--kdba-font-body': bodyFont,
     '--kdba-container-max': layoutTokens.containerMaxWidth,
     '--kdba-button-radius': layoutTokens.buttonRadius,
     '--kdba-button-bg': resolveThemeColor(layoutTokens.buttonBackground) || layoutTokens.buttonBackground,
@@ -133,12 +163,17 @@ export function V3WebsiteRenderer({
         tenantSlug: tenantSlug || document.settings?.subdomain || document.settings?.customDomain || null,
         cms,
         activeRecord,
+        onNavigate,
       }}
     >
       <div
         style={cssVariables}
         className={`min-h-screen w-full bg-[var(--kdba-background)] text-[var(--kdba-text)] ${className}`}
       >
+        {googleFontsUrl && (
+          // eslint-disable-next-line @next/next/no-page-custom-font
+          <link rel="stylesheet" href={googleFontsUrl} />
+        )}
         <style>{`
           .kdba-node[data-has-hover]:hover {
             background-color: var(--kdba-hover-bg, inherit);
@@ -149,6 +184,46 @@ export function V3WebsiteRenderer({
           .kdba-node[data-disabled="true"] {
             opacity: 0.55;
             pointer-events: none;
+          }
+          @keyframes kdba-fade {
+            from { opacity: 0; }
+            to { opacity: 1; }
+          }
+          @keyframes kdba-fade-up {
+            from { opacity: 0; transform: translateY(24px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+          @keyframes kdba-fade-down {
+            from { opacity: 0; transform: translateY(-24px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+          @keyframes kdba-fade-left {
+            from { opacity: 0; transform: translateX(32px); }
+            to { opacity: 1; transform: translateX(0); }
+          }
+          @keyframes kdba-fade-right {
+            from { opacity: 0; transform: translateX(-32px); }
+            to { opacity: 1; transform: translateX(0); }
+          }
+          @keyframes kdba-scale {
+            from { opacity: 0; transform: scale(0.92); }
+            to { opacity: 1; transform: scale(1); }
+          }
+          @keyframes kdba-slide {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+          }
+          @keyframes kdba-blur-in {
+            from { opacity: 0; filter: blur(12px); transform: scale(0.98); }
+            to { opacity: 1; filter: blur(0); transform: scale(1); }
+          }
+          /* on-hover animation trigger */
+          .kdba-node[data-anim-hover]:hover {
+            animation-name: var(--kdba-hover-anim-name);
+            animation-duration: var(--kdba-hover-anim-duration, 600ms);
+            animation-delay: var(--kdba-hover-anim-delay, 0ms);
+            animation-timing-function: var(--kdba-hover-anim-easing, cubic-bezier(0.16, 1, 0.3, 1));
+            animation-fill-mode: both;
           }
         `}</style>
         {document.global?.headerNode && (

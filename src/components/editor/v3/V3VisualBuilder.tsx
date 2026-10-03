@@ -59,6 +59,7 @@ export function V3VisualBuilder() {
   const websiteId = useV3EditorStore((s) => s.websiteId);
   const document = useV3EditorStore((s) => s.document);
   const removeNode = useV3EditorStore((s) => s.removeNode);
+  const duplicateNode = useV3EditorStore((s) => s.duplicateNode);
   const selectedNodeId = useV3EditorStore((s) => s.selectedNodeId);
   const copySelectedNode = useV3EditorStore((s) => s.copySelectedNode);
   const pasteClipboard = useV3EditorStore((s) => s.pasteClipboard);
@@ -117,6 +118,11 @@ export function V3VisualBuilder() {
       } else if (cmd && e.key.toLowerCase() === 'v') {
         e.preventDefault();
         pasteClipboard();
+      } else if (cmd && e.key.toLowerCase() === 'd') {
+        if (selectedNodeId) {
+          e.preventDefault();
+          duplicateNode(selectedNodeId);
+        }
       } else if (e.key === 'Escape') {
         setSelectedNodeId(null);
       } else if ((e.key === 'Delete' || e.key === 'Backspace') && selectedNodeId) {

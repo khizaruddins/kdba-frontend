@@ -19,6 +19,7 @@ export function useV3Autosave() {
   const timeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastCallAtRef = React.useRef(0);
   const lastAttemptedDocRef = React.useRef<typeof document>(null);
+  const scheduleRef = React.useRef<() => void>(() => {});
 
   const schedule = React.useCallback(() => {
     if (timeoutRef.current) {
@@ -39,7 +40,7 @@ export function useV3Autosave() {
       const next = useV3EditorStore.getState();
       if (!next.isDirty || !next.document) return;
       if (next.isDragging || next.isInlineEditing) {
-        schedule();
+        scheduleRef.current();
         return;
       }
       if (next.saveStatus === 'saving') return;
@@ -50,6 +51,8 @@ export function useV3Autosave() {
       void next.saveDocument();
     }, wait);
   }, []);
+
+  scheduleRef.current = schedule;
 
   React.useEffect(() => {
     schedule();

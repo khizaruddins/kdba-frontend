@@ -6,12 +6,11 @@ import { useV3EditorStore } from '@/stores/v3-editor-store';
 import {
   AlignCenter,
   Columns2,
-  PanelLeft,
-  PanelRight,
   LayoutGrid,
   Grid,
-  Minimize2,
   Check,
+  Rows,
+  ArrowLeftRight,
 } from 'lucide-react';
 
 export interface ChangeLayoutModalProps {
@@ -25,58 +24,123 @@ interface LayoutOption {
   name: string;
   description: string;
   icon: React.ReactNode;
-  previewClass: string;
+  diagram: React.ReactNode;
 }
 
 const LAYOUT_OPTIONS: LayoutOption[] = [
   {
-    id: 'centered',
-    name: 'Centered High-Impact',
-    description: 'Hero or statement layout with centrally aligned text and focused CTA.',
-    icon: <AlignCenter className="w-5 h-5 text-indigo-400" />,
-    previewClass: 'flex flex-col items-center justify-center text-center',
+    id: '1-col',
+    name: '1 Column (Centered)',
+    description: 'Statement layout with centered content, generous margin, and focused call to action.',
+    icon: <AlignCenter className="w-4 h-4 text-primary" />,
+    diagram: (
+      <div className="w-16 h-10 rounded border border-border bg-muted/30 p-1 flex flex-col items-center justify-center gap-1">
+        <div className="w-10 h-2 rounded bg-primary/70" />
+        <div className="w-7 h-1.5 rounded bg-muted-foreground/40" />
+      </div>
+    ),
   },
   {
-    id: 'split',
-    name: 'Balanced 2-Column Split',
-    description: 'Equal 50/50 two-column split for copy and media side-by-side.',
-    icon: <Columns2 className="w-5 h-5 text-indigo-400" />,
-    previewClass: 'grid grid-cols-2 gap-2',
+    id: '50-50',
+    name: '2 Columns (50 / 50)',
+    description: 'Balanced two-column split with equal space for copy and visual media.',
+    icon: <Columns2 className="w-4 h-4 text-primary" />,
+    diagram: (
+      <div className="w-16 h-10 rounded border border-border bg-muted/30 p-1 grid grid-cols-2 gap-1 items-center">
+        <div className="h-full rounded bg-primary/40 border border-primary/30" />
+        <div className="h-full rounded bg-muted-foreground/30" />
+      </div>
+    ),
   },
   {
-    id: 'image-left',
-    name: 'Image Left / Copy Right',
-    description: 'Showcase visual on the left with supporting narrative on the right.',
-    icon: <PanelLeft className="w-5 h-5 text-indigo-400" />,
-    previewClass: 'grid grid-cols-2 gap-2',
+    id: '40-60',
+    name: '40 / 60 Split',
+    description: 'Compact side column (40%) paired with prominent showcase area (60%).',
+    icon: <Columns2 className="w-4 h-4 text-primary" />,
+    diagram: (
+      <div className="w-16 h-10 rounded border border-border bg-muted/30 p-1 flex gap-1 items-center">
+        <div className="w-[40%] h-full rounded bg-muted-foreground/30" />
+        <div className="w-[60%] h-full rounded bg-primary/40 border border-primary/30" />
+      </div>
+    ),
   },
   {
-    id: 'image-right',
-    name: 'Copy Left / Image Right',
-    description: 'Classic reading hierarchy: value proposition first, imagery second.',
-    icon: <PanelRight className="w-5 h-5 text-indigo-400" />,
-    previewClass: 'grid grid-cols-2 gap-2',
+    id: '60-40',
+    name: '60 / 40 Split',
+    description: 'Prominent headline narrative (60%) paired with compact media column (40%).',
+    icon: <Columns2 className="w-4 h-4 text-primary" />,
+    diagram: (
+      <div className="w-16 h-10 rounded border border-border bg-muted/30 p-1 flex gap-1 items-center">
+        <div className="w-[60%] h-full rounded bg-primary/40 border border-primary/30" />
+        <div className="w-[40%] h-full rounded bg-muted-foreground/30" />
+      </div>
+    ),
+  },
+  {
+    id: 'split-reverse',
+    name: 'Swap Order (Reversed)',
+    description: 'Flip element sequence (e.g. Media | Copy becomes Copy | Media) preserving nodes.',
+    icon: <ArrowLeftRight className="w-4 h-4 text-primary" />,
+    diagram: (
+      <div className="w-16 h-10 rounded border border-border bg-muted/30 p-1 grid grid-cols-2 gap-1 items-center">
+        <div className="h-full rounded bg-muted-foreground/30" />
+        <div className="h-full rounded bg-primary/40 border border-primary/30" />
+      </div>
+    ),
+  },
+  {
+    id: '3-col',
+    name: '3 Columns',
+    description: 'Three equal columns designed for feature cards, testimonials, or services.',
+    icon: <Grid className="w-4 h-4 text-primary" />,
+    diagram: (
+      <div className="w-16 h-10 rounded border border-border bg-muted/30 p-1 grid grid-cols-3 gap-1 items-center">
+        <div className="h-full rounded bg-muted-foreground/30" />
+        <div className="h-full rounded bg-primary/40 border border-primary/30" />
+        <div className="h-full rounded bg-muted-foreground/30" />
+      </div>
+    ),
   },
   {
     id: 'bento',
-    name: 'Bento Grid Layout',
-    description: 'Asymmetric 3-column bento architecture for modern feature highlights.',
-    icon: <LayoutGrid className="w-5 h-5 text-indigo-400" />,
-    previewClass: 'grid grid-cols-3 gap-1.5',
+    name: 'Bento Grid',
+    description: 'Modern asymmetric mosaic grid with varying cell proportions for rich feature stories.',
+    icon: <LayoutGrid className="w-4 h-4 text-primary" />,
+    diagram: (
+      <div className="w-16 h-10 rounded border border-border bg-muted/30 p-1 grid grid-cols-3 gap-1">
+        <div className="col-span-2 h-4 rounded bg-primary/40 border border-primary/30" />
+        <div className="h-4 rounded bg-muted-foreground/30" />
+        <div className="h-3 rounded bg-muted-foreground/30" />
+        <div className="col-span-2 h-3 rounded bg-muted-foreground/30" />
+      </div>
+    ),
+  },
+  {
+    id: 'stack',
+    name: 'Stack',
+    description: 'Sequential vertical stack with configurable spacing between elements.',
+    icon: <Rows className="w-4 h-4 text-primary" />,
+    diagram: (
+      <div className="w-16 h-10 rounded border border-border bg-muted/30 p-1 flex flex-col justify-between">
+        <div className="w-full h-2 rounded bg-primary/40 border border-primary/30" />
+        <div className="w-full h-2 rounded bg-muted-foreground/30" />
+        <div className="w-full h-2 rounded bg-muted-foreground/30" />
+      </div>
+    ),
   },
   {
     id: 'grid',
     name: 'Multi-Column Grid',
-    description: 'Equal grid cards for features, pricing tiers, or team members.',
-    icon: <Grid className="w-5 h-5 text-indigo-400" />,
-    previewClass: 'grid grid-cols-3 gap-2',
-  },
-  {
-    id: 'minimal',
-    name: 'Minimal Clean',
-    description: 'Streamlined single-column with generous whitespace and clear focus.',
-    icon: <Minimize2 className="w-5 h-5 text-indigo-400" />,
-    previewClass: 'flex flex-col items-start',
+    description: 'Responsive card grid with automatic wrap and uniform gaps.',
+    icon: <Grid className="w-4 h-4 text-primary" />,
+    diagram: (
+      <div className="w-16 h-10 rounded border border-border bg-muted/30 p-1 grid grid-cols-2 gap-1">
+        <div className="h-3 rounded bg-muted-foreground/30" />
+        <div className="h-3 rounded bg-primary/40" />
+        <div className="h-3 rounded bg-primary/40" />
+        <div className="h-3 rounded bg-muted-foreground/30" />
+      </div>
+    ),
   },
 ];
 
@@ -88,7 +152,7 @@ export function ChangeLayoutModal({
   const { findNode, changeLayout } = useV3EditorStore();
 
   const section = sectionId ? findNode(sectionId) : null;
-  const currentLayout = (section?.props?.layoutVariant as string) || 'centered';
+  const currentLayout = (section?.props?.layoutVariant as string) || '1-col';
 
   const handleSelectLayout = (layoutId: string) => {
     changeLayout(sectionId, layoutId);
@@ -103,7 +167,7 @@ export function ChangeLayoutModal({
       description="Choose a layout structure. Existing text, buttons, and media will be preserved automatically."
       maxWidth="xl"
     >
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 pt-2">
         {LAYOUT_OPTIONS.map((layout) => {
           const isSelected = currentLayout === layout.id;
           return (
@@ -111,37 +175,32 @@ export function ChangeLayoutModal({
               key={layout.id}
               type="button"
               onClick={() => handleSelectLayout(layout.id)}
-              className={`flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all group ${
+              className={`flex flex-col items-start gap-2.5 p-3 rounded-xl border text-left transition-all group ${
                 isSelected
-                  ? 'bg-indigo-600/10 border-indigo-500 ring-2 ring-indigo-500/30'
-                  : 'bg-slate-900/60 border-slate-800 hover:border-slate-700 hover:bg-slate-900'
+                  ? 'bg-primary/10 border-primary ring-2 ring-primary/30 shadow-sm'
+                  : 'bg-card border-border hover:border-primary/50 hover:bg-muted/40'
               }`}
             >
-              <div
-                className={`p-2.5 rounded-lg shrink-0 border ${
-                  isSelected
-                    ? 'bg-indigo-600/20 border-indigo-500/40 text-indigo-300'
-                    : 'bg-slate-950 border-slate-800 text-slate-400 group-hover:text-white'
-                }`}
-              >
-                {layout.icon}
+              <div className="w-full flex items-center justify-between">
+                <div className="flex items-center gap-1.5 font-semibold text-xs text-foreground">
+                  {layout.icon}
+                  <span>{layout.name}</span>
+                </div>
+                {isSelected && (
+                  <span className="w-4 h-4 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[10px] shrink-0 shadow">
+                    <Check className="w-2.5 h-2.5" />
+                  </span>
+                )}
               </div>
 
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between mb-1">
-                  <h4 className="font-semibold text-xs text-white truncate">
-                    {layout.name}
-                  </h4>
-                  {isSelected && (
-                    <span className="w-4 h-4 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px] shrink-0">
-                      <Check className="w-2.5 h-2.5" />
-                    </span>
-                  )}
-                </div>
-                <p className="text-[11px] text-slate-400 line-clamp-2 leading-relaxed">
-                  {layout.description}
-                </p>
+              {/* Visual Diagram */}
+              <div className="w-full flex justify-center py-1">
+                {layout.diagram}
               </div>
+
+              <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
+                {layout.description}
+              </p>
             </button>
           );
         })}

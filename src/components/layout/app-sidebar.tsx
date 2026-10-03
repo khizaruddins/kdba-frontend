@@ -6,10 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth-store';
 import {
   BarChart3,
-  Briefcase,
-  Building2,
   ChevronDown,
-  CreditCard,
   ExternalLink,
   FileText,
   FolderKanban,
@@ -19,12 +16,19 @@ import {
   LayoutDashboard,
   LayoutTemplate,
   LogOut,
-  MessageSquareQuote,
   Newspaper,
   Settings,
-  ShoppingBag,
   Users,
+  Building2,
   UsersRound,
+  MessageSquareQuote,
+  Briefcase,
+  Network,
+  Palette,
+  Tags,
+  AlignLeft,
+  FormInput,
+  LineChart,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -40,7 +44,6 @@ import {
   SidebarRail,
   SidebarSeparator,
 } from '@/components/ui/sidebar';
-import { BUILTIN_CONTENT_LINKS } from '@/types/cms';
 import { ThemeToggle } from '@/components/kdba/theme-toggle';
 import { HelpDialog } from '@/components/kdba/help-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -55,32 +58,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
-const PRIMARY_NAV = [
-  { name: 'Overview', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Websites', href: '/websites', icon: Globe },
-  { name: 'Templates', href: '/templates', icon: LayoutTemplate },
-  { name: 'Media', href: '/media', icon: ImageIcon },
-  { name: 'Forms', href: '/leads', icon: Users },
-  { name: 'Analytics', href: '/analytics', icon: BarChart3 },
-];
-
-const CATALOG_NAV = [
-  { name: 'Products', href: '/products', icon: ShoppingBag },
-  { name: 'Pricing', href: '/pricing', icon: CreditCard },
-];
-
-const CONTENT_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
-  'blog-posts': Newspaper,
-  services: Briefcase,
-  team: UsersRound,
-  testimonials: MessageSquareQuote,
-  faq: HelpCircle,
-  projects: FolderKanban,
-};
-
 function isActivePath(pathname: string, href: string) {
   if (href === '/dashboard') return pathname === '/dashboard';
   if (href === '/settings') return pathname === '/settings' || pathname.startsWith('/business');
+  if (href === '/websites') return pathname === '/websites' || pathname === '/editor';
   if (href === '/content') return pathname === '/content';
   return pathname === href || pathname.startsWith(`${href}/`);
 }
@@ -99,6 +80,8 @@ export function AppSidebar() {
       .then((data) => setSites(Array.isArray(data) ? data : []))
       .catch(() => setSites([]));
   }, []);
+
+  const builderUrl = sites.length > 0 ? `/editor/${sites[0].id}` : '/websites';
 
   return (
     <Sidebar collapsible="icon" variant="inset">
@@ -152,82 +135,105 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
+        {/* OVERVIEW */}
         <SidebarGroup>
-          <SidebarGroupLabel>Workspace</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {PRIMARY_NAV.map((item) => (
-                <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={isActivePath(pathname, item.href)}
-                    tooltip={item.name}
-                  >
-                    <Link href={item.href}>
-                      <item.icon />
-                      <span>{item.name}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={isActivePath(pathname, '/dashboard')} tooltip="Overview">
+                  <Link href="/dashboard">
+                    <LayoutDashboard />
+                    <span>Overview</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
 
+        {/* WEBSITE */}
+        <SidebarGroup>
+          <SidebarGroupLabel>Website</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={pathname.startsWith('/editor')} tooltip="Builder">
+                  <Link href={builderUrl}>
+                    <LayoutTemplate />
+                    <span>Builder</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={isActivePath(pathname, '/websites')} tooltip="Pages">
+                  <Link href="/websites">
+                    <FileText />
+                    <span>Pages</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={isActivePath(pathname, '/website/navigation')} tooltip="Navigation">
+                  <Link href="/website/navigation">
+                    <Network />
+                    <span>Navigation</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild tooltip="Theme & Design">
+                  <Link href="/websites">
+                    <Palette />
+                    <span>Theme & Design</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* CONTENT */}
         <SidebarGroup>
           <SidebarGroupLabel>Content</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={isActivePath(pathname, '/content')}
-                  tooltip="Content"
-                >
-                  <Link href="/content">
-                    <FileText />
-                    <span>Overview</span>
+                <SidebarMenuButton asChild isActive={isActivePath(pathname, '/content/blog-posts')} tooltip="Posts">
+                  <Link href="/content/blog-posts">
+                    <Newspaper />
+                    <span>Posts</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={isActivePath(pathname, '/content/collections')}
-                  tooltip="Collections"
-                >
-                  <Link href="/content/collections">
+                <SidebarMenuButton asChild isActive={isActivePath(pathname, '/content/authors')} tooltip="Authors">
+                  <Link href="/content/authors">
+                    <UsersRound />
+                    <span>Authors</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={isActivePath(pathname, '/content/categories')} tooltip="Categories">
+                  <Link href="/content/categories">
                     <FolderKanban />
-                    <span>Collections</span>
+                    <span>Categories</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-              {BUILTIN_CONTENT_LINKS.map((item) => {
-                const Icon = CONTENT_ICONS[item.slug] || FileText;
-                return (
-                  <SidebarMenuItem key={item.slug}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActivePath(pathname, item.href)}
-                      tooltip={item.label}
-                    >
-                      <Link href={item.href}>
-                        <Icon />
-                        <span>{item.label}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
               <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={isActivePath(pathname, '/settings')}
-                  tooltip="Business profile"
-                >
-                  <Link href="/settings">
-                    <Building2 />
-                    <span>Business Profile</span>
+                <SidebarMenuButton asChild isActive={isActivePath(pathname, '/content/tags')} tooltip="Tags">
+                  <Link href="/content/tags">
+                    <Tags />
+                    <span>Tags</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={isActivePath(pathname, '/media')} tooltip="Media">
+                  <Link href="/media">
+                    <ImageIcon />
+                    <span>Media</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -235,24 +241,52 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
+        {/* BUSINESS */}
         <SidebarGroup>
-          <SidebarGroupLabel>Catalog</SidebarGroupLabel>
+          <SidebarGroupLabel>Business</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {CATALOG_NAV.map((item) => (
-                <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={isActivePath(pathname, item.href)}
-                    tooltip={item.name}
-                  >
-                    <Link href={item.href}>
-                      <item.icon />
-                      <span>{item.name}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={isActivePath(pathname, '/forms')} tooltip="Forms">
+                  <Link href="/forms">
+                    <FormInput />
+                    <span>Forms</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={isActivePath(pathname, '/leads')} tooltip="Submissions">
+                  <Link href="/leads">
+                    <AlignLeft />
+                    <span>Submissions</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={isActivePath(pathname, '/settings')} tooltip="Business Info">
+                  <Link href="/settings">
+                    <Building2 />
+                    <span>Business Info</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* GROWTH */}
+        <SidebarGroup>
+          <SidebarGroupLabel>Growth</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={isActivePath(pathname, '/seo')} tooltip="SEO">
+                  <Link href="/seo">
+                    <LineChart />
+                    <span>SEO</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

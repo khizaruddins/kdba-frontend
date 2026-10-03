@@ -16,6 +16,7 @@ import { VariantControl } from './controls/VariantControl';
 import { StatesControl } from './controls/StatesControl';
 import { RichTextControl } from './controls/RichTextControl';
 import { BindingControl, CollectionListControl } from './controls/BindingControl';
+import { CmsCollectionControl } from './controls/CmsCollectionControl';
 import { AnimationControl } from './controls/AnimationControl';
 import { cmsApi } from '@/lib/api/cms';
 import { CmsCollection } from '@/types/cms';
@@ -250,14 +251,20 @@ export function V3Inspector() {
     return keywords.some((kw) => kw.toLowerCase().includes(query));
   };
 
-  const showContent = matches(['content', 'text', 'image', 'url', 'settings', 'title', 'button', 'variant', 'props']);
-  const showStates = matches(['states', 'hover', 'active', 'focus', 'interaction', 'color']);
+  const showContent = matches(['content', 'text', 'image', 'url', 'settings', 'title', 'button', 'props']);
+  const showVariant = (!quickMode || query) && matches(['variant', 'style', 'type', 'preset']);
+  const showStates = (!quickMode || query) && matches(['states', 'hover', 'active', 'focus', 'interaction']);
   const showAnimations = matches(['animation', 'animate', 'fade', 'scale', 'slide', 'blur', 'trigger', 'motion']);
   const showLayout = matches(['layout', 'display', 'flex', 'grid', 'columns', 'align', 'gap', 'direction']);
+  const showSize = matches(['size', 'width', 'height', 'min', 'max', 'dimensions']);
   const showSpacing = matches(['spacing', 'margin', 'padding', 'box', 'model', 'gap']);
-  const showBackground = matches(['background', 'color', 'image', 'overlay', 'gradient', 'tint']);
   const showTypography = isTextElement && matches(['typography', 'font', 'size', 'weight', 'color', 'text', 'lineheight']);
-  const showEffects = matches(['effects', 'border', 'radius', 'shadow', 'opacity', 'size', 'width', 'height']);
+  const showColor = matches(['color', 'text color', 'background color', 'border color', 'palette']);
+  const showBackground = matches(['background', 'color', 'image', 'overlay', 'gradient', 'tint']);
+  const showBorder = (!quickMode || query) && matches(['border', 'stroke', 'outline', 'width', 'style']);
+  const showRadius = (!quickMode || query) && matches(['radius', 'corner', 'rounded']);
+  const showShadow = (!quickMode || query) && matches(['shadow', 'elevation', 'blur', 'effects']);
+  const showResponsive = (!quickMode || query) && matches(['responsive', 'mobile', 'tablet', 'desktop', 'visibility', 'override']);
 
   return (
     <aside className="flex h-full w-full min-w-0 shrink-0 flex-col overflow-hidden border-l border-border bg-background z-20 select-none text-foreground">
@@ -427,13 +434,20 @@ export function V3Inspector() {
                   collections={cmsCollections}
                   onChangeBinding={(binding: NodeBinding | undefined) => updateNode(selectedNode.id, { binding })}
                 />
-                {(selectedNode.type === 'section' || selectedNode.type === 'container' || selectedNode.type === 'grid') ? (
+                                {(selectedNode.type === 'section' || selectedNode.type === 'container' || selectedNode.type === 'grid') ? (
                   <CollectionListControl
                     node={selectedNode}
                     collections={cmsCollections}
                     onChangeProps={(propsPatch) => updateProps(selectedNode.id, propsPatch)}
                   />
                 ) : null}
+                {selectedNode.type === 'cms-collection' && (
+                  <CmsCollectionControl
+                    props={selectedNode.props || {}}
+                    onChangeProps={(next) => updateProps(selectedNode.id, next)}
+                    collections={cmsCollections}
+                  />
+                )}
                 {selectedNode.props?.[INSTANCE_OF_PROP] ? (
                   <button type="button" onClick={() => syncReusableFromSelection()} className="w-full h-8 rounded-lg bg-primary/10 border border-primary/40 text-[11px] font-semibold text-primary">Update all instances</button>
                 ) : selectedNode.type !== 'page-root' ? (
@@ -444,147 +458,128 @@ export function V3Inspector() {
           </div>
         )}
 
-        <div className="p-3 bg-muted/30">
-          <button
-            type="button"
-            onClick={() => toggleSection('content')}
-            className="w-full flex items-center justify-between text-xs font-bold text-foreground hover:text-foreground mb-2"
+        {showVariant && (
+          <InspectorSection
+            id="variant"
+            title="Variant"
+            open={openSections.variant}
+            onToggle={() => toggleSection('variant')}
+            overridden={false}
+            viewport={viewport}
           >
-            <div className="flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-primary" />
-              <span>Content & Settings</span>
-            </div>
-            {openSections.content ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />}
-          </button>
-          {openSections.content && (
-            <div className="space-y-3">
-              <RichTextControl
-                node={selectedNode}
-                onChangeProps={(propsPatch) => updateProps(selectedNode.id, propsPatch)}
-                onChangeAlign={(textAlign) => updateStyles(selectedNode.id, { typography: { textAlign } })}
-              />
-              <ContentControl
-                node={selectedNode}
-                onChangeProps={(propsPatch) => updateProps(selectedNode.id, propsPatch)}
-              />
-              <BindingControl
-                node={selectedNode}
-                collections={cmsCollections}
-                onChangeBinding={(binding: NodeBinding | undefined) =>
-                  updateNode(selectedNode.id, { binding })
-                }
-              />
-              {selectedNode.type === 'section' || selectedNode.type === 'container' || selectedNode.type === 'grid' ? (
-                <CollectionListControl
-                  node={selectedNode}
-                  collections={cmsCollections}
-                  onChangeProps={(propsPatch) => updateProps(selectedNode.id, propsPatch)}
-                />
-              ) : null}
-              {selectedNode.props?.[INSTANCE_OF_PROP] ? (
-                <button
-                  type="button"
-                  onClick={() => syncReusableFromSelection()}
-                  className="w-full h-8 rounded-lg bg-primary/10 border border-primary/40 text-[11px] font-semibold text-primary"
-                >
-                  Update all instances
-                </button>
-              ) : selectedNode.type !== 'page-root' ? (
-                <button
-                  type="button"
-                  onClick={() => saveReusableFromSelection()}
-                  className="w-full h-8 rounded-lg bg-muted/50 border border-border text-[11px] font-semibold text-muted-foreground hover:text-foreground"
-                >
-                  Save as reusable
-                </button>
-              ) : null}
-            </div>
-          )}
-        </div>
+            <VariantControl
+              node={selectedNode}
+              onChangeProps={(propsPatch) => updateProps(selectedNode.id, propsPatch)}
+            />
+          </InspectorSection>
+        )}
 
-        <InspectorSection
-          id="variant"
-          title="Variant"
-          open={openSections.variant}
-          onToggle={() => toggleSection('variant')}
-          overridden={false}
-          viewport={viewport}
-        >
-          <VariantControl
-            node={selectedNode}
-            onChangeProps={(propsPatch) => updateProps(selectedNode.id, propsPatch)}
-          />
-        </InspectorSection>
+        {showStates && (
+          <InspectorSection
+            id="states"
+            title="States (Hover / Active)"
+            open={openSections.states}
+            onToggle={() => toggleSection('states')}
+            overridden={false}
+            viewport={viewport}
+          >
+            <StatesControl
+              nodeId={selectedNode.id}
+              states={selectedNode.states}
+              onChangeState={(stateKey, stylesPatch) => updateState(selectedNode.id, stateKey, stylesPatch)}
+            />
+          </InspectorSection>
+        )}
 
+        {showAnimations && (
+          <InspectorSection
+            id="animations"
+            title="Animation"
+            open={openSections.animations}
+            onToggle={() => toggleSection('animations')}
+            overridden={false}
+            viewport={viewport}
+          >
+            <AnimationControl
+              nodeId={selectedNode.id}
+              animation={selectedNode.animations}
+              onChangeAnimation={(animPatch) => updateAnimation(selectedNode.id, animPatch)}
+            />
+          </InspectorSection>
+        )}
 
+        {showLayout && (
+          <InspectorSection
+            id="layout"
+            title="Layout"
+            open={openSections.layout}
+            onToggle={() => toggleSection('layout')}
+            overridden={groupOverridden(['layout', 'flex', 'grid'])}
+            viewport={viewport}
+            onReset={() => resetGroup(['layout', 'flex', 'grid'])}
+          >
+            <LayoutControl
+              layout={styles.layout}
+              flex={styles.flex}
+              grid={styles.grid}
+              onChangeLayout={(layout) => updateStyles(selectedNode.id, { layout })}
+              onChangeFlex={(flex) => updateStyles(selectedNode.id, { flex })}
+              onChangeGrid={(grid) => updateStyles(selectedNode.id, { grid })}
+            />
+            {viewport !== 'desktop' && isStylePathOverridden(selectedNode, viewport, ['layout', 'overflow']) && (
+              <button
+                type="button"
+                onClick={() => resetViewportStylePath(selectedNode.id, ['layout', 'overflow'])}
+                className="mt-2 text-[10px] text-warning hover:underline"
+              >
+                Reset overflow to inherited
+              </button>
+            )}
+          </InspectorSection>
+        )}
 
+        {showSize && (
+          <InspectorSection
+            id="size"
+            title="Size"
+            open={openSections.size}
+            onToggle={() => toggleSection('size')}
+            overridden={groupOverridden(['size'])}
+            viewport={viewport}
+            onReset={() => resetGroup(['size'])}
+          >
+            <SizeControl size={styles.size} onChangeSize={(size) => updateStyles(selectedNode.id, { size })} />
+          </InspectorSection>
+        )}
 
-        <InspectorSection
-          id="layout"
-          title="Layout"
-          open={openSections.layout}
-          onToggle={() => toggleSection('layout')}
-          overridden={groupOverridden(['layout', 'flex', 'grid'])}
-          viewport={viewport}
-          onReset={() => resetGroup(['layout', 'flex', 'grid'])}
-        >
-          <LayoutControl
-            layout={styles.layout}
-            flex={styles.flex}
-            grid={styles.grid}
-            onChangeLayout={(layout) => updateStyles(selectedNode.id, { layout })}
-            onChangeFlex={(flex) => updateStyles(selectedNode.id, { flex })}
-            onChangeGrid={(grid) => updateStyles(selectedNode.id, { grid })}
-          />
-          {viewport !== 'desktop' && isStylePathOverridden(selectedNode, viewport, ['layout', 'overflow']) && (
-            <button
-              type="button"
-              onClick={() => resetViewportStylePath(selectedNode.id, ['layout', 'overflow'])}
-              className="mt-2 text-[10px] text-warning hover:underline"
-            >
-              Reset overflow to inherited
-            </button>
-          )}
-        </InspectorSection>
+        {showSpacing && (
+          <InspectorSection
+            id="spacing"
+            title="Spacing"
+            open={openSections.spacing}
+            onToggle={() => toggleSection('spacing')}
+            overridden={groupOverridden(['spacing'])}
+            viewport={viewport}
+            onReset={() => resetGroup(['spacing'])}
+          >
+            <SpacingBoxModel
+              margin={styles.spacing?.margin}
+              padding={styles.spacing?.padding}
+              onChangeMargin={(margin) =>
+                updateStyles(selectedNode.id, {
+                  spacing: { ...styles.spacing, margin },
+                })
+              }
+              onChangePadding={(padding) =>
+                updateStyles(selectedNode.id, {
+                  spacing: { ...styles.spacing, padding },
+                })
+              }
+            />
+          </InspectorSection>
+        )}
 
-        <InspectorSection
-          id="size"
-          title="Size"
-          open={openSections.size}
-          onToggle={() => toggleSection('size')}
-          overridden={groupOverridden(['size'])}
-          viewport={viewport}
-          onReset={() => resetGroup(['size'])}
-        >
-          <SizeControl size={styles.size} onChangeSize={(size) => updateStyles(selectedNode.id, { size })} />
-        </InspectorSection>
-
-        <InspectorSection
-          id="spacing"
-          title="Spacing"
-          open={openSections.spacing}
-          onToggle={() => toggleSection('spacing')}
-          overridden={groupOverridden(['spacing'])}
-          viewport={viewport}
-          onReset={() => resetGroup(['spacing'])}
-        >
-          <SpacingBoxModel
-            margin={styles.spacing?.margin}
-            padding={styles.spacing?.padding}
-            onChangeMargin={(margin) =>
-              updateStyles(selectedNode.id, {
-                spacing: { ...styles.spacing, margin },
-              })
-            }
-            onChangePadding={(padding) =>
-              updateStyles(selectedNode.id, {
-                spacing: { ...styles.spacing, padding },
-              })
-            }
-          />
-        </InspectorSection>
-
-        {isTextElement && (
+        {showTypography && isTextElement && (
           <InspectorSection
             id="typography"
             title="Typography"
@@ -601,109 +596,121 @@ export function V3Inspector() {
           </InspectorSection>
         )}
 
-        <InspectorSection
-          id="color"
-          title="Color"
-          open={openSections.color}
-          onToggle={() => toggleSection('color')}
-          overridden={groupOverridden(['typography', 'background', 'border'])}
-          viewport={viewport}
-          onReset={() => resetGroup(['typography', 'background', 'border'])}
-        >
-          <div className="space-y-3">
-            <ColorControl
-              label="Text color"
-              value={styles.typography?.color}
-              themeColors={themeColors}
-              onChange={(color) => updateStyles(selectedNode.id, { typography: { color } })}
+        {showColor && (
+          <InspectorSection
+            id="color"
+            title="Color"
+            open={openSections.color}
+            onToggle={() => toggleSection('color')}
+            overridden={groupOverridden(['typography', 'background', 'border'])}
+            viewport={viewport}
+            onReset={() => resetGroup(['typography', 'background', 'border'])}
+          >
+            <div className="space-y-3">
+              <ColorControl
+                label="Text color"
+                value={styles.typography?.color}
+                themeColors={themeColors}
+                onChange={(color) => updateStyles(selectedNode.id, { typography: { color } })}
+              />
+              <ColorControl
+                label="Background color"
+                value={styles.background?.color}
+                themeColors={themeColors}
+                onChange={(color) => updateStyles(selectedNode.id, { background: { color } })}
+              />
+              <ColorControl
+                label="Border color"
+                value={styles.border?.color}
+                themeColors={themeColors}
+                onChange={(color) => updateStyles(selectedNode.id, { border: { color } })}
+              />
+            </div>
+          </InspectorSection>
+        )}
+
+        {showBackground && (
+          <InspectorSection
+            id="background"
+            title="Background"
+            open={openSections.background}
+            onToggle={() => toggleSection('background')}
+            overridden={groupOverridden(['background'])}
+            viewport={viewport}
+            onReset={() => resetGroup(['background'])}
+            icon={<Palette className="w-3.5 h-3.5 text-primary" />}
+          >
+            <BackgroundControl
+              background={styles.background}
+              onChangeBackground={(background) => updateStyles(selectedNode.id, { background })}
             />
-            <ColorControl
-              label="Background color"
-              value={styles.background?.color}
-              themeColors={themeColors}
-              onChange={(color) => updateStyles(selectedNode.id, { background: { color } })}
-            />
-            <ColorControl
-              label="Border color"
-              value={styles.border?.color}
-              themeColors={themeColors}
-              onChange={(color) => updateStyles(selectedNode.id, { border: { color } })}
-            />
-          </div>
-        </InspectorSection>
+          </InspectorSection>
+        )}
 
-        <InspectorSection
-          id="background"
-          title="Background"
-          open={openSections.background}
-          onToggle={() => toggleSection('background')}
-          overridden={groupOverridden(['background'])}
-          viewport={viewport}
-          onReset={() => resetGroup(['background'])}
-          icon={<Palette className="w-3.5 h-3.5 text-primary" />}
-        >
-          <BackgroundControl
-            background={styles.background}
-            onChangeBackground={(background) => updateStyles(selectedNode.id, { background })}
-          />
-        </InspectorSection>
+        {showBorder && (
+          <InspectorSection
+            id="border"
+            title="Border"
+            open={openSections.border}
+            onToggle={() => toggleSection('border')}
+            overridden={groupOverridden(['border'])}
+            viewport={viewport}
+            onReset={() => resetGroup(['border'])}
+          >
+            <EffectsControl {...effectsProps} section="border" />
+          </InspectorSection>
+        )}
 
-        <InspectorSection
-          id="border"
-          title="Border"
-          open={openSections.border}
-          onToggle={() => toggleSection('border')}
-          overridden={groupOverridden(['border'])}
-          viewport={viewport}
-          onReset={() => resetGroup(['border'])}
-        >
-          <EffectsControl {...effectsProps} section="border" />
-        </InspectorSection>
+        {showRadius && (
+          <InspectorSection
+            id="radius"
+            title="Radius"
+            open={openSections.radius}
+            onToggle={() => toggleSection('radius')}
+            overridden={groupOverridden(['border'])}
+            viewport={viewport}
+            onReset={() => resetGroup(['border'])}
+          >
+            <EffectsControl {...effectsProps} section="radius" />
+          </InspectorSection>
+        )}
 
-        <InspectorSection
-          id="radius"
-          title="Radius"
-          open={openSections.radius}
-          onToggle={() => toggleSection('radius')}
-          overridden={groupOverridden(['border'])}
-          viewport={viewport}
-          onReset={() => resetGroup(['border'])}
-        >
-          <EffectsControl {...effectsProps} section="radius" />
-        </InspectorSection>
+        {showShadow && (
+          <InspectorSection
+            id="shadow"
+            title="Shadow"
+            open={openSections.shadow}
+            onToggle={() => toggleSection('shadow')}
+            overridden={groupOverridden(['effects'])}
+            viewport={viewport}
+            onReset={() => resetGroup(['effects'])}
+          >
+            <EffectsControl {...effectsProps} section="shadow" />
+          </InspectorSection>
+        )}
 
-        <InspectorSection
-          id="shadow"
-          title="Shadow"
-          open={openSections.shadow}
-          onToggle={() => toggleSection('shadow')}
-          overridden={groupOverridden(['effects'])}
-          viewport={viewport}
-          onReset={() => resetGroup(['effects'])}
-        >
-          <EffectsControl {...effectsProps} section="shadow" />
-        </InspectorSection>
-
-        <InspectorSection
-          id="responsive"
-          title="Responsive"
-          open={openSections.responsive}
-          onToggle={() => toggleSection('responsive')}
-          overridden={hasResponsiveOverride}
-          viewport={viewport}
-          onReset={() => resetViewportStyles(selectedNode.id)}
-        >
-          <div className="space-y-3">
-            <p className="text-[11px] text-muted-foreground leading-relaxed">
-              Tablet and mobile edits are stored as overrides. Desktop values stay intact until you change them on
-              desktop.
-            </p>
-            <VisibilityControl
-              visibility={selectedNode.visibility}
-              onChange={(visibility) => setVisibility(selectedNode.id, visibility)}
-            />
-          </div>
-        </InspectorSection>
+        {showResponsive && (
+          <InspectorSection
+            id="responsive"
+            title="Responsive"
+            open={openSections.responsive}
+            onToggle={() => toggleSection('responsive')}
+            overridden={hasResponsiveOverride}
+            viewport={viewport}
+            onReset={() => resetViewportStyles(selectedNode.id)}
+          >
+            <div className="space-y-3">
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                Tablet and mobile edits are stored as overrides. Desktop values stay intact until you change them on
+                desktop.
+              </p>
+              <VisibilityControl
+                visibility={selectedNode.visibility}
+                onChange={(visibility) => setVisibility(selectedNode.id, visibility)}
+              />
+            </div>
+          </InspectorSection>
+        )}
       </div>
     </aside>
   );

@@ -122,6 +122,9 @@ function contactForm(variant = 'stacked'): WebsiteNode {
   });
 }
 
+
+import { CMS_SECTION_PRESETS } from './cms-presets';
+
 export const SECTION_PRESETS: SectionPreset[] = [
   {
     id: 'hero',
@@ -955,6 +958,7 @@ export const SECTION_PRESETS: SectionPreset[] = [
         '#0B0D13',
       ),
   },
+  ...CMS_SECTION_PRESETS,
 ];
 
 export const CONTACT_LAYOUT_PRESETS = [

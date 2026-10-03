@@ -18,11 +18,20 @@ import {
   Plus,
   ShoppingBag,
   Users,
+  FileText,
+  Image as ImageIcon,
+  Building2,
+  Inbox,
+  CheckCircle2,
+  Sparkles,
+  ExternalLink,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { cmsApi } from '@/lib/api/cms';
+import { CmsRecord } from '@/types/cms';
 import { PageHeader } from '@/components/kdba/page-header';
 import { StatCard } from '@/components/kdba/stat-card';
 import { WebsiteActionsMenu } from '@/components/kdba/website-actions-menu';
@@ -83,6 +92,27 @@ export default function DashboardPage() {
   const pipelineTotal = Math.max(data.leads.total, 1);
   const series = data.leads.series ?? [];
   const periodLeads = data.leads.periodCounts?.total ?? 0;
+
+  const [recentPosts, setRecentPosts] = React.useState<CmsRecord[]>([]);
+
+  React.useEffect(() => {
+    if (!primaryWebsite?.id) return;
+    void (async () => {
+      try {
+        await cmsApi.bootstrap(primaryWebsite.id);
+        const colls = await cmsApi.listCollections(primaryWebsite.id);
+        const blogColl = colls.find((c) => c.slug === 'blog-posts');
+        if (blogColl) {
+          const res = await cmsApi.listRecords(primaryWebsite.id, blogColl.id, { pageSize: 5 });
+          setRecentPosts(res.data || []);
+        } else {
+          setRecentPosts([]);
+        }
+      } catch {
+        setRecentPosts([]);
+      }
+    })();
+  }, [primaryWebsite?.id]);
 
   const activity = React.useMemo(() => {
     const items = [
@@ -160,35 +190,104 @@ export default function DashboardPage() {
         }
       />
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {[
-          { href: '/templates', title: 'Create website', body: 'Start from an industry template.' },
-          { href: '/templates', title: 'Start from template', body: 'Browse the template library.' },
-          {
-            href: primaryWebsite ? `/editor/${primaryWebsite.id}` : '/websites',
-            title: 'Open recent website',
-            body: primaryWebsite ? primaryWebsite.name : 'No sites yet — create one first.',
-          },
-        ].map((action) => (
-          <Link key={action.title} href={action.href}>
-            <Card className="h-full transition-colors hover:bg-muted/40">
-              <CardHeader>
-                <CardTitle className="text-sm">{action.title}</CardTitle>
-                <CardDescription>{action.body}</CardDescription>
-              </CardHeader>
+      {/* M4 Quick Actions */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            Quick Actions
+          </h3>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+          <Link
+            href={primaryWebsite ? `/editor/${primaryWebsite.id}` : '/websites'}
+            className="group"
+          >
+            <Card className="h-full border-border bg-card/60 transition-all hover:border-primary/50 hover:bg-muted/30">
+              <CardContent className="flex flex-col items-start p-4 space-y-2">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary group-hover:scale-105 transition-transform">
+                  <Pencil className="h-4 w-4" />
+                </div>
+                <div className="space-y-0.5">
+                  <p className="text-sm font-semibold text-foreground">Edit Website</p>
+                  <p className="text-[11px] text-muted-foreground">Launch visual canvas</p>
+                </div>
+              </CardContent>
             </Card>
           </Link>
-        ))}
-        <button type="button" className="text-left" onClick={() => void handleCreateBlank()} disabled={isCreatingBlank}>
-          <Card className="h-full transition-colors hover:bg-muted/40">
-            <CardHeader>
-              <CardTitle className="text-sm">Create blank website</CardTitle>
-              <CardDescription>
-                {isCreatingBlank ? 'Creating…' : 'Start empty and add blocks in the editor.'}
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        </button>
+
+          <Link
+            href={primaryWebsite ? `/editor/${primaryWebsite.id}` : '/templates'}
+            className="group"
+          >
+            <Card className="h-full border-border bg-card/60 transition-all hover:border-primary/50 hover:bg-muted/30">
+              <CardContent className="flex flex-col items-start p-4 space-y-2">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-500 group-hover:scale-105 transition-transform">
+                  <Plus className="h-4 w-4" />
+                </div>
+                <div className="space-y-0.5">
+                  <p className="text-sm font-semibold text-foreground">Add Page</p>
+                  <p className="text-[11px] text-muted-foreground">Create a new route</p>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/content/blog-posts/new" className="group">
+            <Card className="h-full border-border bg-card/60 transition-all hover:border-primary/50 hover:bg-muted/30">
+              <CardContent className="flex flex-col items-start p-4 space-y-2">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-500/10 text-sky-500 group-hover:scale-105 transition-transform">
+                  <FileText className="h-4 w-4" />
+                </div>
+                <div className="space-y-0.5">
+                  <p className="text-sm font-semibold text-foreground">Create Post</p>
+                  <p className="text-[11px] text-muted-foreground">Write blog article</p>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/media" className="group">
+            <Card className="h-full border-border bg-card/60 transition-all hover:border-primary/50 hover:bg-muted/30">
+              <CardContent className="flex flex-col items-start p-4 space-y-2">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500 group-hover:scale-105 transition-transform">
+                  <ImageIcon className="h-4 w-4" />
+                </div>
+                <div className="space-y-0.5">
+                  <p className="text-sm font-semibold text-foreground">Upload Media</p>
+                  <p className="text-[11px] text-muted-foreground">Assets & library</p>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/leads" className="group">
+            <Card className="h-full border-border bg-card/60 transition-all hover:border-primary/50 hover:bg-muted/30">
+              <CardContent className="flex flex-col items-start p-4 space-y-2">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500/10 text-amber-500 group-hover:scale-105 transition-transform">
+                  <Inbox className="h-4 w-4" />
+                </div>
+                <div className="space-y-0.5">
+                  <p className="text-sm font-semibold text-foreground">Submissions</p>
+                  <p className="text-[11px] text-muted-foreground">Inbound inquiries</p>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/settings" className="group">
+            <Card className="h-full border-border bg-card/60 transition-all hover:border-primary/50 hover:bg-muted/30">
+              <CardContent className="flex flex-col items-start p-4 space-y-2">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-500/10 text-purple-500 group-hover:scale-105 transition-transform">
+                  <Building2 className="h-4 w-4" />
+                </div>
+                <div className="space-y-0.5">
+                  <p className="text-sm font-semibold text-foreground">Business Info</p>
+                  <p className="text-[11px] text-muted-foreground">Profile & socials</p>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        </div>
       </div>
 
       <Card>
@@ -431,37 +530,95 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent activity</CardTitle>
-          <CardDescription>Website edits and inbound form submissions from this workspace.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="space-y-3">
-              {[1, 2, 3].map((i) => (
-                <Skeleton key={i} className="h-10 w-full" />
-              ))}
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* Recent Blog Posts */}
+        <Card>
+          <CardHeader className="flex flex-row items-start justify-between">
+            <div>
+              <CardTitle>Recent Blog Posts</CardTitle>
+              <CardDescription>Published articles and drafts managed in your CMS.</CardDescription>
             </div>
-          ) : activity.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Activity appears here after you edit a website or receive a form submission.
-            </p>
-          ) : (
-            <ul className="divide-y">
-              {activity.map((item) => (
-                <li key={item.id} className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium">{item.title}</p>
-                    <p className="truncate text-xs text-muted-foreground">{item.detail}</p>
-                  </div>
-                  <span className="shrink-0 text-xs text-muted-foreground">{formatDate(item.at)}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
+            <Button variant="ghost" size="sm" asChild>
+              <Link href="/content/blog-posts">
+                View all
+                <ArrowRight />
+              </Link>
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {recentPosts.length === 0 ? (
+              <EmptyState
+                icon={<FileText className="size-5 text-muted-foreground" />}
+                title="No blog posts yet"
+                description="Write your first article with the Medium-quality rich text editor."
+                actionLabel="Create Post"
+                onAction={() => router.push('/content/blog-posts/new')}
+                className="min-h-0 border-0 bg-transparent py-4"
+              />
+            ) : (
+              <ul className="divide-y">
+                {recentPosts.map((post) => {
+                  const title = String(post.data.title || post.data.name || 'Untitled');
+                  const isPublished = post.status === 'PUBLISHED';
+                  return (
+                    <li key={post.id} className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                      <div className="min-w-0 flex-1">
+                        <Link href={`/content/blog-posts/${post.id}`} className="font-medium text-sm hover:underline truncate block">
+                          {title}
+                        </Link>
+                        <p className="text-xs text-muted-foreground truncate">
+                          /{post.slug || post.id} · {formatDate(post.createdAt)}
+                        </p>
+                      </div>
+                      <Badge variant={isPublished ? 'success' : 'secondary'} className="shrink-0">
+                        {isPublished ? 'Published' : 'Draft'}
+                      </Badge>
+                      <Button size="sm" variant="ghost" asChild>
+                        <Link href={`/content/blog-posts/${post.id}`}>
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Link>
+                      </Button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Recent Activity */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent activity</CardTitle>
+            <CardDescription>Website edits and inbound form submissions from this workspace.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <Skeleton key={i} className="h-10 w-full" />
+                ))}
+              </div>
+            ) : activity.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Activity appears here after you edit a website or receive a form submission.
+              </p>
+            ) : (
+              <ul className="divide-y">
+                {activity.map((item) => (
+                  <li key={item.id} className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium">{item.title}</p>
+                      <p className="truncate text-xs text-muted-foreground">{item.detail}</p>
+                    </div>
+                    <span className="shrink-0 text-xs text-muted-foreground">{formatDate(item.at)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

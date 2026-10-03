@@ -4,7 +4,7 @@ import * as React from 'react';
 import { toast } from 'sonner';
 import { apiClient } from '@/lib/api/client';
 import { Business } from '@/types';
-import { Building2, Globe, Image as ImageIcon, Mail, MapPin, Phone, Save } from 'lucide-react';
+import { Building2, Globe, Image as ImageIcon, Mail, MapPin, Phone, Save, Settings as SettingsIcon } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ import { PageHeader } from '@/components/kdba/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
 import { MediaPickerModal } from '@/components/ui/media-picker-modal';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function SettingsPage() {
   const [business, setBusiness] = React.useState<Business | null>(null);
@@ -32,12 +33,16 @@ export default function SettingsPage() {
     country: '',
     zipCode: '',
     website: '',
+    timezone: '',
+    language: '',
+    currency: '',
     socialMedia: {
       facebook: '',
       instagram: '',
       linkedin: '',
       twitter: '',
       youtube: '',
+      whatsapp_social: '',
     },
   });
   const [isLoading, setIsLoading] = React.useState(true);
@@ -50,7 +55,7 @@ export default function SettingsPage() {
       .then((data: unknown) => {
         const b = Array.isArray(data) ? data[0] : data;
         if (b && typeof b === 'object') {
-          const next = b as Business;
+          const next = b as any; // Using any since Business type might not have timezone/language etc yet
           setBusiness(next);
           const social = (next.socialMedia || {}) as Record<string, string>;
           setFormData({
@@ -68,12 +73,16 @@ export default function SettingsPage() {
             country: next.country || '',
             zipCode: next.zipCode || '',
             website: next.website || '',
+            timezone: next.timezone || '',
+            language: next.language || '',
+            currency: next.currency || '',
             socialMedia: {
               facebook: social.facebook || '',
               instagram: social.instagram || '',
               linkedin: social.linkedin || '',
               twitter: social.twitter || '',
               youtube: social.youtube || '',
+              whatsapp_social: social.whatsapp || social.whatsapp_social || '',
             },
           });
         }
@@ -93,7 +102,7 @@ export default function SettingsPage() {
           Object.entries(formData.socialMedia).filter(([, value]) => Boolean(value.trim())),
         ),
       };
-      const updated: Business = await apiClient.patch(`/businesses/${business.id}`, payload);
+      const updated: any = await apiClient.patch(`/businesses/${business.id}`, payload);
       setBusiness(updated);
       toast.success('Business profile saved');
     } catch (err) {
@@ -223,6 +232,61 @@ export default function SettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
+              <SettingsIcon className="size-4 text-muted-foreground" />
+              Settings
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-4 sm:grid-cols-3">
+            <div className="space-y-2">
+              <Label>Timezone</Label>
+              <Select value={formData.timezone} onValueChange={(val) => setFormData({...formData, timezone: val})}>
+                <SelectTrigger><SelectValue placeholder="Select timezone" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="America/New_York">Eastern Time (US & Canada)</SelectItem>
+                  <SelectItem value="America/Chicago">Central Time (US & Canada)</SelectItem>
+                  <SelectItem value="America/Denver">Mountain Time (US & Canada)</SelectItem>
+                  <SelectItem value="America/Los_Angeles">Pacific Time (US & Canada)</SelectItem>
+                  <SelectItem value="Europe/London">London</SelectItem>
+                  <SelectItem value="Europe/Paris">Paris</SelectItem>
+                  <SelectItem value="Asia/Dubai">Dubai</SelectItem>
+                  <SelectItem value="Asia/Karachi">Karachi</SelectItem>
+                  <SelectItem value="Asia/Kolkata">Kolkata</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Language</Label>
+              <Select value={formData.language} onValueChange={(val) => setFormData({...formData, language: val})}>
+                <SelectTrigger><SelectValue placeholder="Select language" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="en">English</SelectItem>
+                  <SelectItem value="ar">Arabic</SelectItem>
+                  <SelectItem value="fr">French</SelectItem>
+                  <SelectItem value="es">Spanish</SelectItem>
+                  <SelectItem value="de">German</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Currency</Label>
+              <Select value={formData.currency} onValueChange={(val) => setFormData({...formData, currency: val})}>
+                <SelectTrigger><SelectValue placeholder="Select currency" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="USD">USD ($)</SelectItem>
+                  <SelectItem value="EUR">EUR (€)</SelectItem>
+                  <SelectItem value="GBP">GBP (£)</SelectItem>
+                  <SelectItem value="AED">AED</SelectItem>
+                  <SelectItem value="SAR">SAR</SelectItem>
+                  <SelectItem value="PKR">PKR</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
               <Mail className="size-4 text-muted-foreground" />
               Contact
             </CardTitle>
@@ -270,6 +334,7 @@ export default function SettingsPage() {
                 ['linkedin', 'LinkedIn'],
                 ['twitter', 'X / Twitter'],
                 ['youtube', 'YouTube'],
+                ['whatsapp_social', 'WhatsApp'],
               ] as const
             ).map(([key, label]) => (
               <Input

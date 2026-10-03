@@ -12,6 +12,7 @@ export interface V3RenderContextValue {
   tenantSlug?: string | null;
   cms?: CmsRenderPayload | null;
   activeRecord?: CmsRecord | null;
+  onNavigate?: (url: string) => void;
 }
 
 const V3RenderContext = React.createContext<V3RenderContextValue | null>(null);

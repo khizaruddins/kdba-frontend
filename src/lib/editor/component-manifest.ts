@@ -543,6 +543,27 @@ export const COMPONENT_MANIFEST: Record<NodeType, ComponentManifestItem> = {
     defaultStyles: {},
   },
 
+  'cms-collection': {
+    type: 'cms-collection',
+    name: 'CMS Collection',
+    category: 'Components',
+    icon: 'Database',
+    description: 'Display dynamic content from your CMS collections.',
+    allowedParents: ['section', 'container', 'page-root'],
+    isLeaf: true,
+    defaultProps: {
+      collectionSlug: 'blog-posts',
+      limit: 6,
+      columns: 3,
+      presentation: 'grid',
+      orderBy: 'newest',
+    },
+    defaultStyles: {
+      layout: { width: '100%' },
+      spacing: { padding: { top: '20px', bottom: '20px' } },
+    },
+  },
+
   navbar: {
     type: 'navbar',
     name: 'Navigation Bar',

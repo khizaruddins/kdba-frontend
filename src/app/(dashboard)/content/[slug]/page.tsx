@@ -10,6 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { CmsWebsiteSwitcher } from '@/components/cms/cms-website-switcher';
 import { CollectionRecordsManager } from '@/components/cms/collection-records-manager';
+import { PostsListManager } from '@/components/cms/posts-list-manager';
 
 export default function BuiltinCollectionPage() {
   const params = useParams();
@@ -79,13 +80,17 @@ export default function BuiltinCollectionPage() {
       <div className="flex justify-end">
         <CmsWebsiteSwitcher websites={websites} websiteId={websiteId} onChange={selectWebsite} />
       </div>
-      <CollectionRecordsManager
-        websiteId={websiteId}
-        collection={collection}
-        title={meta?.label || collection.name}
-        singular={meta?.singular || 'Record'}
-        description={collection.description || undefined}
-      />
+      {slug === 'blog-posts' ? (
+        <PostsListManager websiteId={websiteId} collection={collection} />
+      ) : (
+        <CollectionRecordsManager
+          websiteId={websiteId}
+          collection={collection}
+          title={meta?.label || collection.name}
+          singular={meta?.singular || 'Record'}
+          description={collection.description || undefined}
+        />
+      )}
     </div>
   );
 }

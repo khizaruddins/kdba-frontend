@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { ThemeConfig } from '@/types';
+import { buildGoogleFontsUrl, formatFontFamilyWithFallback } from '@/lib/fonts/google-fonts';
 
 export interface ThemeProviderProps {
   theme?: Partial<ThemeConfig>;
@@ -23,9 +24,13 @@ export function ThemeProvider({
   const surfaceColor = theme?.surfaceColor || secondaryColor;
   const textColor = theme?.textColor || '#f8fafc';
   const mutedTextColor = theme?.mutedTextColor || '#94a3b8';
-  const headingFont = theme?.headingFont || 'Inter, sans-serif';
-  const bodyFont = theme?.bodyFont || 'Inter, sans-serif';
+  const headingFont = formatFontFamilyWithFallback(theme?.headingFont || 'Inter');
+  const bodyFont = formatFontFamilyWithFallback(theme?.bodyFont || 'Inter');
   const borderRadius = theme?.borderRadius || '8px';
+
+  const googleFontsUrl = React.useMemo(() => {
+    return buildGoogleFontsUrl([theme?.headingFont, theme?.bodyFont]);
+  }, [theme?.headingFont, theme?.bodyFont]);
 
   // Convert theme into scoped CSS variables
   const cssVariables: React.CSSProperties = {
@@ -50,6 +55,10 @@ export function ThemeProvider({
       style={cssVariables}
       suppressHydrationWarning
     >
+      {googleFontsUrl && (
+        // eslint-disable-next-line @next/next/no-page-custom-font
+        <link rel="stylesheet" href={googleFontsUrl} />
+      )}
       {children}
     </div>
   );

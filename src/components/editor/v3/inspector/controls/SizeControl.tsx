@@ -9,15 +9,16 @@ export interface SizeControlProps {
   onChangeSize: (size: StyleDefinition['size']) => void;
 }
 
-type CssUnit = 'px' | '%' | 'auto';
+type CssUnit = 'px' | '%' | 'rem' | 'vw' | 'vh' | 'auto';
 
 function parseSize(value?: string | number): { amount: string; unit: CssUnit } {
   if (value === undefined || value === null || value === '') return { amount: '', unit: 'auto' };
   if (typeof value === 'number' && Number.isFinite(value)) return { amount: String(value), unit: 'px' };
-  const text = String(value);
+  const text = String(value).trim();
   if (text === 'auto') return { amount: '', unit: 'auto' };
-  if (text.endsWith('%')) return { amount: text.replace('%', ''), unit: '%' };
-  if (text.endsWith('px')) return { amount: text.replace('px', ''), unit: 'px' };
+  for (const u of ['rem', 'vw', 'vh', 'px', '%'] as const) {
+    if (text.endsWith(u)) return { amount: text.replace(u, ''), unit: u };
+  }
   return { amount: text, unit: 'px' };
 }
 
@@ -61,6 +62,9 @@ function SizeField({
         >
           <option value="px">px</option>
           <option value="%">%</option>
+          <option value="rem">rem</option>
+          <option value="vw">vw</option>
+          <option value="vh">vh</option>
           <option value="auto">auto</option>
         </select>
       </div>

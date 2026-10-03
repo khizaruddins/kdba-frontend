@@ -146,7 +146,7 @@ export interface V3EditorState {
   insertNodeType: (type: NodeType, preferredParentId?: string | null) => WebsiteNode | null;
   removeNode: (nodeId: string) => void;
   duplicateNode: (nodeId: string) => WebsiteNode | null;
-  moveNode: (nodeId: string, targetParentId: string, targetIndex?: number) => void;
+  moveNode: (nodeId: string, targetParentIdOrDirection: string | 'up' | 'down', targetIndex?: number) => void;
   updateNode: (nodeId: string, patch: Partial<WebsiteNode>) => void;
   updateProps: (nodeId: string, propsPatch: Record<string, unknown>) => void;
   updateStyles: (nodeId: string, stylesPatch: Partial<StyleDefinition>) => void;
@@ -169,6 +169,8 @@ export interface V3EditorState {
   setHomePage: (pageId: string) => void;
   reorderPages: (pageIds: string[]) => void;
   insertSectionPreset: (presetNode: WebsiteNode, afterNodeId?: string | null) => WebsiteNode | null;
+  addSectionAbove: (sectionId: string, presetNode?: WebsiteNode | string) => WebsiteNode | null;
+  addSectionBelow: (sectionId: string, presetNode?: WebsiteNode | string) => WebsiteNode | null;
   setSectionVariant: (sectionId: string, newVariant: string) => void;
   replaceSection: (sectionId: string, presetOrVariant: WebsiteNode | string) => WebsiteNode | null;
   updateNavigation: (navigation: Partial<NavigationConfig>) => void;
@@ -476,12 +478,46 @@ export const useV3EditorStore = create<V3EditorState>((set, get) => ({
     return duplicated;
   },
 
-  moveNode: (nodeId, targetParentId, targetIndex) => {
+  moveNode: (nodeId, targetParentIdOrDirection, targetIndex) => {
     const { document } = get();
     if (!document) return;
     const source = findNodeLocation(document, nodeId);
-    const target = findNodeLocation(document, targetParentId);
-    if (!source || !target || source.pageId !== target.pageId || source.node.locked) return;
+    if (!source || source.node.locked) return;
+    const parentInfo = findParentInTree(source.root, nodeId);
+    if (!parentInfo) return;
+
+    if (targetParentIdOrDirection === 'up' || targetParentIdOrDirection === 'down') {
+      const childrenLen = parentInfo.parent.children?.length || 0;
+      if (targetParentIdOrDirection === 'up') {
+        if (parentInfo.index <= 0) return;
+        get().executeOperation(
+          {
+            type: 'moveNode',
+            pageId: source.pageId,
+            nodeId,
+            targetParentId: parentInfo.parent.id,
+            targetIndex: parentInfo.index - 1,
+          },
+          { selectId: nodeId },
+        );
+      } else {
+        if (parentInfo.index >= childrenLen - 1) return;
+        get().executeOperation(
+          {
+            type: 'moveNode',
+            pageId: source.pageId,
+            nodeId,
+            targetParentId: parentInfo.parent.id,
+            targetIndex: parentInfo.index + 2,
+          },
+          { selectId: nodeId },
+        );
+      }
+      return;
+    }
+
+    const target = findNodeLocation(document, targetParentIdOrDirection);
+    if (!target || source.pageId !== target.pageId) return;
     if (!canAcceptChild(target.node.type, source.node.type)) return;
 
     get().executeOperation(
@@ -489,7 +525,7 @@ export const useV3EditorStore = create<V3EditorState>((set, get) => ({
         type: 'moveNode',
         pageId: source.pageId,
         nodeId,
-        targetParentId,
+        targetParentId: targetParentIdOrDirection,
         targetIndex: typeof targetIndex === 'number' ? targetIndex : target.node.children?.length || 0,
       },
       { selectId: nodeId },
@@ -819,30 +855,58 @@ export const useV3EditorStore = create<V3EditorState>((set, get) => ({
     // Find first container inside section to adapt its layout
     const container = section.children?.find((c: WebsiteNode) => c.type === 'container' || c.type === 'grid' || c.type === 'row') || section;
 
-    if (newLayout === 'centered') {
+    if (newLayout === 'centered' || newLayout === '1-col') {
       container.styles = {
         ...container.styles,
         layout: { ...(container.styles?.layout || {}), display: 'flex' },
         flex: { ...(container.styles?.flex || {}), direction: 'column', alignItems: 'center' },
         typography: { ...(container.styles?.typography || {}), textAlign: 'center' },
       };
-    } else if (newLayout === 'split' || newLayout === 'image-left' || newLayout === 'image-right') {
+    } else if (newLayout === 'split' || newLayout === '50-50' || newLayout === '2-col' || newLayout === 'image-left' || newLayout === 'image-right') {
       container.styles = {
         ...container.styles,
         layout: { ...(container.styles?.layout || {}), display: 'grid' },
-        grid: { ...(container.styles?.grid || {}), columns: 2, columnGap: '32px', rowGap: '32px' },
+        grid: { ...(container.styles?.grid || {}), columns: 2, gridTemplateColumns: '1fr 1fr', columnGap: '32px', rowGap: '32px' },
+      };
+    } else if (newLayout === '40-60' || newLayout === 'split-40-60') {
+      container.styles = {
+        ...container.styles,
+        layout: { ...(container.styles?.layout || {}), display: 'grid' },
+        grid: { ...(container.styles?.grid || {}), columns: 2, gridTemplateColumns: '4fr 6fr', columnGap: '32px', rowGap: '32px' },
+      };
+    } else if (newLayout === '60-40' || newLayout === 'split-60-40') {
+      container.styles = {
+        ...container.styles,
+        layout: { ...(container.styles?.layout || {}), display: 'grid' },
+        grid: { ...(container.styles?.grid || {}), columns: 2, gridTemplateColumns: '6fr 4fr', columnGap: '32px', rowGap: '32px' },
+      };
+    } else if (newLayout === 'split-reverse' || newLayout === 'reverse') {
+      if (container.children && container.children.length >= 2) {
+        container.children = [...container.children].reverse();
+      }
+    } else if (newLayout === '3-col' || newLayout === 'three-col') {
+      container.styles = {
+        ...container.styles,
+        layout: { ...(container.styles?.layout || {}), display: 'grid' },
+        grid: { ...(container.styles?.grid || {}), columns: 3, gridTemplateColumns: '1fr 1fr 1fr', columnGap: '24px', rowGap: '24px' },
       };
     } else if (newLayout === 'bento') {
       container.styles = {
         ...container.styles,
         layout: { ...(container.styles?.layout || {}), display: 'grid' },
-        grid: { ...(container.styles?.grid || {}), columns: 3, columnGap: '20px', rowGap: '20px' },
+        grid: { ...(container.styles?.grid || {}), columns: 3, gridTemplateColumns: 'repeat(3, 1fr)', columnGap: '20px', rowGap: '20px' },
       };
     } else if (newLayout === 'grid') {
       container.styles = {
         ...container.styles,
         layout: { ...(container.styles?.layout || {}), display: 'grid' },
         grid: { ...(container.styles?.grid || {}), columns: 3, columnGap: '24px', rowGap: '24px' },
+      };
+    } else if (newLayout === 'stack') {
+      container.styles = {
+        ...container.styles,
+        layout: { ...(container.styles?.layout || {}), display: 'flex' },
+        flex: { ...(container.styles?.flex || {}), direction: 'column', gap: '24px', alignItems: 'stretch' },
       };
     } else if (newLayout === 'minimal') {
       container.styles = {
@@ -1026,6 +1090,112 @@ export const useV3EditorStore = create<V3EditorState>((set, get) => ({
     return presetNode;
   },
 
+  addSectionAbove: (sectionId, presetNode) => {
+    const { activePageId } = get();
+    const page = get().getActivePage();
+    if (!page?.root) return null;
+    const parentInfo = findParentInTree(page.root, sectionId);
+    if (!parentInfo) return null;
+
+    let nodeToAdd: WebsiteNode;
+    if (presetNode && typeof presetNode === 'object') {
+      nodeToAdd = presetNode;
+    } else {
+      const nameMap: Record<string, string> = {
+        hero: 'Hero',
+        features: 'Features',
+        cta: 'Call to Action',
+        faq: 'FAQ',
+        contact: 'Contact',
+        pricing: 'Pricing',
+        testimonials: 'Testimonials',
+        footer: 'Footer',
+      };
+      const title = typeof presetNode === 'string'
+        ? (nameMap[presetNode.toLowerCase()] || `${presetNode.charAt(0).toUpperCase() + presetNode.slice(1)} Section`)
+        : 'New Section';
+
+      nodeToAdd = createDefaultNode('section', {
+        name: title,
+        props: { fullWidth: true, variant: 'default' },
+        styles: {
+          layout: { position: 'relative', width: '100%' },
+          spacing: { padding: { top: '80px', bottom: '80px', left: '24px', right: '24px' } },
+          background: { color: 'transparent' },
+        },
+        children: [
+          createDefaultNode('container', {
+            name: 'Container',
+            props: { maxWidth: '1200px' },
+            styles: {
+              layout: { position: 'relative', width: '100%', maxWidth: '1200px' },
+              spacing: { margin: { left: 'auto', right: 'auto' }, padding: { left: '24px', right: '24px' } },
+            },
+          }),
+        ],
+      });
+    }
+
+    get().executeOperation(
+      { type: 'addNode', pageId: activePageId, parentId: page.root.id, node: nodeToAdd, index: parentInfo.index },
+      { selectId: nodeToAdd.id },
+    );
+    return nodeToAdd;
+  },
+
+  addSectionBelow: (sectionId, presetNode) => {
+    const { activePageId } = get();
+    const page = get().getActivePage();
+    if (!page?.root) return null;
+    const parentInfo = findParentInTree(page.root, sectionId);
+    if (!parentInfo) return null;
+
+    let nodeToAdd: WebsiteNode;
+    if (presetNode && typeof presetNode === 'object') {
+      nodeToAdd = presetNode;
+    } else {
+      const nameMap: Record<string, string> = {
+        hero: 'Hero',
+        features: 'Features',
+        cta: 'Call to Action',
+        faq: 'FAQ',
+        contact: 'Contact',
+        pricing: 'Pricing',
+        testimonials: 'Testimonials',
+        footer: 'Footer',
+      };
+      const title = typeof presetNode === 'string'
+        ? (nameMap[presetNode.toLowerCase()] || `${presetNode.charAt(0).toUpperCase() + presetNode.slice(1)} Section`)
+        : 'New Section';
+
+      nodeToAdd = createDefaultNode('section', {
+        name: title,
+        props: { fullWidth: true, variant: 'default' },
+        styles: {
+          layout: { position: 'relative', width: '100%' },
+          spacing: { padding: { top: '80px', bottom: '80px', left: '24px', right: '24px' } },
+          background: { color: 'transparent' },
+        },
+        children: [
+          createDefaultNode('container', {
+            name: 'Container',
+            props: { maxWidth: '1200px' },
+            styles: {
+              layout: { position: 'relative', width: '100%', maxWidth: '1200px' },
+              spacing: { margin: { left: 'auto', right: 'auto' }, padding: { left: '24px', right: '24px' } },
+            },
+          }),
+        ],
+      });
+    }
+
+    get().executeOperation(
+      { type: 'addNode', pageId: activePageId, parentId: page.root.id, node: nodeToAdd, index: parentInfo.index + 1 },
+      { selectId: nodeToAdd.id },
+    );
+    return nodeToAdd;
+  },
+
   replaceSection: (sectionId, presetOrVariant) => {
     if (typeof presetOrVariant === 'string') {
       get().setSectionVariant(sectionId, presetOrVariant);
@@ -1035,7 +1205,8 @@ export const useV3EditorStore = create<V3EditorState>((set, get) => ({
     const { document, undoStack } = get();
     if (!document) return null;
     const loc = findNodeLocation(document, sectionId);
-    if (!loc || loc.node.type !== 'section') return null;
+    const isSectionLevel = loc && ['section', 'navbar', 'footer', 'legacy-section'].includes(loc.node.type);
+    if (!loc || !isSectionLevel) return null;
     const parentInfo = findParentInTree(loc.root, sectionId);
     if (!parentInfo) return null;
 

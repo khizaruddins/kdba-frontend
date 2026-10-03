@@ -12,6 +12,7 @@ import { ensureGlobalChrome, navItemsFromPages } from '@/lib/editor/global-chrom
 import { normalizePublicCmsPayload } from '@/lib/cms/load-render-payload';
 import { CmsRenderPayload } from '@/lib/cms/bindings';
 import { resolvePublicPage, withBusinessOnDocument } from '@/lib/cms/public-page';
+import { PublicPostView } from '@/components/renderer/PublicPostView';
 import { Loader2, AlertCircle } from 'lucide-react';
 
 function joinPublicPath(segments: string[] | undefined): string {
@@ -38,6 +39,22 @@ export function PublicSiteView({
   React.useEffect(() => {
     setActivePath(initialPath);
   }, [initialPath]);
+
+  React.useEffect(() => {
+    if (!isLoading && typeof window !== 'undefined' && window.location.hash) {
+      const hash = window.location.hash;
+      const targetId = hash.replace(/^#/, '');
+      const timer = setTimeout(() => {
+        const el =
+          document.getElementById(targetId) ||
+          document.querySelector(hash) ||
+          document.querySelector(`[data-node-name*="${targetId}" i]`) ||
+          document.querySelector(`section[id="${targetId}"]`);
+        if (el) el.scrollIntoView({ behavior: 'smooth' });
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading]);
 
   React.useEffect(() => {
     if (!tenantSlug) return;
@@ -116,6 +133,37 @@ export function PublicSiteView({
   }, [v3Document, activePath, cms]);
 
   React.useEffect(() => {
+    const blogMatch = activePath.match(/^\/(?:blog|posts)\/([^/]+)/);
+    const postSlug = blogMatch ? blogMatch[1] : null;
+
+    if (postSlug && !resolved) {
+      const existing = cmsBase.collections
+        .find((c) => c.slug === 'blog-posts')
+        ?.records.find((r) => r.slug === postSlug || r.id === postSlug);
+      if (existing) {
+        setFetchedRecord(existing);
+        return;
+      }
+      if (!tenantSlug) return;
+      let cancelled = false;
+      setRecordLoading(true);
+      void cmsApi
+        .getPublicRecord(tenantSlug, 'blog-posts', postSlug)
+        .then((result) => {
+          if (cancelled) return;
+          setFetchedRecord(result.record);
+        })
+        .catch(() => {
+          if (!cancelled) setFetchedRecord(null);
+        })
+        .finally(() => {
+          if (!cancelled) setRecordLoading(false);
+        });
+      return () => {
+        cancelled = true;
+      };
+    }
+
     if (!resolved || resolved.page.kind !== 'collection-item' || !resolved.recordSlug) {
       setFetchedRecord(null);
       return;
@@ -164,7 +212,7 @@ export function PublicSiteView({
     return () => {
       cancelled = true;
     };
-  }, [resolved?.page.id, resolved?.recordSlug, resolved?.activeRecord?.id, tenantSlug, cmsBase]);
+  }, [resolved?.page.id, resolved?.recordSlug, resolved?.activeRecord?.id, activePath, tenantSlug, cmsBase]);
 
   if (isLoading) {
     return (
@@ -228,6 +276,38 @@ export function PublicSiteView({
   if (v3Document) {
     const activeRecord = fetchedRecord || resolved?.activeRecord || null;
 
+    const blogMatch = activePath.match(/^\/(?:blog|posts)\/([^/]+)/);
+    if (blogMatch && !resolved) {
+      if (recordLoading) {
+        return (
+          <div className="flex min-h-screen w-full items-center justify-center bg-slate-950 text-slate-400">
+            <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
+          </div>
+        );
+      }
+      if (activeRecord) {
+        return (
+          <PublicPostView
+            record={activeRecord}
+            cms={cms}
+            tenantSlug={tenantSlug}
+            onNavigate={(url) => {
+              let cleanUrl = url;
+              if (tenantSlug && cleanUrl.startsWith(`/site/${tenantSlug}`)) {
+                cleanUrl = cleanUrl.slice(`/site/${tenantSlug}`.length) || '/';
+              }
+              const next = cleanUrl.startsWith('/') ? cleanUrl : `/${cleanUrl}`;
+              setActivePath(next);
+              if (typeof window !== 'undefined') {
+                window.history.pushState({}, '', `/site/${tenantSlug}${next === '/' ? '' : next}`);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }
+            }}
+          />
+        );
+      }
+    }
+
     if (activePath !== '/' && !resolved) {
       return (
         <div className="flex min-h-screen flex-col items-center justify-center bg-slate-950 px-6 text-center text-slate-100">
@@ -266,12 +346,29 @@ export function PublicSiteView({
         cms={cms}
         activeRecord={activeRecord}
         onNavigate={(url) => {
-          if (url.startsWith('#')) {
-            const el = document.querySelector(url);
-            if (el) el.scrollIntoView({ behavior: 'smooth' });
+          let cleanUrl = url;
+          if (tenantSlug && cleanUrl.startsWith(`/site/${tenantSlug}`)) {
+            cleanUrl = cleanUrl.slice(`/site/${tenantSlug}`.length) || '/';
+          }
+          if (cleanUrl.startsWith('/#')) {
+            cleanUrl = cleanUrl.slice(1);
+          }
+          if (cleanUrl.startsWith('#')) {
+            const targetId = cleanUrl.replace(/^#/, '');
+            const el =
+              document.getElementById(targetId) ||
+              document.querySelector(cleanUrl) ||
+              document.querySelector(`[data-node-name*="${targetId}" i]`) ||
+              document.querySelector(`section[id="${targetId}"]`);
+            if (el) {
+              el.scrollIntoView({ behavior: 'smooth' });
+              if (typeof window !== 'undefined') {
+                window.history.pushState({}, '', `/site/${tenantSlug}${cleanUrl}`);
+              }
+            }
             return;
           }
-          const next = url.startsWith('/') ? url : `/${url}`;
+          const next = cleanUrl.startsWith('/') ? cleanUrl : `/${cleanUrl}`;
           setActivePath(next);
           if (typeof window !== 'undefined') {
             window.history.pushState({}, '', `/site/${tenantSlug}${next === '/' ? '' : next}`);

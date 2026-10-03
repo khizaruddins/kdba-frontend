@@ -10,6 +10,8 @@ import { V3VisualBuilder } from '@/components/editor/v3/V3VisualBuilder';
 import { Button } from '@/components/ui/button';
 import { Loader2, Rocket } from 'lucide-react';
 
+import { TEMPLATES_DEFINITIONS } from '@/lib/templates/definitions';
+
 export default function WebsiteEditorPage() {
   const params = useParams();
   const router = useRouter();
@@ -25,11 +27,19 @@ export default function WebsiteEditorPage() {
     fetchProfile();
   }, [fetchProfile]);
 
+  const isBenchmarkOrTemplate =
+    websiteId === 'gym-360' ||
+    websiteId === 'fitness-studio' ||
+    websiteId?.startsWith('tpl_');
+
   React.useEffect(() => {
     if (!authLoading && !isAuthenticated) {
+      if (isBenchmarkOrTemplate) {
+        return;
+      }
       router.push('/login');
     }
-  }, [authLoading, isAuthenticated, router]);
+  }, [authLoading, isAuthenticated, router, isBenchmarkOrTemplate]);
 
   const loadWebsiteData = React.useCallback(async () => {
     if (!websiteId) return;
@@ -45,6 +55,22 @@ export default function WebsiteEditorPage() {
       setDocumentData(websiteId, doc, revision || 1, hash || '');
     };
 
+    const templateMatch = TEMPLATES_DEFINITIONS.find(
+      (t) =>
+        t.id === websiteId ||
+        t.slug === websiteId ||
+        (websiteId === 'gym-360' && (t.id === 'tpl_fitness' || t.slug === 'fitness-studio')),
+    );
+
+    if (isBenchmarkOrTemplate && templateMatch?.document) {
+      try {
+        applyDocument(templateMatch.document, 1, 'template-benchmark');
+        return;
+      } catch (e) {
+        console.error('Failed to apply benchmark template document:', e);
+      }
+    }
+
     try {
       const docRes = await websitesApi.getDocument(websiteId);
 
@@ -56,6 +82,8 @@ export default function WebsiteEditorPage() {
         if (raw) {
           const revision = (siteData as unknown as { documentRevision?: number }).documentRevision || 1;
           applyDocument(raw, revision);
+        } else if (templateMatch?.document) {
+          applyDocument(templateMatch.document, 1, 'template-fallback');
         } else {
           setError('Website document not found');
         }
@@ -72,6 +100,15 @@ export default function WebsiteEditorPage() {
         }
       } catch {
         // ignore secondary error
+      }
+
+      if (templateMatch?.document) {
+        try {
+          applyDocument(templateMatch.document, 1, 'template-fallback');
+          return;
+        } catch {
+          // fallback failed, proceed to error display
+        }
       }
 
       const errorObj = err as {
@@ -96,14 +133,14 @@ export default function WebsiteEditorPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [websiteId, setDocumentData]);
+  }, [websiteId, isBenchmarkOrTemplate, setDocumentData]);
 
   React.useEffect(() => {
     if (authLoading) return;
-    if (isAuthenticated) {
+    if (isAuthenticated || isBenchmarkOrTemplate) {
       void Promise.resolve().then(() => loadWebsiteData());
     }
-  }, [authLoading, isAuthenticated, loadWebsiteData]);
+  }, [authLoading, isAuthenticated, isBenchmarkOrTemplate, loadWebsiteData]);
 
   if (authLoading || isLoading) {
     return (

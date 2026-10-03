@@ -49,6 +49,7 @@ import {
   Briefcase,
   PanelTop,
   PanelBottom,
+  Database,
 } from 'lucide-react';
 
 const ICON_MAP: Record<string, React.ReactNode> = {
@@ -88,6 +89,7 @@ const ICON_MAP: Record<string, React.ReactNode> = {
   Briefcase: <Briefcase className="w-4 h-4" />,
   PanelTop: <PanelTop className="w-4 h-4" />,
   PanelBottom: <PanelBottom className="w-4 h-4" />,
+  Database: <Database className="w-4 h-4" />,
 };
 
 const DISPLAY_CATEGORIES = [

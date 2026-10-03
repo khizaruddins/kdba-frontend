@@ -55,6 +55,7 @@ export const BUSINESS_NODE_TYPES = [
   'testimonial',
   'team',
   'service',
+  'cms-collection',
 ] as const;
 
 export const NAVIGATION_NODE_TYPES = [

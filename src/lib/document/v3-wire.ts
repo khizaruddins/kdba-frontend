@@ -35,6 +35,8 @@ export type WireNodeType = (typeof WIRE_NODE_TYPES)[number];
 export const EDITOR_TYPE_PROP = 'kdbaEditorType';
 export const GRADIENT_PROP = 'kdbaGradient';
 export const WIRE_WRAP_PROP = 'kdbaWireWrap';
+export const ANIMATIONS_PROP = 'kdbaAnimations';
+export const TYPOGRAPHY_PROP = 'kdbaTypography';
 
 const WIRE_TYPE_SET = new Set<string>(WIRE_NODE_TYPES);
 const EDITOR_TYPE_SET = new Set<string>(ALL_NODE_TYPES);
@@ -713,6 +715,12 @@ function toEditorNode(node: Record<string, unknown>, _parentType: string | null)
   if (storedStates && typeof storedStates === 'object') {
     styles.states = storedStates as StyleDefinition['states'];
   }
+  const storedTypography = props[TYPOGRAPHY_PROP] as StyleDefinition['typography'] | undefined;
+  if (storedTypography && typeof storedTypography === 'object') {
+    styles.typography = { ...storedTypography, ...(styles.typography || {}) };
+  }
+
+  const storedAnimations = (node.animations as WebsiteNode['animations']) || (props[ANIMATIONS_PROP] as WebsiteNode['animations']);
 
   return {
     id: String(node.id || `node_${Math.random().toString(36).slice(2, 9)}`),
@@ -727,6 +735,7 @@ function toEditorNode(node: Record<string, unknown>, _parentType: string | null)
     visibility: (node.visibility as WebsiteNode['visibility']) || { desktop: true, tablet: true, mobile: true },
     children,
     locked: Boolean(node.locked),
+    animations: storedAnimations,
   };
 }
 
@@ -738,6 +747,8 @@ function toWireNode(node: WebsiteNode, parentType: string | null): Record<string
   if (originalType !== type) props[EDITOR_TYPE_PROP] = originalType;
   if (node.styles?.background?.gradient) props[GRADIENT_PROP] = node.styles.background.gradient;
   if (node.styles?.states) props[STATES_PROP] = node.styles.states;
+  if (node.styles?.typography?.fontFamily) props[TYPOGRAPHY_PROP] = node.styles.typography;
+  if (node.animations) props[ANIMATIONS_PROP] = node.animations;
 
   const children = WIRE_LEAVES.has(type)
     ? []
@@ -755,6 +766,7 @@ function toWireNode(node: WebsiteNode, parentType: string | null): Record<string
     children,
     enabled: true,
     locked: Boolean(node.locked),
+    ...(node.animations ? { animations: node.animations } : {}),
   };
 
   return parentType ? wrapForParent(parentType, wire) : wire;
@@ -822,15 +834,104 @@ export function toEditorDocument(raw: unknown): WebsiteDocumentV3 {
         const item = page as Record<string, unknown>;
         const slugRaw = typeof item.slug === 'string' && item.slug.trim() ? item.slug : '/';
         const slug = slugRaw.startsWith('/') ? slugRaw : `/${slugRaw}`;
-        const root = item.root && typeof item.root === 'object'
-          ? toEditorNode(item.root as Record<string, unknown>, null)
-          : {
-              id: `root_${index}`,
-              type: 'page-root' as NodeType,
-              children: [],
-              props: {},
-              styles: {},
+        let root: WebsiteNode;
+        if (item.root && typeof item.root === 'object') {
+          root = toEditorNode(item.root as Record<string, unknown>, null);
+        } else if (Array.isArray(item.sections) && item.sections.length > 0) {
+          const children: WebsiteNode[] = (item.sections as Array<Record<string, unknown>>).map((sec, secIdx) => {
+            const secType = String(sec.type || 'section');
+            const secVariant = String(sec.variant || 'default');
+            const secProps = (sec.props || {}) as Record<string, unknown>;
+            const secId = String(sec.id || `sec_${secIdx}`);
+
+            const innerNodes: WebsiteNode[] = [];
+            if (secProps.badge) {
+              innerNodes.push({
+                id: `${secId}_badge`,
+                type: 'text',
+                name: 'Badge',
+                props: { text: String(secProps.badge) },
+                styles: { typography: { fontSize: '14px', fontWeight: '600', color: '#e63946' }, spacing: { margin: { bottom: '8px' } } },
+              });
+            }
+            if (secProps.headline || secProps.title || secProps.brandName) {
+              innerNodes.push({
+                id: `${secId}_heading`,
+                type: 'heading',
+                name: 'Heading',
+                props: { text: String(secProps.headline || secProps.title || secProps.brandName), level: 1 },
+                styles: { typography: { fontSize: '48px', fontWeight: '800', lineHeight: 1.1 } },
+              });
+            }
+            if (secProps.subheadline || secProps.description || secProps.subtitle) {
+              innerNodes.push({
+                id: `${secId}_para`,
+                type: 'paragraph',
+                name: 'Paragraph',
+                props: { text: String(secProps.subheadline || secProps.description || secProps.subtitle) },
+                styles: { typography: { fontSize: '18px', color: '#a1a1aa' }, spacing: { margin: { top: '16px', bottom: '24px' } } },
+              });
+            }
+            if (secProps.primaryCtaText || secProps.ctaText) {
+              innerNodes.push({
+                id: `${secId}_cta`,
+                type: 'button',
+                name: 'Button',
+                props: { text: String(secProps.primaryCtaText || secProps.ctaText), href: String(secProps.primaryCtaUrl || secProps.ctaUrl || '#') },
+                styles: { background: { color: '#e63946' }, spacing: { padding: { top: '12px', bottom: '12px', left: '24px', right: '24px' } } },
+              });
+            }
+            if (secProps.imageUrl || secProps.image) {
+              innerNodes.push({
+                id: `${secId}_image`,
+                type: 'image',
+                name: 'Image',
+                props: { src: String(secProps.imageUrl || secProps.image), alt: String(secProps.headline || 'Gym Image') },
+                styles: { size: { width: '100%', height: 'auto' } },
+              });
+            }
+
+            const container: WebsiteNode = {
+              id: `${secId}_container`,
+              type: 'container',
+              name: 'Container',
+              props: { maxWidth: '1200px' },
+              styles: {
+                layout: { position: 'relative', width: '100%', maxWidth: '1200px' },
+                spacing: { margin: { left: 'auto', right: 'auto' }, padding: { left: '24px', right: '24px' } },
+              },
+              children: innerNodes,
             };
+
+            return {
+              id: secId,
+              type: 'section',
+              name: `${secType.charAt(0).toUpperCase() + secType.slice(1)} Section`,
+              props: { ...secProps, variant: secVariant, fullWidth: true },
+              styles: {
+                layout: { position: 'relative', width: '100%' },
+                spacing: { padding: { top: '80px', bottom: '80px' } },
+              },
+              children: [container],
+            };
+          });
+
+          root = {
+            id: `root_${index}`,
+            type: 'page-root',
+            children,
+            props: {},
+            styles: {},
+          };
+        } else {
+          root = {
+            id: `root_${index}`,
+            type: 'page-root',
+            children: [],
+            props: {},
+            styles: {},
+          };
+        }
         return {
           id: String(item.id || `page_${index}`),
           title: String(item.title || item.name || 'Page'),
@@ -860,8 +961,9 @@ export function toWireDocument(document: WebsiteDocumentV3): Record<string, unkn
     schemaVersion: '3.0',
     site: {
       ...document.site,
-      businessType: document.site.businessType || 'business',
-      language: document.site.language || 'en',
+      name: document.site?.name || 'Untitled',
+      businessType: document.site?.businessType || 'business',
+      language: document.site?.language || 'en',
     },
     theme: {
       primaryColor: theme.primaryColor || theme.colors.primary,

@@ -6,14 +6,68 @@ import { Palette, X } from 'lucide-react';
 import { ColorTokensV3 } from '@/types/v3-document';
 import { getThemeLayoutTokens } from '@/lib/editor/theme-tokens';
 
-const FONTS = [
-  'Inter',
-  'Sora',
-  'Urbanist',
-  'Plus Jakarta Sans',
-  'Outfit',
-  'Roboto',
-  'Playfair Display',
+const FONT_GROUPS: { label: string; fonts: string[] }[] = [
+  {
+    label: 'Sans-Serif',
+    fonts: [
+      'Inter',
+      'Roboto',
+      'Open Sans',
+      'Montserrat',
+      'Nunito',
+      'Poppins',
+      'Raleway',
+      'Lato',
+      'DM Sans',
+      'Plus Jakarta Sans',
+      'Sora',
+      'Outfit',
+      'Urbanist',
+      'Manrope',
+      'Figtree',
+      'Work Sans',
+      'Mulish',
+      'Barlow',
+      'Lexend',
+      'Source Sans 3',
+    ],
+  },
+  {
+    label: 'Serif',
+    fonts: [
+      'Playfair Display',
+      'Merriweather',
+      'Lora',
+      'EB Garamond',
+      'Libre Baskerville',
+      'Cormorant Garamond',
+      'PT Serif',
+      'Spectral',
+      'Noto Serif',
+    ],
+  },
+  {
+    label: 'Display / Heading',
+    fonts: [
+      'Space Grotesk',
+      'Clash Display',
+      'Cabinet Grotesk',
+      'Oswald',
+      'Bebas Neue',
+      'Anton',
+      'Abril Fatface',
+    ],
+  },
+  {
+    label: 'Monospace',
+    fonts: [
+      'JetBrains Mono',
+      'Fira Code',
+      'Source Code Pro',
+      'Roboto Mono',
+      'IBM Plex Mono',
+    ],
+  },
 ];
 
 export function ThemePanel() {
@@ -140,32 +194,52 @@ export function ThemePanel() {
 
           <div className="space-y-1.5">
             <label className="text-[11px] text-muted-foreground">Heading Font</label>
-            <select
-              value={document.theme?.typography?.headingFont || document.theme?.typography?.h1?.fontFamily || 'Inter'}
-              onChange={(e) => handleHeadingFontChange(e.target.value)}
-              className="w-full h-8 px-2.5 rounded-lg bg-muted/50 border border-border text-foreground text-xs focus:outline-none"
-            >
-              {FONTS.map((f) => (
-                <option key={f} value={f}>
-                  {f}
-                </option>
-              ))}
-            </select>
+            <div className="space-y-1">
+              <select
+                value={document.theme?.typography?.headingFont || document.theme?.typography?.h1?.fontFamily || 'Inter'}
+                onChange={(e) => handleHeadingFontChange(e.target.value)}
+                className="w-full h-8 px-2.5 rounded-lg bg-muted/50 border border-border text-foreground text-xs focus:outline-none"
+              >
+                {FONT_GROUPS.map((group) => (
+                  <optgroup key={group.label} label={group.label}>
+                    {group.fonts.map((f) => (
+                      <option key={f} value={f}>{f}</option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+              <div
+                className="px-3 py-2 rounded-lg bg-muted/30 border border-border/50 text-center text-sm overflow-hidden"
+                style={{ fontFamily: `"${document.theme?.typography?.headingFont || document.theme?.typography?.h1?.fontFamily || 'Inter'}", system-ui, sans-serif` }}
+              >
+                The quick brown fox jumps
+              </div>
+            </div>
           </div>
 
           <div className="space-y-1.5">
             <label className="text-[11px] text-muted-foreground">Body Font</label>
-            <select
-              value={document.theme?.typography?.bodyFont || document.theme?.typography?.body?.fontFamily || 'Inter'}
-              onChange={(e) => handleBodyFontChange(e.target.value)}
-              className="w-full h-8 px-2.5 rounded-lg bg-muted/50 border border-border text-foreground text-xs focus:outline-none"
-            >
-              {FONTS.map((f) => (
-                <option key={f} value={f}>
-                  {f}
-                </option>
-              ))}
-            </select>
+            <div className="space-y-1">
+              <select
+                value={document.theme?.typography?.bodyFont || document.theme?.typography?.body?.fontFamily || 'Inter'}
+                onChange={(e) => handleBodyFontChange(e.target.value)}
+                className="w-full h-8 px-2.5 rounded-lg bg-muted/50 border border-border text-foreground text-xs focus:outline-none"
+              >
+                {FONT_GROUPS.map((group) => (
+                  <optgroup key={group.label} label={group.label}>
+                    {group.fonts.map((f) => (
+                      <option key={f} value={f}>{f}</option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+              <div
+                className="px-3 py-2 rounded-lg bg-muted/30 border border-border/50 text-xs leading-relaxed overflow-hidden"
+                style={{ fontFamily: `"${document.theme?.typography?.bodyFont || document.theme?.typography?.body?.fontFamily || 'Inter'}", system-ui, sans-serif` }}
+              >
+                Body text looks like this in your selected font.
+              </div>
+            </div>
           </div>
         </div>
 

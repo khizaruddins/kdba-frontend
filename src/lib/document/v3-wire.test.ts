@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createDefaultNode } from './v3-operations';
-import { GRADIENT_PROP, toEditorDocument, toWireDocument } from './v3-wire';
+import { ANIMATIONS_PROP, GRADIENT_PROP, TYPOGRAPHY_PROP, toEditorDocument, toWireDocument } from './v3-wire';
 import { WebsiteNode } from '@/types/v3-document';
 
 function documentWith(rootChildren: WebsiteNode[]) {
@@ -148,5 +148,65 @@ describe('v3 wire adapter', () => {
 
     expect(restored.global?.headerNode?.type).toBe('navbar');
     expect(restored.global?.headerNode?.props?.brandName).toBe('Photography Merkhiz');
+  });
+
+  it('round-trips node animations and custom typography through wire props', () => {
+    const heading = createDefaultNode('heading', {
+      id: 'h1',
+      props: { text: 'Welcome' },
+      styles: {
+        typography: {
+          fontFamily: 'Playfair Display',
+          fontSize: '48px',
+          fontWeight: '700',
+        },
+      },
+      animations: {
+        trigger: 'on-scroll',
+        preset: 'fade-up',
+        duration: 600,
+        delay: 150,
+        easing: 'ease-out',
+      },
+    });
+    const section = createDefaultNode('section', {
+      id: 'hero',
+      children: [
+        createDefaultNode('container', {
+          id: 'box',
+          children: [heading],
+        }),
+      ],
+    });
+
+    const doc = documentWith([section]);
+    const wire = toWireDocument(doc);
+    const wireRoot = (wire.pages as Array<Record<string, unknown>>)[0].root as Record<string, unknown>;
+    const wireSection = (wireRoot.children as Array<Record<string, unknown>>)[0];
+    const wireContainer = (wireSection.children as Array<Record<string, unknown>>)[0];
+    const wireHeading = (wireContainer.children as Array<Record<string, unknown>>)[0];
+    const props = wireHeading.props as Record<string, unknown>;
+
+    expect(props[ANIMATIONS_PROP]).toMatchObject({
+      trigger: 'on-scroll',
+      preset: 'fade-up',
+      duration: 600,
+    });
+    expect(props[TYPOGRAPHY_PROP]).toEqual(
+      expect.objectContaining({
+        fontFamily: 'Playfair Display',
+      })
+    );
+
+    const restored = toEditorDocument(wire);
+    const restoredSection = restored.pages[0].root.children?.[0];
+    const restoredContainer = restoredSection?.children?.[0];
+    const restoredHeading = restoredContainer?.children?.[0];
+    expect(restoredHeading?.animations).toMatchObject({
+      trigger: 'on-scroll',
+      preset: 'fade-up',
+      duration: 600,
+    });
+    expect(restoredHeading?.styles?.typography?.fontFamily).toBe('Playfair Display');
   });
 });

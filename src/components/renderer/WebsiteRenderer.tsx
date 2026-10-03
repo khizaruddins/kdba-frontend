@@ -53,39 +53,7 @@ export function WebsiteRenderer({
   }
 
   const docAny = document as any;
-
-  // Automatic routing for V3 visual documents
-  if (docAny?.schemaVersion === '3.0') {
-    return (
-      <V3WebsiteRenderer
-        document={document as WebsiteDocumentV3}
-        activePageId={activePageId}
-        activePageSlug={activePageSlug}
-        isEditing={isEditing}
-        className={className}
-        style={style}
-        tenantSlug={tenantSlug || docAny?.settings?.subdomain || docAny?.slug || null}
-        cms={cms}
-        activeRecord={activeRecord}
-      />
-    );
-  }
-
   const pages = Array.isArray(document.pages) ? document.pages : [];
-
-  // Determine active page
-  let currentPage = null;
-  if (activePageId) {
-    currentPage = pages.find((p) => p.id === activePageId);
-  } else if (activePageSlug) {
-    currentPage = pages.find((p) => p.slug === activePageSlug);
-  } else {
-    currentPage = pages.find((p) => p.slug === internalPageSlug) || pages[0];
-  }
-
-  if (!currentPage && pages.length > 0) {
-    currentPage = pages[0];
-  }
 
   const handleNavigate = (url: string) => {
     if (onNavigate) {
@@ -112,6 +80,38 @@ export function WebsiteRenderer({
       }
     }
   };
+
+  // Automatic routing for V3 visual documents
+  if (docAny?.schemaVersion === '3.0') {
+    return (
+      <V3WebsiteRenderer
+        document={document as WebsiteDocumentV3}
+        activePageId={activePageId}
+        activePageSlug={activePageSlug}
+        isEditing={isEditing}
+        className={className}
+        style={style}
+        tenantSlug={tenantSlug || docAny?.settings?.subdomain || docAny?.slug || null}
+        cms={cms}
+        activeRecord={activeRecord}
+        onNavigate={handleNavigate}
+      />
+    );
+  }
+
+  // Determine active page
+  let currentPage = null;
+  if (activePageId) {
+    currentPage = pages.find((p) => p.id === activePageId);
+  } else if (activePageSlug) {
+    currentPage = pages.find((p) => p.slug === activePageSlug);
+  } else {
+    currentPage = pages.find((p) => p.slug === internalPageSlug) || pages[0];
+  }
+
+  if (!currentPage && pages.length > 0) {
+    currentPage = pages[0];
+  }
 
   return (
     <ThemeProvider theme={document.theme} className={className} style={style}>
